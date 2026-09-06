@@ -2,7 +2,7 @@
 #include <deki/Engine.h>
 #include <deki/Storage.h>
 
-int DekiMain()
+int Deki::Main()
 {
     if (!Deki::Engine::Initialize())
     {
