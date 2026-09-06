@@ -1,0 +1,11 @@
+Deki Engine
+Copyright 2024-2026 the Deki authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository bundles third-party code:
+
+  nlohmann/json (third_party/nlohmann/json.hpp)
+    Copyright (c) 2013-2025 Niels Lohmann <https://nlohmann.me>
+    MIT License — https://github.com/nlohmann/json
+    The full license text is in the header of that file.

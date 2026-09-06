@@ -1,0 +1,315 @@
+#include <deki/reflection/ComponentRegistry.h>
+#include <deki/LogSystem.h>
+#include <algorithm>
+#include <cstdio>
+
+namespace Deki
+{
+
+
+ComponentRegistry& ComponentRegistry::Instance()
+{
+    static ComponentRegistry instance;
+    return instance;
+}
+
+#ifndef DEKI_EDITOR
+void ComponentRegistry::IndexInsertOrReplace(const ComponentMeta* meta)
+{
+    auto it = std::lower_bound(
+        m_TypeIndex.begin(), m_TypeIndex.end(), meta->typeId,
+        [](const TypeIndexEntry& e, uint32_t id)
+        { return e.typeId < id; });
+
+    if (it != m_TypeIndex.end() && it->typeId == meta->typeId)
+    {
+        it->meta = meta;
+        return;
+    }
+    m_TypeIndex.insert(it, TypeIndexEntry{ meta->typeId, meta });
+}
+#endif
+
+void ComponentRegistry::Register(const ComponentMeta* meta)
+{
+    if (!meta) return;
+
+    // The indexed lookup answers "already registered?" without scanning
+    // m_Components, which made startup registration quadratic. The scan is
+    // kept only for the rare hot-reload replacement.
+    if (const ComponentMeta* existing = GetMeta(meta->typeId))
+    {
+        if (existing == meta) return;  // Same pointer, skip
+        for (size_t i = 0; i < m_Components.size(); ++i)
+        {
+            if (m_Components[i]->typeId == meta->typeId)
+            {
+                m_Components[i] = meta;  // Hot reload: replace old meta with new one
+                break;
+            }
+        }
+#ifdef DEKI_EDITOR
+        m_ByType[meta->typeId] = meta;
+        m_ByName[meta->serializedName] = meta;
+#else
+        IndexInsertOrReplace(meta);
+#endif
+        return;
+    }
+
+    m_Components.push_back(meta);
+
+#ifdef DEKI_EDITOR
+    m_ByType[meta->typeId] = meta;
+    m_ByName[meta->serializedName] = meta;
+#else
+    IndexInsertOrReplace(meta);
+#endif
+}
+
+const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
+{
+#ifdef DEKI_EDITOR
+    auto it = m_ByType.find(typeId);
+    if (it != m_ByType.end())
+    {
+        return it->second;
+    }
+#else
+    // Binary search the sorted type index. This used to be a linear scan of
+    // m_Components, which was fine when "a small number of components" meant
+    // the engine's own — with packages registering theirs it grew, and GetMeta
+    // runs per component per object during scene deserialization.
+    auto it = std::lower_bound(
+        m_TypeIndex.begin(), m_TypeIndex.end(), typeId,
+        [](const TypeIndexEntry& e, uint32_t id)
+        { return e.typeId < id; });
+    if (it != m_TypeIndex.end() && it->typeId == typeId)
+    {
+        return it->meta;
+    }
+#endif
+    return nullptr;
+}
+
+// ============================================================================
+// Compact field tables (all platforms)
+// ============================================================================
+
+// m_FieldTables is kept sorted by typeId so GetFields is a binary search,
+// the same reason GetMeta moved off a linear scan: it runs per component per
+// object while a scene loads, and packages have made the type count grow.
+void ComponentRegistry::RegisterFields(uint32_t typeId, const FieldRef* fields, int count)
+{
+    if (!fields || count <= 0) return;
+
+    auto it = std::lower_bound(m_FieldTables.begin(), m_FieldTables.end(), typeId,
+                               [](const FieldTable& t, uint32_t id) { return t.typeId < id; });
+    if (it != m_FieldTables.end() && it->typeId == typeId)
+    {
+        // Hot reload: the package DLL was rebuilt, adopt the new table.
+        it->fields = fields;
+        it->count = count;
+        return;
+    }
+    m_FieldTables.insert(it, { typeId, fields, count });
+}
+
+const FieldRef* ComponentRegistry::GetFields(uint32_t typeId, int& outCount) const
+{
+    auto it = std::lower_bound(m_FieldTables.begin(), m_FieldTables.end(), typeId,
+                               [](const FieldTable& t, uint32_t id) { return t.typeId < id; });
+    if (it != m_FieldTables.end() && it->typeId == typeId)
+    {
+        outCount = it->count;
+        return it->fields;
+    }
+    outCount = 0;
+    return nullptr;
+}
+
+const FieldRef* ComponentRegistry::FindField(uint32_t typeId, uint32_t nameHash) const
+{
+    int count = 0;
+    const FieldRef* fields = GetFields(typeId, count);
+    for (int i = 0; i < count; ++i)
+    {
+        if (fields[i].nameHash == nameHash)
+            return &fields[i];
+    }
+    return nullptr;
+}
+
+#ifdef DEKI_EDITOR
+
+const ComponentMeta* ComponentRegistry::GetMeta(const std::string& name) const
+{
+    auto it = m_ByName.find(name);
+    if (it != m_ByName.end())
+    {
+        return it->second;
+    }
+    return nullptr;
+}
+
+Component* ComponentRegistry::CreateComponent(uint32_t typeId) const
+{
+    const auto* meta = GetMeta(typeId);
+    if (meta && meta->createFunc && !meta->isAbstract)
+    {
+        return meta->createFunc();
+    }
+    return nullptr;
+}
+
+Component* ComponentRegistry::CreateComponent(const std::string& name) const
+{
+    const auto* meta = GetMeta(name);
+    if (meta && meta->createFunc && !meta->isAbstract)
+    {
+        return meta->createFunc();
+    }
+    if (!meta)
+    {
+        DEKI_LOG(LogLevel::Warning, "CreateComponent('%s') -> meta NOT FOUND", name.c_str());
+    }
+    return nullptr;
+}
+
+const ComponentMeta* ComponentRegistry::GetMetaByClassName(const std::string& className) const
+{
+    for (const auto* meta : m_Components)
+    {
+        if (meta->name && className == meta->name)
+        {
+            return meta;
+        }
+    }
+    return nullptr;
+}
+
+const std::vector<const ComponentMeta*>& ComponentRegistry::GetAllComponents() const
+{
+    return m_Components;
+}
+
+std::vector<const ComponentMeta*> ComponentRegistry::GetComponentsByCategory(const std::string& category) const
+{
+    std::vector<const ComponentMeta*> result;
+    for (const auto* meta : m_Components)
+    {
+        if (meta->category && category == meta->category)
+        {
+            result.push_back(meta);
+        }
+    }
+    return result;
+}
+
+std::vector<std::string> ComponentRegistry::GetCategories() const
+{
+    std::vector<std::string> categories;
+    for (const auto* meta : m_Components)
+    {
+        if (meta->category)
+        {
+            std::string cat = meta->category;
+            if (std::find(categories.begin(), categories.end(), cat) == categories.end())
+            {
+                categories.push_back(cat);
+            }
+        }
+    }
+    std::sort(categories.begin(), categories.end());
+    return categories;
+}
+
+void ComponentRegistry::RegisterPluginComponent(const ComponentMeta* meta)
+{
+    Register(meta);
+    if (meta)
+    {
+        m_PluginTypeIds.insert(meta->typeId);
+        if (meta->serializedName)
+            m_PluginTypeToName[meta->typeId] = meta->serializedName;
+    }
+}
+
+void ComponentRegistry::ClearPluginComponents()
+{
+    // Remove plugin components using stored typeIds and names — avoids
+    // dereferencing ComponentMeta* pointers that may be stale if the
+    // plugin DLL was already unloaded.
+    for (uint32_t typeId : m_PluginTypeIds)
+    {
+        m_ByType.erase(typeId);
+        auto nameIt = m_PluginTypeToName.find(typeId);
+        if (nameIt != m_PluginTypeToName.end())
+            m_ByName.erase(nameIt->second);
+    }
+
+    // Rebuild m_Components from m_ByType (avoids pointer dereferences)
+    m_Components.clear();
+    for (const auto& [typeId, meta] : m_ByType)
+        m_Components.push_back(meta);
+
+    m_PluginTypeIds.clear();
+    m_PluginTypeToName.clear();
+}
+
+bool ComponentRegistry::IsPluginComponent(uint32_t typeId) const
+{
+    return m_PluginTypeIds.count(typeId) > 0;
+}
+
+void ComponentRegistry::Unregister(uint32_t typeId)
+{
+    auto it = m_Components.begin();
+    while (it != m_Components.end())
+    {
+        if ((*it)->typeId == typeId)
+        {
+            m_ByType.erase(typeId);
+            if ((*it)->serializedName)
+                m_ByName.erase((*it)->serializedName);
+            it = m_Components.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void ComponentRegistry::FreezeEngineComponents()
+{
+    m_EngineTypeIds.clear();
+    for (const auto* meta : m_Components)
+        m_EngineTypeIds.insert(meta->typeId);
+
+    // Snapshot the entire engine-core state so ClearNonEngineComponents can
+    // restore from it without dereferencing any pointers (which may be stale
+    // if package/plugin DLLs were unloaded between freeze and clear).
+    m_FrozenComponents = m_Components;
+    m_FrozenByType = m_ByType;
+    m_FrozenByName = m_ByName;
+    m_FrozenFieldTables = m_FieldTables;
+}
+
+void ComponentRegistry::ClearNonEngineComponents()
+{
+    // Restore from the frozen snapshot captured at FreezeEngineComponents().
+    // This avoids iterating m_Components and dereferencing ComponentMeta*
+    // pointers that may point into already-unloaded DLLs.
+    m_Components = m_FrozenComponents;
+    m_ByType = m_FrozenByType;
+    m_ByName = m_FrozenByName;
+    // Field tables point into package .gen.cpp statics, so they die with the DLL
+    // exactly like the metas do and are restored from the same snapshot.
+    m_FieldTables = m_FrozenFieldTables;
+    m_PluginTypeIds.clear();
+}
+
+#endif  // DEKI_EDITOR
+
+}  // namespace Deki
