@@ -35,7 +35,11 @@ public:
     DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the startup scene.")
 
     /** @brief SetupComponents to initialize in order (use ObjectRef picker in editor) */
+    // Boot scenes written before the camelCase rename spell this key
+    // setup_components; without the alias they loaded an empty list and the
+    // device came up with no display.
     DEKI_EXPORT
+    DEKI_RENAMED_FROM("setup_components")
     std::vector<ObjectRef<SetupComponent>> setupComponents;
 
     PlatformSetupComponent();
