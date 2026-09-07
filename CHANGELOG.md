@@ -4,6 +4,12 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.12.1
+
+### Added
+- `Object::AddComponent(Deki::TypeId<T>())` and `AddComponent("Game::Health")`
+  on every platform; the component factory is engine-internal.
+
 ## 0.12.0
 
 ### Breaking

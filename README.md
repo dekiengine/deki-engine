@@ -62,6 +62,18 @@ scene files: renaming one is a file-format change, done with
 | `src/` | Implementation, and the engine-internal headers (`LifecycleManager.h`, `MissingComponent.h`, `AuthoredFormat.h`, the provider registry) that only the editor's own binaries include, via the `deki-engine-internal` target |
 | `tools/`, `cmake/` | The reflection code generator and its CMake driver |
 
+## Using components from code
+
+```cpp
+auto* health = obj->AddComponent<Health>();            // by type
+Component* c  = obj->AddComponent(Deki::TypeId<Health>());  // by id, any platform
+Component* d  = obj->AddComponent("Game::Health");      // by qualified name
+auto* again   = obj->GetComponent<Health>();            // base types match too
+```
+
+That is the whole runtime API for components; the factory and registries
+behind it are engine-internal.
+
 ## Contributing and license
 
 See the editor repository's [CONTRIBUTING.md](https://github.com/dekiengine/deki-editor/blob/master/CONTRIBUTING.md)

@@ -12,6 +12,7 @@
 #ifndef DEKI_EDITOR
 #include <deki/Scene.h>
 #else
+#include <deki/reflection/ComponentFactory.h>
 #include <deki/reflection/ComponentRegistry.h>
 #include "reflection/LegacyTypeNames.h"
 #endif
@@ -507,12 +508,30 @@ void Object::SetScaleY(float newScaleY)
     MarkWorldTransformDirty();
 }
 
-#ifdef DEKI_EDITOR
-Component* Object::AddComponent(const std::string& typeName)
+Component* Object::AddComponent(ComponentType typeId)
 {
-    return AddComponent(typeName, {});
+    Component* comp = ComponentFactory::Instance().Create(typeId);
+    if (!comp)
+    {
+        DEKI_LOG(LogLevel::Warning,
+                 "AddComponent: no registered component class has type id 0x%08x (object='%s' id=%u)",
+                 typeId, name.c_str(), id);
+        return nullptr;
+    }
+    AddComponent(comp);
+    return comp;
 }
 
+Component* Object::AddComponent(const std::string& typeName)
+{
+#ifdef DEKI_EDITOR
+    return AddComponent(typeName, {});
+#else
+    return AddComponent(HashString(typeName.c_str()));
+#endif
+}
+
+#ifdef DEKI_EDITOR
 Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)
 {
     auto& registry = ComponentRegistry::Instance();
