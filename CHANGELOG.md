@@ -4,6 +4,20 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.12.0
+
+### Breaking
+- `Deki::Behaviour` lost `NeedsUpdate()`, `SetNeedsUpdate()` and the flag
+  behind them. `LifecycleManager` calls `Update()` on exactly the behaviours
+  whose class declares it (`ComponentTypeInfo::declaresUpdate`). Reflection
+  ABI 8.
+
+### Added
+- `MakeHandWrittenTypeInfo<T, Base>()` names the direct component base, and
+  `AddComponent<T>` keeps an entry the constructor attached, so a hand-written
+  class (a test renderer deriving from RendererComponent) is found by base
+  type like a reflected one.
+
 ## 0.11.1
 
 ### Fixed

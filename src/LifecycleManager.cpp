@@ -265,11 +265,10 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
 
     for (auto* behaviour : allBehaviours)
     {
-        // DeclaresUpdate() is generated from the class declaration (no Update
-        // member, no call); NeedsUpdate() is the instance's runtime opt-out.
-        // Neither used to be consulted: every started behaviour paid a virtual
-        // call per frame whether or not it had anything to run.
-        if (!behaviour->DeclaresUpdate() || !behaviour->NeedsUpdate())
+        // DeclaresUpdate() comes from the class declaration: no Update member,
+        // no call. It used not to be consulted, so every started behaviour paid
+        // a virtual call per frame whether or not it had anything to run.
+        if (!behaviour->DeclaresUpdate())
             continue;
         Object* owner = behaviour->GetOwner();
         if (owner && owner->IsActiveInHierarchy() && behaviour->HasStarted())

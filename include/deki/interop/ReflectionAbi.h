@@ -106,8 +106,13 @@ struct DekiReflectionAbi
  *    a component's identity is the hash of its qualified class name instead of
  *    a declared GUID. sizeofDekiComponent catches the size, the version bump
  *    catches the vtable.
+ *
+ * 8: engine 0.12 dropped Deki::Behaviour::NeedsUpdate() (a virtual) and its
+ *    flag. Declaring Update() is the only thing that makes it run. A slot
+ *    left the Behaviour vtable, so a v7 package would call the wrong function
+ *    through every virtual after it.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 7;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 8;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

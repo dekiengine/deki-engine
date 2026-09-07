@@ -71,8 +71,8 @@ the submodule pointer in the editor.
 the optional providers packages install. One loop serves both hosts
 (`Deki::EngineHost::Device()` / `Editor()`): poll input → power tick → time →
 `ProcessLifecycle` (`ProcessInternalAwake` resolves refs, then Awake, Start,
-Update for behaviours whose class declares `Update` and whose `NeedsUpdate()`
-holds, `RuntimeUpdate`) → callbacks → `Render()` → `PresentFrame()` (partial
+Update for behaviours whose class declares `Update` (no per-instance switch
+since 0.12), `RuntimeUpdate`) → callbacks → `Render()` → `PresentFrame()` (partial
 present through `Deki::IDisplay::PresentRegions` when the display can). Package
 systems hook the frame through `Deki::Engine::RegisterUpdate` and the generated
 `deki_init_package_systems()`.

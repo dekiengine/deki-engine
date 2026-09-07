@@ -123,7 +123,25 @@ private:
  *        Update() runs; it has no deserializer, so scenes cannot load it unless
  *        `meta` supplies a createFunc of its own.
  */
-template <class T>
+namespace detail
+{
+template <class T, class Base>
+constexpr ComponentType HandWrittenBaseId()
+{
+    if constexpr (std::is_void<Base>::value)
+        return std::is_base_of<Behaviour, T>::value ? TypeId<Behaviour>() : TypeId<Component>();
+    else
+        return TypeId<Base>();
+}
+}  // namespace detail
+
+/**
+ * `Base` names the direct component base when it is not Deki::Behaviour /
+ * Deki::Component itself (a test renderer deriving from RendererComponent), so
+ * lookups by base type find the instance. A class that builds its own entry
+ * attaches it with SetTypeInfo() in its constructor; AddComponent<T> keeps it.
+ */
+template <class T, class Base = void>
 constexpr ComponentTypeInfo MakeHandWrittenTypeInfo(bool declaresUpdate, const ComponentMeta* meta = nullptr,
                                                     ComponentType typeId = TypeId<T>(), const char* name = TypeName<T>())
 {
@@ -132,7 +150,7 @@ constexpr ComponentTypeInfo MakeHandWrittenTypeInfo(bool declaresUpdate, const C
         name,
         TypeShortName<T>(),
         typeId,
-        std::is_base_of<Behaviour, T>::value ? TypeId<Behaviour>() : TypeId<Component>(),
+        detail::HandWrittenBaseId<T, Base>(),
         std::is_abstract<T>::value,
         declaresUpdate,
         nullptr, nullptr, nullptr, nullptr,

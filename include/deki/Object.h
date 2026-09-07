@@ -232,7 +232,10 @@ public:
     T* AddComponent(Args&&... args)
     {
         T* component = new T(std::forward<Args>(args)...);
-        component->SetTypeInfo(TypeInfoFor<T>());
+        // A hand-written class may attach its own entry in its constructor;
+        // otherwise the registered (or fallback) entry for T is used.
+        if (!component->GetTypeInfo())
+            component->SetTypeInfo(TypeInfoFor<T>());
         component->SetOwner(this);
         components.push_back(component);
         return component;
