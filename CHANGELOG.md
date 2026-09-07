@@ -4,11 +4,19 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.12.2
+
+### Changed
+- `AddComponent<T>()` is the one way a script adds a component. The by-id and
+  device-side by-name forms added in 0.12.1 are withdrawn; the by-name form
+  stays editor-only, for the editor's own commands and the scene loader.
+
 ## 0.12.1
 
 ### Added
 - `Object::AddComponent(Deki::TypeId<T>())` and `AddComponent("Game::Health")`
-  on every platform; the component factory is engine-internal.
+  on every platform; the component factory is engine-internal. (Withdrawn in
+  0.12.2.)
 
 ## 0.12.0
 

@@ -65,14 +65,13 @@ scene files: renaming one is a file-format change, done with
 ## Using components from code
 
 ```cpp
-auto* health = obj->AddComponent<Health>();            // by type
-Component* c  = obj->AddComponent(Deki::TypeId<Health>());  // by id, any platform
-Component* d  = obj->AddComponent("Game::Health");      // by qualified name
-auto* again   = obj->GetComponent<Health>();            // base types match too
+auto* health = obj->AddComponent<Health>();   // constructs it, attaches its class entry
+auto* again  = obj->GetComponent<Health>();   // base types match too
+obj->RemoveComponent<Health>();
 ```
 
-That is the whole runtime API for components; the factory and registries
-behind it are engine-internal.
+That is the whole runtime API for components. Creating one from a name or
+an id is what scene files and the editor do, through engine-internal paths.
 
 ## Contributing and license
 

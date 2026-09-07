@@ -4,10 +4,10 @@
  * @file ComponentFactory.h
  * @brief The table of every registered component class, keyed by type id.
  *
- * ENGINE-INTERNAL. Scripts and packages never need it: Deki::Object adds
- * components by type (`AddComponent<Health>()`), by id
- * (`AddComponent(Deki::TypeId<Health>())`) and by qualified name
- * (`AddComponent("Game::Health")`), and looks them up the same ways.
+ * ENGINE-INTERNAL. Scripts and packages never need it: a script adds a
+ * component with `obj->AddComponent<Health>()` and finds one with
+ * `obj->GetComponent<Health>()`. Only the editor and the scene loaders create
+ * components from a name or an id.
  *
  * Each package's generated registration hands its ComponentTypeInfo entries
  * here at startup (the engine core's, the packages', the project's). From then

@@ -251,23 +251,16 @@ public:
         components.push_back(component);
     }
 
+#ifdef DEKI_EDITOR
     /**
-     * @brief Add a component by type id, on every platform.
-     * @param typeId Deki::TypeId<T>() of a registered component class
-     * @return The new component, or nullptr when no such class is registered
-     *         (or it is abstract). The message names the id.
-     */
-    Component* AddComponent(ComponentType typeId);
-
-    /**
-     * @brief Add a component by its qualified class name ("Game::Health"), the
-     *        same string a scene file carries. On a device the name is hashed
-     *        and must match exactly; the editor also accepts a bare class name
-     *        and a 0.10 GUID.
+     * @brief Editor only: add a component by its qualified class name, the
+     *        string a scene file carries (a bare class name and a 0.10 GUID are
+     *        accepted too). This is how the editor's own commands, panels and
+     *        the scene loader add what the user picked; scripts use
+     *        AddComponent<T>().
      * @return The new component, or nullptr when the class is not registered
      */
     Component* AddComponent(const std::string& typeName);
-#ifdef DEKI_EDITOR
     /// Scene loader: the file's "type" plus its "class" hint for a renamed type.
     Component* AddComponent(const std::string& typeName, const std::string& classHint);
 #endif
