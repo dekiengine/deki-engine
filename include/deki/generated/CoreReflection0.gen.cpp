@@ -116,6 +116,7 @@ bool PlatformSetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
+            case ::Deki::HashString("setup_components"):  // DEKI_RENAMED_FROM
             case ::Deki::HashString("setupComponents"): {
                 uint32_t arrSize;
                 if (parser.ReadArraySize(arrSize)) {
@@ -181,11 +182,12 @@ void PlatformSetupComponent::RemapObjectRefs(const std::unordered_map<uint32_t, 
 const ::Deki::FieldRef* PlatformSetupComponent::GetFields() {
     static const ::Deki::FieldRef fields[] = {
         { ::Deki::HashString("setupComponents"), (uint16_t)offsetof(PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },
+        { ::Deki::HashString("setup_components"), (uint16_t)offsetof(PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },  // DEKI_RENAMED_FROM
     };
     return fields;
 }
 
-int PlatformSetupComponent::GetFieldCount() { return 1; }
+int PlatformSetupComponent::GetFieldCount() { return 2; }
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -196,7 +198,7 @@ int PlatformSetupComponent::GetFieldCount() { return 1; }
 const ::Deki::PropertyInfo* PlatformSetupComponent::GetProperties() {
     static const ::Deki::PropertyInfo props[] = {
     { "setupComponents", nullptr, ::Deki::PropertyType::Array, offsetof(PlatformSetupComponent, setupComponents),
-      nullptr, 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::ObjectRef, nullptr, 0, 0, "SetupComponent", false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
+      nullptr, 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::ObjectRef, nullptr, 0, 0, "SetupComponent", false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, "setup_components" }
     };
     return props;
 }
