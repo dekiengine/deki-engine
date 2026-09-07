@@ -28,8 +28,6 @@ namespace Deki
 class Behaviour : public Component
 {
 public:
-    static constexpr ComponentType StaticType = HashString("DekiBehaviour");
-
     Behaviour()
         : m_HasAwoken(false), m_HasStarted(false), m_NeedsUpdate(true)  // opt-out; see NeedsUpdate()
     {
@@ -37,8 +35,6 @@ public:
 
     virtual ~Behaviour() = default;
 
-    ComponentType GetType() const override { return StaticType; }
-    ComponentType GetBaseType() const override { return Component::StaticType; }
     Behaviour* AsBehaviour() override { return this; }
 
     /**

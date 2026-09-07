@@ -19,7 +19,7 @@
  *
  * ComponentInterfaceAdapters::Register(
  *     ISortableProvider::InterfaceID,
- *     MyComponent::StaticType,
+ *     ::Deki::TypeId<MyComponent>(),
  *     [](Component* c) -> void* {
  *         return static_cast<ISortableProvider*>(static_cast<MyComponent*>(c));
  *     });

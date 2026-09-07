@@ -3,47 +3,63 @@
 #include <cstdint>
 #include <unordered_map>
 
-/**
- * @brief Type alias for component type identification
- */
+#include <deki/TypeId.h>
 
 namespace Deki
 {
 
-using ComponentType = uint32_t;
-
 // Forward declarations
 class Object;
 class Behaviour;
+class Component;
 class Scene;
+struct FieldRef;
+struct ComponentMeta;
 namespace SceneFormat
 {
 class SceneMsgPackParser;
 }
 
 /**
- * @brief Compile-time string hash for consistent type IDs across translation units
+ * @brief Everything the engine knows about one component class.
+ *
+ * One of these exists per reflected class, emitted by the reflection codegen
+ * into the owning package's generated sources and registered with
+ * ComponentFactory at startup. A component instance points at its class's
+ * entry (Component::GetTypeInfo), which is how GetType(), Deserialize() and
+ * the reference fixups work without the class declaring anything itself.
+ *
+ * All strings are literals with static storage.
  */
-constexpr uint32_t HashString(const char* str, uint32_t hash = 2166136261u)
+struct ComponentTypeInfo
 {
-    return (*str == 0) ? hash : HashString(str + 1, (hash ^ static_cast<uint32_t>(*str)) * 16777619u);
-}
+    const char* name;           // fully qualified C++ name: the on-disk key; HashString(name) == typeId
+    const char* shortName;      // the identifier alone, for display and the scene file's "class" hint
+    ComponentType typeId;       // TypeId<T>()
+    ComponentType baseTypeId;   // TypeId of the direct component base (Deki::Behaviour, Deki::Component, or a user base)
+    bool isAbstract;            // no create()
+    bool declaresUpdate;        // the class (or a reflected base) declares Update(); see Component::DeclaresUpdate
 
-/**
- * @brief Runtime string hash with length (for msgpack strings without null terminator)
- */
-inline uint32_t HashStringLen(const char* str, uint16_t length)
-{
-    uint32_t hash = 2166136261u;
-    for (uint16_t i = 0; i < length; i++)
-    {
-        hash = (hash ^ static_cast<uint32_t>(str[i])) * 16777619u;
-    }
-    return hash;
-}
+    Component* (*create)();     // new instance with its type info set; nullptr when abstract
+    bool (*deserialize)(Component* self, SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
+    void (*resolveObjectRefs)(Component* self, Scene* scene);
+    void (*remapObjectRefs)(Component* self, const std::unordered_map<uint32_t, uint32_t>& idRemap);
+
+    const FieldRef* fields;     // flattened field table (own + inherited), every platform
+    int fieldCount;
+
+    const ComponentMeta* meta;  // editor-only rich metadata; nullptr on device builds
+};
 
 /**
  * @brief Base class for all components (data-only)
+ *
+ * A component is any class deriving publicly from Component (or Behaviour, for
+ * lifecycle callbacks). Nothing else is declared: the reflection codegen finds
+ * the class by its base, its identity is its qualified name (see TypeId.h) and
+ * the per-class operations below run through the ComponentTypeInfo the engine
+ * attaches when the instance is created (AddComponent<T>, the scene loader,
+ * the factory).
  *
  * Component provides:
  * - Runtime type identification via GetType()/GetBaseType()
@@ -55,18 +71,35 @@ inline uint32_t HashStringLen(const char* str, uint16_t length)
 class Component
 {
 public:
-    static constexpr ComponentType StaticType = 0;
-
     Component()
-        : m_Owner(nullptr), m_RefsResolved(false) {}
+        : m_Owner(nullptr), m_TypeInfo(nullptr), m_RefsResolved(false) {}
     virtual ~Component() = default;
 
     // Prevent copying - components have unique identity and owner
     Component(const Component&) = delete;
     Component& operator=(const Component&) = delete;
 
-    virtual ComponentType GetType() const = 0;
-    virtual ComponentType GetBaseType() const { return 0; }
+    /**
+     * @brief The class's type id (TypeId<T>()), 0 for an instance with no type info.
+     */
+    ComponentType GetType() const { return m_TypeInfo ? m_TypeInfo->typeId : 0; }
+
+    /**
+     * @brief The direct component base's type id, so GetComponent<Base>() finds subclasses.
+     */
+    ComponentType GetBaseType() const { return m_TypeInfo ? m_TypeInfo->baseTypeId : 0; }
+
+    /**
+     * @brief The class entry this instance runs through. nullptr only for an
+     *        instance created outside the engine's paths (a bare `new`).
+     */
+    const ComponentTypeInfo* GetTypeInfo() const { return m_TypeInfo; }
+
+    /**
+     * @brief Attach the class entry. Called by AddComponent<T>, the factory and
+     *        the scene loader; user code never needs it.
+     */
+    void SetTypeInfo(const ComponentTypeInfo* info) { m_TypeInfo = info; }
 
     // Type casting without RTTI (for -fno-rtti builds)
     virtual Behaviour* AsBehaviour() { return nullptr; }
@@ -74,14 +107,11 @@ public:
     /**
      * @brief Does this class (or a reflected base) declare Update()?
      *
-     * Generated by the reflection codegen for every DEKI_COMPONENT: true when
-     * the class itself declares an Update member, otherwise whatever the
-     * reflected base answers. LifecycleManager only calls Update() on
-     * behaviours that answer true, so a behaviour with no Update costs nothing
-     * per frame. Hand-written components outside the codegen (tests) override
-     * it themselves.
+     * Answered by the reflection codegen from the class declaration.
+     * LifecycleManager only calls Update() on behaviours that answer true, so a
+     * behaviour with no Update costs nothing per frame.
      */
-    virtual bool DeclaresUpdate() const { return false; }
+    bool DeclaresUpdate() const { return m_TypeInfo && m_TypeInfo->declaresUpdate; }
 
     // Owner access
     Object* GetOwner() const { return m_Owner; }
@@ -152,34 +182,33 @@ public:
      * @param mapSize Number of key-value pairs in the data map
      * @return true if deserialization succeeded
      *
-     * Generated by the reflection codegen for each component.
-     * Uses hash-switch on property names for performance.
+     * Runs the codegen's hash-switch deserializer for this class. An instance
+     * without type info skips the map so the parser stays in step.
      */
-    virtual bool Deserialize(SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize)
-    {
-        (void)parser;
-        (void)mapSize;
-        return true;
-    }
+    bool Deserialize(SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
     /**
      * @brief Resolve all ObjectRef properties in this component
      * @param scene The scene to look up objects in
      *
-     * Generated by the reflection codegen for components with ObjectRef properties.
      * Called by LifecycleManager before Awake() to resolve ObjectRef.id → ObjectRef.resolved.
      * Zero-overhead: direct field access, no metadata iteration.
      */
-    virtual void ResolveObjectRefs(Scene* scene) { (void)scene; }
+    void ResolveObjectRefs(Scene* scene)
+    {
+        if (m_TypeInfo && m_TypeInfo->resolveObjectRefs) m_TypeInfo->resolveObjectRefs(this, scene);
+    }
 
     /**
      * @brief Remap ObjectRef IDs after cloning/instantiation
      * @param idRemap Map of old object ID → new object ID
      *
-     * Generated by the reflection codegen for components with ObjectRef properties.
      * Called after Instantiate() to update ObjectRef.id fields to new unique IDs.
      */
-    virtual void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) { (void)idRemap; }
+    void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap)
+    {
+        if (m_TypeInfo && m_TypeInfo->remapObjectRefs) m_TypeInfo->remapObjectRefs(this, idRemap);
+    }
 
     // Ref resolution tracking (prevents per-frame re-resolution in edit mode)
     bool HasRefsResolved() const { return m_RefsResolved; }
@@ -200,26 +229,8 @@ public:
 
 protected:
     Object* m_Owner;
+    const ComponentTypeInfo* m_TypeInfo;
     bool m_RefsResolved;
 };
-
-/**
- * @brief Declare component type with consistent type ID across translation units
- *
- * Uses FNV-1a hash of the type name to generate a unique, stable type ID.
- * This ensures the same type ID is generated regardless of which .cpp file
- * includes the header.
- */
-#define DECLARE_COMPONENT_TYPE(TypeName, BaseTypeName)                        \
-    static constexpr ::Deki::ComponentType StaticType = ::Deki::HashString(#TypeName);    \
-    static constexpr ::Deki::ComponentType BaseStaticType = BaseTypeName::StaticType; \
-    ::Deki::ComponentType GetType() const override                                    \
-    {                                                                         \
-        return StaticType;                                                    \
-    }                                                                         \
-    ::Deki::ComponentType GetBaseType() const override                                \
-    {                                                                         \
-        return BaseStaticType;                                                \
-    }
 
 }  // namespace Deki

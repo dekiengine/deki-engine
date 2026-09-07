@@ -23,12 +23,11 @@
 namespace Deki
 {
 
+DEKI_CATEGORY("Settings")
+DEKI_SETTINGS_SECTION("Framebuffer")
 class DisplayProjectSettings : public Component
 {
 public:
-    DEKI_COMPONENT(DisplayProjectSettings, Component, "Settings",
-                   "1c8e7f24-3a9b-4d52-8e6c-f1a40b2d9e83", "")
-    DEKI_PROJECT_SETTINGS_SECTION("Framebuffer")
 
     DEKI_TOOLTIP("Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.")
     DEKI_RANGE(1, 4096)
@@ -45,6 +44,5 @@ public:
     ColorFormat colorFormat = ColorFormat::RGB565;
 };
 
-#include "deki/generated/DisplayProjectSettings.gen.h"
 
 }  // namespace Deki

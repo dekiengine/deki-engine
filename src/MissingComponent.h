@@ -26,11 +26,18 @@ class MissingComponent : public Component
 public:
     static constexpr ComponentType StaticType = HashString("__MissingComponent__");
 
-    ComponentType GetType() const override { return StaticType; }
-    ComponentType GetBaseType() const override { return 0; }
+    MissingComponent()
+    {
+        // Not a reflected class: it carries its own entry so GetType() answers
+        // StaticType and the scene writers can tell it apart.
+        m_Info.name = "__MissingComponent__";
+        m_Info.shortName = "MissingComponent";
+        m_Info.typeId = StaticType;
+        SetTypeInfo(&m_Info);
+    }
 
     uint32_t m_OriginalTypeId = 0;
-    std::string m_TypeName;  // The serialized name / GUID string from the scene file
+    std::string m_TypeName;  // The serialized type name from the scene file
 
     // MessagePack data (runtime path)
     std::vector<uint8_t> m_RawData;  // Raw msgpack bytes of the data map contents
@@ -41,6 +48,9 @@ public:
     nlohmann::json m_JsonProperties;  // Preserved JSON properties object
     std::string m_ClassName;          // Class-name hint carried through from "class" JSON field
 #endif
+
+private:
+    ComponentTypeInfo m_Info{};
 };
 
 }  // namespace Deki

@@ -17,12 +17,11 @@
 namespace Deki
 {
 
+DEKI_CATEGORY("Settings")
+DEKI_SETTINGS_SECTION("Core")
 class CoreProjectSettings : public Component
 {
 public:
-    DEKI_COMPONENT(CoreProjectSettings, Component, "Settings",
-                   "6b2f4d17-8c93-4a5e-b0d6-27e91fa3c845", "")
-    DEKI_PROJECT_SETTINGS_SECTION("Core")
 
     DEKI_TOOLTIP("Cap play-mode FPS at the target frame rate below. Disable to let the game run at the editor's refresh rate (typically 60 Hz with vsync).")
     DEKI_EXPORT
@@ -34,6 +33,5 @@ public:
     int32_t targetFps = 60;
 };
 
-#include "deki/generated/CoreProjectSettings.gen.h"
 
 }  // namespace Deki

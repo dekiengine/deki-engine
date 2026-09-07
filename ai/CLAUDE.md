@@ -27,9 +27,11 @@ the submodule pointer in the editor.
   through `deki-engine-internal` (editor exe, editor DLL, tests). Never put a
   header a package needs in `src/`. Consumers migrate with
   `deki-editor/tools/migrate-includes.py`.
-- `include/deki/reflection/`: `Property.h` (`DEKI_COMPONENT`, `DEKI_EXPORT`,
-  attributes incl. `DEKI_RENAMED_FROM`), `ComponentRegistry`, `ComponentFactory`,
-  `SettingsRegistry`, `ObjectRef`.
+- `include/deki/reflection/`: `Property.h` (`DEKI_EXPORT`, attributes incl.
+  `DEKI_RENAMED_FROM`, the `DEKI_CATEGORY`/`DEKI_DESCRIPTION` markers that go ABOVE
+  a class), `ComponentRegistry`, `ComponentFactory` (+ `TypeInfoFor<T>`),
+  `SettingsRegistry`, `ObjectRef`. `include/deki/TypeId.h`: a component's id is
+  the hash of its qualified class name (`TypeId<T>()`), no GUIDs since 0.11.
 - `include/deki/assets/`: `AssetManager`, `AssetRef<T>`, `AssetPackReader`.
 - `include/deki/providers/`: the provider interfaces (`Deki::IDisplay`,
   `IFileSystem`, `IInputSystem`, `IPackage`, `IPower`, `IRenderSystem`,
@@ -37,7 +39,8 @@ the submodule pointer in the editor.
 - `include/deki/platforms/`: `esp32/`, `desktop/`; `src/platforms/editor/EditorDisplay.*` is internal.
 - `include/deki/interop/`: `Plugin.h` (package DLL exports), `ReflectionAbi.h`
   (`kDekiReflectionAbiVersion` and its changelog).
-- `include/deki/generated/`: codegen output; `.gen.h` ignored, `.gen.cpp` tracked.
+- `include/deki/generated/`: codegen output; the `.gen.cpp` are tracked (no
+  component header includes anything generated since 0.11).
 - `include/deki/settings/`: engine-owned project settings sections.
 - `entry/DekiMain.cpp`: the runtime entry point firmware and simulator builds compile.
 - `tools/reflection_codegen.cpp` + `cmake/DekiReflectionCodegen.cmake`: the
@@ -93,9 +96,11 @@ Rendering lives in the deki-rendering package (`Standard2DRenderer`,
 
 ## Adding things
 
-- New component: header with `DEKI_COMPONENT` + `DEKI_EXPORT` fields, `.cpp`
-  next to it; the build regenerates reflection at configure time. Declare
-  `Update()` only if needed. Reflected names are the file format.
+- New component: a class deriving PUBLICLY from `Deki::Component`/`Behaviour`
+  with public `DEKI_EXPORT` fields, `.cpp` next to it; nothing inside the class
+  declares it and no generated include. Optional `DEKI_CATEGORY`/`DEKI_DESCRIPTION`
+  above the class. The build regenerates reflection at configure time. Declare
+  `Update()` only if needed. Reflected names AND the class name are the file format.
 - New provider/platform: implement the `Deki::I*` interface in a package and
   install it from the package's `DekiPlugin_SystemInit`. ESP32-S3 and desktop
   are the targets.

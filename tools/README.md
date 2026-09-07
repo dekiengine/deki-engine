@@ -6,8 +6,8 @@ time from the C++ headers themselves, using **C++26 static reflection**.
 ## Files
 
 - `reflection_codegen.cpp` — the generator. Compiled and run at configure/build
-  time to emit `<Component>.gen.h` / `<Component>.gen.cpp` (property metadata,
-  hash-switch deserialization) plus the per-package `{Prefix}Registration.gen.cpp`
+  time to emit the per-package `{Prefix}Reflection0.gen.cpp` (type entries,
+  hash-switch deserialization, editor metadata) plus `{Prefix}Registration.gen.cpp`
   and, for the engine-core build, `CoreRegistration` + the aggregation files.
 - `../cmake/DekiReflectionCodegen.cmake` — the `deki_reflection_codegen()` helper
   that compiles the generator with a reflection-capable GCC and runs it over a
@@ -30,14 +30,23 @@ reflection-generated `.gen.cpp`.
 
 ## Authoring components
 
-Declare components with the `DEKI_COMPONENT` / `DEKI_EXPORT` macros and the
-generator discovers them by reflecting the type:
+A component is any class deriving publicly from `Deki::Component` or
+`Deki::Behaviour`; the generator discovers it by reflecting its bases, and its
+identity is its qualified class name (`Deki::TypeId<T>()`, see
+`include/deki/TypeId.h`). Optional markers above the class add editor metadata:
 
 ```cpp
-DEKI_COMPONENT(MyComponent)
-    DEKI_EXPORT float volume = 1.0f;
-    DEKI_EXPORT std::string format = "Format1";
-DEKI_COMPONENT_IMPL(MyComponent)
+DEKI_CATEGORY("Enemies")
+DEKI_DESCRIPTION("Hit points for anything that can be damaged.")
+class Health : public Deki::Component
+{
+public:
+    DEKI_EXPORT int hp = 10;
+};
 ```
 
-No manual registration or hand-written metadata is needed.
+Per package the generator writes one merged `{Prefix}Reflection0.gen.cpp` (a
+`ComponentTypeInfo` entry, deserializer, reference fixups, field table and
+editor metadata per class) and `{Prefix}Registration.gen.cpp`, which hands the
+entries to the factory and the registries. Nothing is included from a
+component header, and no manual registration exists.

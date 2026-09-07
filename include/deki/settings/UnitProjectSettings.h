@@ -21,12 +21,11 @@
 namespace Deki
 {
 
+DEKI_CATEGORY("Settings")
+DEKI_SETTINGS_SECTION("Units")
 class UnitProjectSettings : public Component
 {
 public:
-    DEKI_COMPONENT(UnitProjectSettings, Component, "Settings",
-                   "3eaf9b46-5c1d-4f74-af8e-132d6f4abca5", "")
-    DEKI_PROJECT_SETTINGS_SECTION("Units")
 
     DEKI_TOOLTIP("Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.")
     DEKI_EXPORT
@@ -44,6 +43,5 @@ public:
     }
 };
 
-#include "deki/generated/UnitProjectSettings.gen.h"
 
 }  // namespace Deki

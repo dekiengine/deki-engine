@@ -13,6 +13,7 @@
 #include <deki/providers/IFileSystem.h>
 #include <deki/SceneMessagePack.h>
 #include "MissingComponent.h"
+#include "reflection/LegacyTypeNames.h"
 #include <deki/Time.h>
 #include <deki/assets/AssetManager.h>
 
@@ -1331,7 +1332,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             if (value.is_object())
             {
                 ref.id = value.value("id", 0u);
-                ref.componentTypeId = value.value("typeId", 0u);
+                ref.componentTypeId = LegacyComponentTypeId(value.value("typeId", 0u));
             }
             else if (value.is_number_unsigned() || value.is_number_integer())
             {
@@ -1404,7 +1405,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                             if (item.is_object())
                             {
                                 ref.id = item.value("id", 0u);
-                                ref.componentTypeId = item.value("typeId", 0u);
+                                ref.componentTypeId = LegacyComponentTypeId(item.value("typeId", 0u));
                             }
                             else if (item.is_number_unsigned() || item.is_number_integer())
                             {

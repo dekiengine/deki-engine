@@ -45,10 +45,9 @@ struct SettingsTypeInfo
 /**
  * @brief Registry for package-extensible project-settings types.
  *
- * Packages declare settings types as ordinary DekiComponents tagged with
- * DEKI_PROJECT_SETTINGS_SECTION("..."), then call DEKI_REGISTER_PROJECT_SETTINGS
- * (engine-core) or DEKI_REGISTER_PROJECT_SETTINGS_PLUGIN (package DLL) at static
- * init. The editor's Project Settings panel iterates the registry and renders
+ * Packages declare settings types as ordinary components with a
+ * DEKI_SETTINGS_SECTION("...") marker above the class; the reflection codegen
+ * registers them here from the package's registration function. The editor's Project Settings panel iterates the registry and renders
  * each type's properties via the existing PropertyEditorFactory machinery —
  * tooltips, ranges, visibility conditions all work out of the box.
  *
@@ -86,7 +85,7 @@ public:
     template <typename T>
     T* Get()
     {
-        return static_cast<T*>(GetByTypeId(T::StaticType));
+        return static_cast<T*>(GetByTypeId(::Deki::TypeId<T>()));
     }
 
     /// All registered settings types (for the editor panel walk).
@@ -166,47 +165,5 @@ private:
     std::unordered_map<uint32_t, size_t> m_FrozenByTypeId;
 #endif
 };
-
-// ============================================================================
-// Auto-registration helpers (editor-only)
-// ============================================================================
-//
-// Place in the settings type's .cpp (or its package's *Registration.gen.cpp).
-// _PLUGIN variant is for package DLLs (cleanup-on-unload semantics).
-//
-// Usage in the .cpp:
-//   #include "RenderingProjectSettings.h"
-//   DEKI_REGISTER_PROJECT_SETTINGS_PLUGIN(RenderingProjectSettings)
-//
-// On embedded (non-DEKI_EDITOR) builds these expand to no-ops; settings are
-// hydrated from the runtime binary directly via ProjectSettings::Load.
-//
-
-#ifdef DEKI_EDITOR
-#define DEKI_REGISTER_PROJECT_SETTINGS(ClassName)      \
-    static struct ClassName##_SettingsRegistrar        \
-    {                                                  \
-        ClassName##_SettingsRegistrar()                \
-        {                                              \
-            ::Deki::SettingsRegistry::Instance().Register( \
-                ClassName::StaticSettingsSection,      \
-                &ClassName::GetComponentMeta());       \
-        }                                              \
-    } s_##ClassName##_SettingsRegistrar;
-
-#define DEKI_REGISTER_PROJECT_SETTINGS_PLUGIN(ClassName)     \
-    static struct ClassName##_SettingsRegistrar              \
-    {                                                        \
-        ClassName##_SettingsRegistrar()                      \
-        {                                                    \
-            ::Deki::SettingsRegistry::Instance().RegisterPlugin( \
-                ClassName::StaticSettingsSection,            \
-                &ClassName::GetComponentMeta());             \
-        }                                                    \
-    } s_##ClassName##_SettingsRegistrar;
-#else
-#define DEKI_REGISTER_PROJECT_SETTINGS(ClassName)        /* no-op on embedded */
-#define DEKI_REGISTER_PROJECT_SETTINGS_PLUGIN(ClassName) /* no-op on embedded */
-#endif
 
 }  // namespace Deki

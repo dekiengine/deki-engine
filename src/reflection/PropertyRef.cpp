@@ -1,7 +1,8 @@
 #include <deki/reflection/PropertyRef.h>
 
 #include <deki/reflection/ComponentRegistry.h>
-#include <deki/Component.h>  // DekiHashString
+#include <deki/Component.h>  // HashString
+#include "reflection/LegacyTypeNames.h"
 #include <deki/Object.h>
 
 #include <cstdlib>
@@ -13,6 +14,12 @@ namespace Deki
 
 void PropertyRef::Rehash()
 {
+#ifdef DEKI_EDITOR
+    // Authored before 0.11: the component is a GUID. Store the class name so
+    // the next save writes it.
+    if (const char* legacyName = LegacyComponentTypeName(component))
+        component = legacyName;
+#endif
     componentTypeId = component.empty() ? 0u : HashString(component.c_str());
     fieldHash = field.empty() ? 0u : HashString(field.c_str());
 }

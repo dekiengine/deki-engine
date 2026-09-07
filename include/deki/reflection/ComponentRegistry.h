@@ -228,34 +228,4 @@ private:
 #endif
 };
 
-// ============================================================================
-// Auto-registration helper macro (editor-only)
-// ============================================================================
-
-/**
- * @brief Automatically register a component at static initialization
- *
- * Uses GetComponentMeta() which returns a reference to a function-local static,
- * ensuring the metadata is initialized before first use (avoids SIOF).
- *
- * On embedded platforms, this macro is a no-op since:
- * - GetComponentMeta() is not declared (guarded by DEKI_EDITOR)
- * - ComponentRegistry is not needed for runtime scene loading
- *
- * Usage in .cpp file:
- *   REGISTER_COMPONENT(MyComponent)
- */
-#ifdef DEKI_EDITOR
-#define REGISTER_COMPONENT(ClassName)                                               \
-    static struct ClassName##_Registrar                                             \
-    {                                                                               \
-        ClassName##_Registrar()                                                     \
-        {                                                                           \
-            ::Deki::ComponentRegistry::Instance().Register(&ClassName::GetComponentMeta()); \
-        }                                                                           \
-    } s_##ClassName##_Registrar
-#else
-#define REGISTER_COMPONENT(ClassName) /* No-op on embedded */
-#endif
-
 }  // namespace Deki

@@ -2,21 +2,19 @@
 
 /**
  * @file ComponentFactory.h
- * @brief Simple component factory using a single hash map
+ * @brief The table of every registered component class, keyed by type id.
  *
- * All components (engine and plugins) register into one hash map.
- * Engine components auto-register via generated code.
- * Plugin/game components register at startup using REGISTER_RUNTIME_COMPONENT.
+ * Each package's generated registration hands its ComponentTypeInfo entries
+ * here at startup (the engine core's, the packages', the project's). From then
+ * on the scene loader creates components by id, and AddComponent<T> looks up
+ * the entry to attach to the instance it constructs.
  *
- * Usage:
- *   // Register a component (plugins/games do this at startup)
- *   REGISTER_RUNTIME_COMPONENT(MyComponent);
- *
- *   // Create any component by type ID
- *   auto* comp = ComponentFactory::Instance().Create(HashString("MyComponent"));
+ *   // Create any registered component by type id
+ *   auto* comp = ComponentFactory::Instance().Create(TypeId<Game::Health>());
  */
 
 #include <deki/Component.h>
+#include <type_traits>
 #include <unordered_map>
 
 // DLL export/import for ComponentFactory (editor builds only)
@@ -38,19 +36,10 @@
 namespace Deki
 {
 
-
-// ComponentFactory lives in Deki proper (engine 2.0); its parser sibling stays in Deki::SceneFormat.
-
 /**
- * @brief Function pointer type for component creators
- */
-using ComponentCreator = Component* (*)();
-
-/**
- * @brief Creates components by type id (see the file comment above).
+ * @brief Creates components by type id and answers "which class is this id".
  *
  * O(1) lookup for all components regardless of count.
- * ~48 bytes memory per registered component.
  */
 class COMPONENT_FACTORY_API ComponentFactory
 {
@@ -61,47 +50,48 @@ public:
     static ComponentFactory& Instance();
 
     /**
-     * @brief Register a component type for creation
-     * @param typeId Hash of component class name (use ClassName::StaticType)
-     * @param creator Function that creates a new instance
+     * @brief Register a component class (idempotent; a re-registration replaces
+     *        the entry, which is what a hot-reloaded package needs).
      */
-    void Register(uint32_t typeId, ComponentCreator creator)
+    void Register(const ComponentTypeInfo* info)
     {
-        m_Creators[typeId] = creator;
+        if (info) m_Types[info->typeId] = info;
     }
 
     /**
-     * @brief Unregister a component type
-     * @param typeId Hash of component class name
+     * @brief Forget a component class (package unload).
      */
     void Unregister(uint32_t typeId)
     {
-        m_Creators.erase(typeId);
+        m_Types.erase(typeId);
     }
 
     /**
-     * @brief Create a component by type ID
-     * @param typeId Hash of component class name
-     * @return New component instance, or nullptr if type not found
+     * @brief The class entry for a type id, or nullptr when unknown.
      */
-    Component* Create(uint32_t typeId)
+    const ComponentTypeInfo* Find(uint32_t typeId) const
     {
-        auto it = m_Creators.find(typeId);
-        if (it != m_Creators.end())
-        {
-            return it->second();
-        }
-        return nullptr;
+        auto it = m_Types.find(typeId);
+        return it != m_Types.end() ? it->second : nullptr;
+    }
+
+    /**
+     * @brief Create a component by type id
+     * @return New instance with its type info attached, or nullptr when the id
+     *         is unknown or the class is abstract
+     */
+    Component* Create(uint32_t typeId) const
+    {
+        const ComponentTypeInfo* info = Find(typeId);
+        return (info && info->create) ? info->create() : nullptr;
     }
 
     /**
      * @brief Check if a component type is registered
-     * @param typeId Hash of component class name
-     * @return true if type can be created
      */
     bool IsRegistered(uint32_t typeId) const
     {
-        return m_Creators.find(typeId) != m_Creators.end();
+        return m_Types.find(typeId) != m_Types.end();
     }
 
     /**
@@ -109,7 +99,7 @@ public:
      */
     size_t GetRegisteredCount() const
     {
-        return m_Creators.size();
+        return m_Types.size();
     }
 
     /**
@@ -119,35 +109,51 @@ public:
      */
     void Clear()
     {
-        m_Creators.clear();
+        m_Types.clear();
     }
 
 private:
     ComponentFactory() = default;
-    std::unordered_map<uint32_t, ComponentCreator> m_Creators;
+    std::unordered_map<uint32_t, const ComponentTypeInfo*> m_Types;
 };
 
-
+/**
+ * @brief A class entry for a component the codegen never saw (a test double, a
+ *        type defined in a .cpp). It identifies the type and says whether
+ *        Update() runs; it has no deserializer, so scenes cannot load it unless
+ *        `meta` supplies a createFunc of its own.
+ */
+template <class T>
+constexpr ComponentTypeInfo MakeHandWrittenTypeInfo(bool declaresUpdate, const ComponentMeta* meta = nullptr,
+                                                    ComponentType typeId = TypeId<T>(), const char* name = TypeName<T>())
+{
+    static_assert(std::is_base_of<Component, T>::value, "MakeHandWrittenTypeInfo<T>: T must derive from Deki::Component");
+    return ComponentTypeInfo{
+        name,
+        TypeShortName<T>(),
+        typeId,
+        std::is_base_of<Behaviour, T>::value ? TypeId<Behaviour>() : TypeId<Component>(),
+        std::is_abstract<T>::value,
+        declaresUpdate,
+        nullptr, nullptr, nullptr, nullptr,
+        nullptr, 0,
+        meta
+    };
+}
 
 /**
- * @brief Register a component type for runtime creation
- *
- * Uses static initialization to register the component.
- * Engine components use this in package-specific registration files (e.g. 2DRegistration.gen.cpp).
- * Plugins/games use this at startup for their components.
- *
- * Usage:
- *   REGISTER_RUNTIME_COMPONENT(SkyComponent);
+ * @brief The class entry AddComponent<T> attaches to a new T: the codegen's
+ *        registered entry, or a hand-written one for a class it never saw.
  */
-#define REGISTER_RUNTIME_COMPONENT(ClassName)                        \
-    static struct ClassName##_FactoryRegistrar                       \
-    {                                                                \
-        ClassName##_FactoryRegistrar()                               \
-        {                                                            \
-            ::Deki::ComponentFactory::Instance().Register(      \
-                ClassName::StaticType,                               \
-                []() -> ::Deki::Component* { return new ClassName(); }); \
-        }                                                            \
-    } s_##ClassName##_FactoryRegistrar
+template <class T>
+const ComponentTypeInfo* TypeInfoFor()
+{
+    static_assert(std::is_base_of<Component, T>::value, "AddComponent<T>: T must derive from Deki::Component");
+    if (const ComponentTypeInfo* info = ComponentFactory::Instance().Find(TypeId<T>()))
+        return info;
+    // Whether Update() is declared cannot be known here: let a behaviour tick.
+    static const ComponentTypeInfo fallback = MakeHandWrittenTypeInfo<T>(std::is_base_of<Behaviour, T>::value);
+    return &fallback;
+}
 
 }  // namespace Deki

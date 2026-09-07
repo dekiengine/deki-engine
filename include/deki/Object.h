@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include <deki/Component.h>
+#include <deki/reflection/ComponentFactory.h>
 #include <deki/ComponentInterfaceAdapters.h>
 #include <deki/Math.h>
 
@@ -231,6 +232,7 @@ public:
     T* AddComponent(Args&&... args)
     {
         T* component = new T(std::forward<Args>(args)...);
+        component->SetTypeInfo(TypeInfoFor<T>());
         component->SetOwner(this);
         components.push_back(component);
         return component;
@@ -265,7 +267,7 @@ public:
     {
         for (auto* comp : components)
         {
-            if (comp->GetType() == T::StaticType || comp->GetBaseType() == T::StaticType)
+            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
                 return static_cast<T*>(comp);
             }
@@ -278,7 +280,7 @@ public:
     {
         for (auto* comp : components)
         {
-            if (comp->GetType() == T::StaticType || comp->GetBaseType() == T::StaticType)
+            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
                 return static_cast<const T*>(comp);
             }
@@ -319,7 +321,7 @@ public:
         std::vector<T*> result;
         for (auto* comp : components)
         {
-            if (comp->GetType() == T::StaticType || comp->GetBaseType() == T::StaticType)
+            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
                 result.push_back(static_cast<T*>(comp));
             }
@@ -335,7 +337,7 @@ public:
     {
         for (auto* comp : components)
         {
-            if (comp->GetType() == T::StaticType || comp->GetBaseType() == T::StaticType) return true;
+            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>()) return true;
         }
         return false;
     }
@@ -345,7 +347,7 @@ public:
     {
         for (auto it = components.begin(); it != components.end(); ++it)
         {
-            if ((*it)->GetType() == T::StaticType)
+            if ((*it)->GetType() == TypeId<T>())
             {
                 delete *it;
                 components.erase(it);

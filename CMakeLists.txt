@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.10.0 LANGUAGES C CXX)
+project(deki-engine VERSION 0.11.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,6 +29,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(DEKI_CORE_SOURCES
     # Core runtime classes
     src/DekiObject.cpp
+    src/Component.cpp
     src/Color.cpp
     src/ComponentInterfaceAdapters.cpp
     src/providers/DekiMemory.cpp
@@ -61,6 +62,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/reflection/ComponentRegistry.cpp
     src/reflection/ComponentFactory.cpp
     src/reflection/PropertyRef.cpp
+    src/reflection/LegacyTypeNames.cpp
     src/reflection/SettingsRegistry.cpp
     src/providers/DekiProviderRegistryBase.cpp
     src/providers/DekiPower.cpp

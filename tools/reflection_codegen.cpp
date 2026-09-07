@@ -1,6 +1,8 @@
-// Self-contained reflection codegen tool: discovers every DEKI_COMPONENT in the
-// included package headers and writes each one's .gen.cpp using C++26 static
-// reflection. Build with: g++ -std=c++26 -freflection -DDEKI_REFLECT ...
+// Self-contained reflection codegen tool: discovers every class deriving from
+// Deki::Component in the included package headers and writes the package's
+// reflection tables using C++26 static reflection. A component declares nothing
+// for this: its identity is its qualified class name (see deki/TypeId.h) and the
+// optional DEKI_CATEGORY / DEKI_DESCRIPTION markers sit above the class. Build with: g++ -std=c++26 -freflection -DDEKI_REFLECT ...
 #include <cstdint>
 #include <cstddef>
 #include <string>
@@ -43,6 +45,7 @@ struct CodegenPackage
 #include <sstream>
 #include <cstdlib>
 #include <iterator>
+#include <span>
 #include <string_view>
 #include <vector>
 #include <utility>
@@ -57,26 +60,82 @@ struct CodegenPackage
 
 namespace m = std::meta;
 
-// Reflected types are declared either at global scope (packages, projects) or in
-// namespace Deki (the engine core, since engine 0.10); the generator looks in both.
+// Every declaration reachable from the global namespace, recursively. Components
+// can live in any namespace (the engine's in Deki, a project's in whatever it
+// likes), so the walk descends into all of them except library namespaces, which
+// hold nothing of ours and would multiply the work (std alone is enormous).
+consteval bool skip_namespace(m::info ns)
+{
+    if (!m::has_identifier(ns)) return true;  // anonymous: nothing reflectable lives there
+    std::string_view id = m::identifier_of(ns);
+    return id == "std" || id == "deki_refl" || id == "nlohmann" || id == "__gnu_cxx" || id == "__cxxabiv1" ||
+           (id.size() >= 2 && id[0] == '_' && id[1] == '_');
+}
+consteval void collect_scope(m::info ns, std::vector<m::info>& out)
+{
+    for (m::info x : m::members_of(ns, m::access_context::unchecked()))
+    {
+        out.push_back(x);
+        if (m::is_namespace(x) && !skip_namespace(x)) collect_scope(x, out);
+    }
+}
 consteval std::vector<m::info> reflected_scope_members()
 {
-    std::vector<m::info> all = m::members_of(^^::, m::access_context::unchecked());
-    for (m::info x : m::members_of(^^Deki, m::access_context::unchecked()))
-        all.push_back(x);
+    std::vector<m::info> all;
+    collect_scope(^^::, all);
     return all;
 }
 
-// The namespace a reflected type is declared in ("" for the global namespace).
-// Its generated definitions are emitted inside that namespace, and code that
-// names the type from outside qualifies it. Component metadata and scene-file
-// "class" hints keep the unqualified identifier.
+// The namespace a reflected type is declared in ("" for the global namespace),
+// one level: the DEKI_SERIALIZABLE and DEKI_NODE emitters define members and
+// open that namespace around them.
 consteval const char* namespace_of(m::info t)
 {
     m::info p = m::parent_of(t);
     if (m::is_namespace(p) && p != ^^::)
         return std::define_static_string(m::identifier_of(p));
     return "";
+}
+
+// Is every enclosing scope of t a named namespace? Components nested in a class
+// or declared in an anonymous namespace have no usable qualified name.
+consteval bool scope_is_reflectable(m::info t)
+{
+    for (m::info p = m::parent_of(t); p != ^^::; p = m::parent_of(p))
+        if (!m::is_namespace(p) || !m::has_identifier(p)) return false;
+    return true;
+}
+
+// The fully qualified name of a type: "Game::Health", or "Health" at global scope.
+// This is the spelling Deki::TypeName<T>() produces at compile time; generated
+// code emits ::Deki::TypeName<Game::Health>() rather than the literal, so the
+// on-disk key can never drift from the runtime id.
+consteval std::string qualified_name_str(m::info t)
+{
+    std::string s(m::identifier_of(t));
+    for (m::info p = m::parent_of(t); m::is_namespace(p) && p != ^^::; p = m::parent_of(p))
+        s = std::string(m::identifier_of(p)) + "::" + s;
+    return s;
+}
+consteval const char* qualified_name(m::info t)
+{
+    return std::define_static_string(qualified_name_str(t));
+}
+// "Game::Health" -> "Game_Health": the stem of every generated symbol for a type.
+consteval const char* symbol_stem(m::info t)
+{
+    std::string s = qualified_name_str(t);
+    std::string out;
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        if (s[i] == ':')
+        {
+            if (out.empty() || out.back() != '_') out += '_';
+            continue;
+        }
+        out += s[i];
+    }
+    return std::define_static_string(out);
 }
 static constexpr const char* SEP = "// =============================================================================";
 
@@ -209,35 +268,61 @@ consteval bool has_static_member(m::info type, std::string_view name)
         if (m::has_identifier(mem) && m::identifier_of(mem) == name) return true;
     return false;
 }
-consteval bool has_static_guid(m::info type)
-{
-    return has_static_member(type, "StaticGuid");
-}
 // Does the class itself declare an Update() member (of any kind)? Direct
-// members only: an inherited Update is reported by the base's own override.
+// members only; declares_update_rec walks the component bases.
 consteval bool declares_update(m::info type)
 {
     return has_static_member(type, "Update");
 }
+// A component is any complete class deriving from Deki::Component, other than
+// the two engine bases themselves.
 consteval bool is_component(m::info type)
 {
-    return m::is_class_type(type) && m::is_complete_type(type) && has_static_guid(type);
+    if (!m::is_class_type(type) || !m::is_complete_type(type)) return false;
+    if (type == ^^Deki::Component || type == ^^Deki::Behaviour) return false;
+    return m::is_base_of_type(^^Deki::Component, type);
 }
-// DEKI_NODE struct: has a StaticNodeName marker and is NOT a component (no
-// StaticGuid). Disjoint from both components and DEKI_SERIALIZABLE structs, so a
-// node gets its own emit path (reflection + node-factory registration).
+// The direct base that carries the component identity: Deki::Component,
+// Deki::Behaviour, or another component. GetComponent<Base>() matches on it.
+consteval m::info component_base(m::info cls)
+{
+    for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
+    {
+        m::info bt = bare(m::type_of(b));
+        if (bt == ^^Deki::Component || bt == ^^Deki::Behaviour || is_component(bt)) return bt;
+    }
+    return ^^Deki::Component;
+}
+consteval bool component_base_is_public(m::info cls)
+{
+    for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
+    {
+        m::info bt = bare(m::type_of(b));
+        if (bt == ^^Deki::Component || bt == ^^Deki::Behaviour || is_component(bt)) return m::is_public(b);
+    }
+    return false;
+}
+consteval bool declares_update_rec(m::info cls)
+{
+    if (declares_update(cls)) return true;
+    m::info b = component_base(cls);
+    return is_component(b) && declares_update_rec(b);
+}
+// DEKI_NODE struct: has a StaticNodeName marker and is NOT a component. Disjoint
+// from both components and DEKI_SERIALIZABLE structs, so a node gets its own emit
+// path (reflection + node-factory registration).
 consteval bool is_node(m::info type)
 {
-    return m::is_class_type(type) && m::is_complete_type(type) && has_static_member(type, "StaticNodeName") && !has_static_guid(type);
+    return m::is_class_type(type) && m::is_complete_type(type) && has_static_member(type, "StaticNodeName") && !is_component(type);
 }
 // Index into kPackages of the package a reflected type belongs to, or -1 when the type
 // came from outside this unit (engine headers, a sibling package pulled in transitively).
 // Membership is "the package's tag appears in the type's source path" — the same rule the
 // single-package build has always used, just applied to every package in the unit.
 // -2 means the path matched two tags; the caller static_asserts on it.
-consteval int package_index_of(m::info type)
+consteval int package_index_of(m::info decl)
 {
-    std::string_view f = m::source_location_of(type).file_name();
+    std::string_view f = m::source_location_of(decl).file_name();
     int found = -1;
     for (int i = 0; i < kPackageCount; ++i)
     {
@@ -618,6 +703,81 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
     return vi;
 }
 
+// ---- markers above the class (DEKI_CATEGORY, DEKI_DESCRIPTION, ...) ----
+// Under DEKI_REFLECT each marker expands to a namespace-scope constant of a
+// deki_refl tag type. A marker belongs to the first component declared after it
+// in the same file; one that no component follows is reported as an error.
+enum TagKind { TAG_NONE = 0, TAG_CATEGORY, TAG_DESCRIPTION, TAG_DISPLAY_NAME, TAG_SETTINGS_SECTION };
+consteval int tag_kind(m::info x)
+{
+    if (!m::is_variable(x)) return TAG_NONE;
+    m::info t = bare(m::type_of(x));
+    if (t == ^^Deki::deki_refl::category_tag) return TAG_CATEGORY;
+    if (t == ^^Deki::deki_refl::description_tag) return TAG_DESCRIPTION;
+    if (t == ^^Deki::deki_refl::display_name_tag) return TAG_DISPLAY_NAME;
+    if (t == ^^Deki::deki_refl::settings_section_tag) return TAG_SETTINGS_SECTION;
+    return TAG_NONE;
+}
+consteval const char* tag_text(m::info x)
+{
+    switch (tag_kind(x))
+    {
+        case TAG_CATEGORY: return m::extract<Deki::deki_refl::category_tag>(x).text;
+        case TAG_DESCRIPTION: return m::extract<Deki::deki_refl::description_tag>(x).text;
+        case TAG_DISPLAY_NAME: return m::extract<Deki::deki_refl::display_name_tag>(x).text;
+        case TAG_SETTINGS_SECTION: return m::extract<Deki::deki_refl::settings_section_tag>(x).text;
+        default: return nullptr;
+    }
+}
+// The walk is expensive and consteval functions are not memoised, so the lists
+// every lookup needs are materialised once.
+constexpr std::span<const m::info> kScope = std::define_static_array(reflected_scope_members());
+consteval std::vector<m::info> all_components()
+{
+    std::vector<m::info> out;
+    for (m::info x : kScope)
+        if (m::is_type(x) && is_component(x)) out.push_back(x);
+    return out;
+}
+consteval std::vector<m::info> all_tags()
+{
+    std::vector<m::info> out;
+    for (m::info x : kScope)
+        if (tag_kind(x) != TAG_NONE) out.push_back(x);
+    return out;
+}
+constexpr std::span<const m::info> kComponents = std::define_static_array(all_components());
+constexpr std::span<const m::info> kTags = std::define_static_array(all_tags());
+
+consteval bool same_file(m::info a, m::info b)
+{
+    return std::string_view(m::source_location_of(a).file_name()) == std::string_view(m::source_location_of(b).file_name());
+}
+// The component a marker attaches to (null reflection when none follows it).
+consteval m::info tag_owner(m::info tag)
+{
+    m::info best{};
+    unsigned bestLine = ~0u;
+    const unsigned tl = m::source_location_of(tag).line();
+    for (m::info c : kComponents)
+    {
+        if (!same_file(tag, c)) continue;
+        const unsigned cl = m::source_location_of(c).line();
+        if (cl > tl && cl < bestLine)
+        {
+            bestLine = cl;
+            best = c;
+        }
+    }
+    return best;
+}
+consteval const char* tag_text_of(m::info comp, int kind)
+{
+    for (m::info t : kTags)
+        if (tag_kind(t) == kind && tag_owner(t) == comp) return tag_text(t);
+    return nullptr;
+}
+
 // ---- member collection ----
 consteval std::vector<m::info> own_exported(m::info cls)
 {
@@ -651,17 +811,9 @@ consteval bool any_editor_only(m::info cls)
         if (is_editor_only(mem)) return true;
     return false;
 }
-consteval const char* base_name(m::info cls)
-{
-    for (m::info base : m::bases_of(cls, m::access_context::unchecked()))
-        return std::define_static_string(m::identifier_of(m::type_of(base)));
-    return nullptr;
-}
 consteval bool has_component_base(m::info cls)
 {
-    for (m::info base : m::bases_of(cls, m::access_context::unchecked()))
-        if (is_component(m::type_of(base))) return true;
-    return false;
+    return is_component(component_base(cls));
 }
 consteval int count_assetref(m::info cls)
 {
@@ -683,6 +835,7 @@ void emit_case(std::ostream& out)
 {
     constexpr m::info t = m::type_of(MEM);
     constexpr const char* nm = std::define_static_string(m::identifier_of(MEM));
+    const std::string fld = std::string("self.") + nm;  // the field, reached from the free function
     constexpr const char* rf = renamed_from_of(MEM);
     if constexpr (rf != nullptr)
     {
@@ -702,8 +855,8 @@ void emit_case(std::ostream& out)
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        uint32_t kHash = ::Deki::HashStringLen(k, kLen);\n"
             << "                        switch (kHash) {\n"
-            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << ".guid = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << ".source = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".guid = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".source = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
@@ -723,13 +876,13 @@ void emit_case(std::ostream& out)
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        uint32_t kHash = ::Deki::HashStringLen(k, kLen);\n"
             << "                        switch (kHash) {\n"
-            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << ".object = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << ".component = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << ".field = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".object = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".component = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".field = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
-            << "                    " << nm << ".Rehash();\n"
+            << "                    " << fld << ".Rehash();\n"
             << "                }\n"
             << "                break;\n"
             << "            }\n";
@@ -742,11 +895,11 @@ void emit_case(std::ostream& out)
             << "                if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == 0xdd)) {\n"
             << "                    uint32_t _as; if (parser.ReadArraySize(_as) && _as >= 2) {\n"
             << "                        int32_t _id, _tid; parser.ReadInt(_id); parser.ReadInt(_tid);\n"
-            << "                        " << nm << ".id = static_cast<uint32_t>(_id); " << nm << ".componentTypeId = static_cast<uint32_t>(_tid);\n"
+            << "                        " << fld << ".id = static_cast<uint32_t>(_id); " << fld << ".componentTypeId = static_cast<uint32_t>(_tid);\n"
             << "                        for (uint32_t _s = 2; _s < _as; _s++) parser.SkipValue();\n"
             << "                    }\n"
             << "                } else {\n"
-            << "                    int32_t v; if (parser.ReadInt(v)) { " << nm << ".id = static_cast<uint32_t>(v); " << nm << ".componentTypeId = 0; }\n"
+            << "                    int32_t v; if (parser.ReadInt(v)) { " << fld << ".id = static_cast<uint32_t>(v); " << fld << ".componentTypeId = 0; }\n"
             << "                }\n"
             << "                break;\n"
             << "            }\n";
@@ -760,9 +913,9 @@ void emit_case(std::ostream& out)
                 << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
-                << "                    " << nm << ".clear();\n"
+                << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
-                << "                        decltype(" << nm << ")::value_type ref;\n"
+                << "                        decltype(" << fld << ")::value_type ref;\n"
                 << "                        uint8_t _pb;\n"
                 << "                        if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == 0xdd)) {\n"
                 << "                            uint32_t _as; if (parser.ReadArraySize(_as) && _as >= 2) {\n"
@@ -774,7 +927,7 @@ void emit_case(std::ostream& out)
                 << "                            int32_t v;\n"
                 << "                            if (parser.ReadInt(v)) { ref.id = static_cast<uint32_t>(v); ref.componentTypeId = 0; }\n"
                 << "                        }\n"
-                << "                        " << nm << ".push_back(ref);\n"
+                << "                        " << fld << ".push_back(ref);\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -786,10 +939,10 @@ void emit_case(std::ostream& out)
                 << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
-                << "                    " << nm << ".clear();\n"
+                << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        const char* s; uint16_t len;\n"
-                << "                        if (parser.ReadString(s, len)) " << nm << ".push_back(std::string(s, len));\n"
+                << "                        if (parser.ReadString(s, len)) " << fld << ".push_back(std::string(s, len));\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -801,10 +954,10 @@ void emit_case(std::ostream& out)
                 << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
-                << "                    " << nm << ".clear();\n"
+                << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        float v;\n"
-                << "                        if (parser.ReadFloat(v)) " << nm << ".push_back(v);\n"
+                << "                        if (parser.ReadFloat(v)) " << fld << ".push_back(v);\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -816,10 +969,10 @@ void emit_case(std::ostream& out)
                 << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
-                << "                    " << nm << ".clear();\n"
+                << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        int32_t v;\n"
-                << "                        if (parser.ReadInt(v)) " << nm << ".push_back(static_cast<decltype(" << nm << ")::value_type>(v));\n"
+                << "                        if (parser.ReadInt(v)) " << fld << ".push_back(static_cast<decltype(" << fld << ")::value_type>(v));\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -833,7 +986,7 @@ void emit_case(std::ostream& out)
             << "                if (parser.ReadArraySize(arrSize) && arrSize >= 3) {\n"
             << "                    float x, y, z;\n"
             << "                    if (parser.ReadFloat(x) && parser.ReadFloat(y) && parser.ReadFloat(z)) {\n"
-            << "                        " << nm << " = ::Deki::Vector3(x, y, z);\n"
+            << "                        " << fld << " = ::Deki::Vector3(x, y, z);\n"
             << "                    }\n"
             << "                }\n"
             << "                break;\n"
@@ -846,7 +999,7 @@ void emit_case(std::ostream& out)
             << "                if (parser.ReadArraySize(arrSize) && arrSize >= 2) {\n"
             << "                    float x, y;\n"
             << "                    if (parser.ReadFloat(x) && parser.ReadFloat(y)) {\n"
-            << "                        " << nm << " = ::Deki::Vector2(x, y);\n"
+            << "                        " << fld << " = ::Deki::Vector2(x, y);\n"
             << "                    }\n"
             << "                }\n"
             << "                break;\n"
@@ -854,55 +1007,68 @@ void emit_case(std::ostream& out)
     }
     else if constexpr (is_color(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << nm << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
     }
     else if constexpr (is_enum(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << nm << " = static_cast<decltype(" << nm << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
     }
     else if constexpr (is_float(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << nm << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld << " = v; break; }\n";
     }
     else if constexpr (is_double(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << nm << " = static_cast<double>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld << " = static_cast<double>(v); break; }\n";
     }
     else if constexpr (is_bool(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) " << nm << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) " << fld << " = v; break; }\n";
     }
     else if constexpr (is_string(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << nm << " = std::string(s, len); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << " = std::string(s, len); break; }\n";
     }
     else if constexpr (is_int_like(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << nm << " = static_cast<decltype(" << nm << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
     }
 }
 
 template <m::info COMP>
-void emit_component(std::ostream& out, std::string_view srcdir)
+void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild)
 {
-    const char* CLS = std::define_static_string(m::identifier_of(COMP));
+    constexpr const char* CLS = std::define_static_string(m::identifier_of(COMP));  // Health
+    constexpr const char* QN = qualified_name(COMP);                                   // Game::Health
+    constexpr m::info BASE = component_base(COMP);
+    constexpr const char* BQN = qualified_name(BASE);
+    const std::string G = std::string("DekiGen_") + symbol_stem(COMP);                // symbol prefix
 
     out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
     out << "// Source: " << rel_src(m::source_location_of(COMP).file_name(), srcdir) << "\n\n";
     out << "#include \"" << src_rel_include(m::source_location_of(COMP).file_name(), srcdir) << "\"\n";
     out << "#include <deki/SceneMessagePack.h>\n";
     out << "#include <deki/Scene.h>\n";
+    out << "#include <deki/reflection/Property.h>\n";
     out << "#include <unordered_map>\n\n";
 
-    // Definitions must live in the class's own namespace (engine components are
-    // in namespace Deki; package and project components are global).
-    constexpr const char* NS = namespace_of(COMP);
-    if constexpr (NS[0] != '\0')
-        out << "namespace " << NS << " {\n\n";
+    // What a component must look like, reported where the author will read it.
+    if constexpr (!scope_is_reflectable(COMP))
+        out << "#error \"" << QN << ": a component must be declared in a named namespace (or at global scope), not nested in a class or an anonymous namespace\"\n";
+    if constexpr (!component_base_is_public(COMP))
+        out << "#error \"" << QN << ": a component must derive PUBLICLY from Deki::Component or Deki::Behaviour (write `class " << CLS << " : public ...`)\"\n";
+    template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
+    {
+        if constexpr (!m::is_public(mem))
+            out << "#error \"" << QN << "::" << m::identifier_of(mem) << ": a DEKI_EXPORT field must be public (the generated code reaches it from outside the class)\"\n";
+    }
+
+    out << "extern const ::Deki::ComponentTypeInfo " << G << "_TypeInfo;\n\n";
 
     out << SEP << "\n// Runtime Deserialization (all platforms)\n"
         << SEP << "\n\n";
-    out << "bool " << CLS << "::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
+    out << "static bool " << G << "_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
+    out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self;\n";
     out << "    for (uint32_t i = 0; i < mapSize; i++) {\n";
     out << "        const char* key; uint16_t keyLen;\n";
     out << "        if (!parser.ReadString(key, keyLen)) return false;\n";
@@ -933,107 +1099,71 @@ void emit_component(std::ostream& out, std::string_view srcdir)
     }
     out << "    }\n    return true;\n}\n\n";
 
-    constexpr bool HB = has_component_base(COMP);
-    constexpr int NOBJ = count_objectref(COMP);
-    constexpr int NASSET = count_assetref(COMP);
+    // Own and inherited reference fields, flattened: the class's entry answers
+    // for the whole object, there is no chain to a base's function.
     out << SEP << "\n// ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead\n"
         << SEP << "\n\n";
-    out << "void " << CLS << "::ResolveObjectRefs(::Deki::Scene* scene) {\n";
-    if constexpr (NOBJ == 0 && NASSET == 0)
+    out << "static void " << G << "_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {\n";
+    out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self; (void)scene;\n";
+    template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
     {
-        if constexpr (HB)
-            out << "    " << base_name(COMP) << "::ResolveObjectRefs(scene);\n";
-        else
-            out << "    (void)scene; // No ::Deki::ObjectRef or AssetRef properties\n";
-    }
-    else
-    {
-        if constexpr (HB) out << "    " << base_name(COMP) << "::ResolveObjectRefs(scene);\n";
-        if constexpr (NOBJ == 0 && !HB) out << "(void)scene; // AssetRef-only, no ::Deki::ObjectRef resolution needed\n";
-        template for (constexpr auto mem : std::define_static_array(own_exported(COMP)))
+        constexpr m::info t = m::type_of(mem);
+        constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
+        if constexpr (is_objectref(t))
         {
-            constexpr m::info t = m::type_of(mem);
+            out << "    if (self." << nm << ".id != 0 && self." << nm << ".resolved == nullptr)\n"
+                << "        self." << nm << ".resolved = scene->FindDekiObject(self." << nm << ".id);\n";
+        }
+        else if constexpr (is_vector(t) && is_objectref(vec_elem(t)))
+        {
+            out << "    for (auto& ref : self." << nm << ") {\n"
+                << "        if (ref.id != 0 && ref.resolved == nullptr)\n"
+                << "            ref.resolved = scene->FindDekiObject(ref.id);\n"
+                << "    }\n";
+        }
+    }
+    template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
+    {
+        constexpr m::info t = m::type_of(mem);
+        if constexpr (is_assetref(t))
+        {
             constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
-            if constexpr (is_objectref(t))
+            constexpr const char* at = asset_arg(t);
+            if constexpr (std::string_view(at) == "Scene")
             {
-                out << "    if (" << nm << ".id != 0 && " << nm << ".resolved == nullptr)\n"
-                    << "        " << nm << ".resolved = scene->FindDekiObject(" << nm << ".id);\n";
+                out << "    // AssetRef<Scene> \"" << nm << "\" - deferred (non-cacheable, loaded on-demand via Get())\n";
             }
-            else if constexpr (is_vector(t) && is_objectref(vec_elem(t)))
+            else
             {
-                out << "    for (auto& ref : " << nm << ") {\n"
-                    << "        if (ref.id != 0 && ref.resolved == nullptr)\n"
-                    << "            ref.resolved = scene->FindDekiObject(ref.id);\n"
+                out
+                    << "    if (auto* _loaded_" << nm << " = self." << nm << ".Get()) {\n"
+                    << "        const char* _frameGuid = self." << nm << ".source.empty() ? self." << nm << ".guid.c_str() : self." << nm << ".source.c_str();\n"
+                    << "        self.OnAssetRefResolved(\"" << nm << "\", _loaded_" << nm << ", _frameGuid);\n"
                     << "    }\n";
             }
         }
-        template for (constexpr auto mem : std::define_static_array(own_exported(COMP)))
-        {
-            constexpr m::info t = m::type_of(mem);
-            if constexpr (is_assetref(t))
-            {
-                constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
-                constexpr const char* at = asset_arg(t);
-                if constexpr (std::string_view(at) == "Scene")
-                {
-                    out << "    // AssetRef<Scene> \"" << nm << "\" — deferred (non-cacheable, loaded on-demand via Get())\n";
-                }
-                else
-                {
-                    out
-                        << "    if (auto* _loaded_" << nm << " = this->" << nm << ".Get()) {\n"
-                        << "        const char* _frameGuid = this->" << nm << ".source.empty() ? this->" << nm << ".guid.c_str() : this->" << nm << ".source.c_str();\n"
-                        << "        OnAssetRefResolved(\"" << nm << "\", _loaded_" << nm << ", _frameGuid);\n"
-                        << "    }\n";
-                }
-            }
-        }
     }
-    out << "}\n\n";
-
-    // Whether LifecycleManager should call Update() on this type at all. True
-    // when the class declares Update itself, else the reflected base's answer,
-    // else false (::Deki::Behaviour's own Update is the empty default).
-    out << SEP << "\n// Update declaration (all platforms)\n"
-        << SEP << "\n\n";
-    out << "bool " << CLS << "::DeclaresUpdate() const {\n";
-    if constexpr (declares_update(COMP))
-        out << "    return true;\n";
-    else if constexpr (HB)
-        out << "    return " << base_name(COMP) << "::DeclaresUpdate();\n";
-    else
-        out << "    return false;\n";
     out << "}\n\n";
 
     out << SEP << "\n// ::Deki::ObjectRef ID Remapping (all platforms)\n"
         << SEP << "\n\n";
-    out << "void " << CLS << "::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {\n";
-    if constexpr (NOBJ == 0)
+    out << "static void " << G << "_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {\n";
+    out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self; (void)idRemap;\n";
+    template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
     {
-        if constexpr (HB)
-            out << "    " << base_name(COMP) << "::RemapObjectRefs(idRemap);\n";
-        else
-            out << "    (void)idRemap; // No ::Deki::ObjectRef properties\n";
-    }
-    else
-    {
-        if constexpr (HB) out << "    " << base_name(COMP) << "::RemapObjectRefs(idRemap);\n";
-        template for (constexpr auto mem : std::define_static_array(own_exported(COMP)))
+        constexpr m::info t = m::type_of(mem);
+        constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
+        if constexpr (is_objectref(t))
         {
-            constexpr m::info t = m::type_of(mem);
-            constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
-            if constexpr (is_objectref(t))
-            {
-                out << "    { auto it = idRemap.find(" << nm << ".id);\n"
-                    << "      if (it != idRemap.end()) { " << nm << ".id = it->second; " << nm << ".resolved = nullptr; } }\n";
-            }
-            else if constexpr (is_vector(t) && is_objectref(vec_elem(t)))
-            {
-                out << "    for (auto& ref : " << nm << ") {\n"
-                    << "        auto it = idRemap.find(ref.id);\n"
-                    << "        if (it != idRemap.end()) { ref.id = it->second; ref.resolved = nullptr; }\n"
-                    << "    }\n";
-            }
+            out << "    { auto it = idRemap.find(self." << nm << ".id);\n"
+                << "      if (it != idRemap.end()) { self." << nm << ".id = it->second; self." << nm << ".resolved = nullptr; } }\n";
+        }
+        else if constexpr (is_vector(t) && is_objectref(vec_elem(t)))
+        {
+            out << "    for (auto& ref : self." << nm << ") {\n"
+                << "        auto it = idRemap.find(ref.id);\n"
+                << "        if (it != idRemap.end()) { ref.id = it->second; ref.resolved = nullptr; }\n"
+                << "    }\n";
         }
     }
     out << "}\n\n";
@@ -1044,21 +1174,16 @@ void emit_component(std::ostream& out, std::string_view srcdir)
     // reflection a device build gets. See ::Deki::FieldRef / ComponentRegistry.
     out << SEP << "\n// Compact Field Table (all platforms)\n"
         << SEP << "\n\n";
-    out << "const ::Deki::FieldRef* " << CLS << "::GetFields() {\n";
     int fieldCount = 0;
-    if constexpr (deser_members(COMP).empty())
+    if constexpr (!deser_members(COMP).empty())
     {
-        out << "    return nullptr;\n}\n\n";
-    }
-    else
-    {
-        out << "    static const ::Deki::FieldRef fields[] = {\n";
+        out << "static const ::Deki::FieldRef " << G << "_Fields[] = {\n";
         template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
         {
             constexpr m::info t = m::type_of(mem);
             ++fieldCount;
-            out << "        { ::Deki::HashString(\"" << m::identifier_of(mem) << "\"), "
-                << "(uint16_t)offsetof(" << CLS << ", " << m::identifier_of(mem) << "), "
+            out << "    { ::Deki::HashString(\"" << m::identifier_of(mem) << "\"), "
+                << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
                 << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
             if constexpr (is_enum(t))
                 out << sizeof(typename[:bare(t):]);
@@ -1070,8 +1195,8 @@ void emit_component(std::ostream& out, std::string_view srcdir)
             if constexpr (renamed_from_of(mem) != nullptr)
             {
                 ++fieldCount;
-                out << "        { ::Deki::HashString(\"" << renamed_from_of(mem) << "\"), "
-                    << "(uint16_t)offsetof(" << CLS << ", " << m::identifier_of(mem) << "), "
+                out << "    { ::Deki::HashString(\"" << renamed_from_of(mem) << "\"), "
+                    << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
                     << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
                 if constexpr (is_enum(t))
                     out << sizeof(typename[:bare(t):]);
@@ -1080,9 +1205,8 @@ void emit_component(std::ostream& out, std::string_view srcdir)
                 out << " },  // DEKI_RENAMED_FROM\n";
             }
         }
-        out << "    };\n    return fields;\n}\n\n";
+        out << "};\n\n";
     }
-    out << "int " << CLS << "::GetFieldCount() { return " << fieldCount << "; }\n\n";
 
     out << SEP << "\n// Editor Reflection (editor-only)\n"
         << SEP << "\n\n";
@@ -1124,15 +1248,10 @@ void emit_component(std::ostream& out, std::string_view srcdir)
     }
     if (anyEnum) out << "\n";
 
-    out << "const ::Deki::PropertyInfo* " << CLS << "::GetProperties() {\n";
     int count = 0;
-    if constexpr (own_exported(COMP).empty())
+    if constexpr (!own_exported(COMP).empty())
     {
-        out << "    return nullptr;\n}\n\n";
-    }
-    else
-    {
-        out << "    static const ::Deki::PropertyInfo props[] = {\n";
+        out << "static const ::Deki::PropertyInfo " << G << "_Props[] = {\n";
         bool first = true;
         std::string curGroup;  // DEKI_GROUP is sticky: applies to subsequent fields until changed
         template for (constexpr auto mem : std::define_static_array(own_exported(COMP)))
@@ -1142,7 +1261,7 @@ void emit_component(std::ostream& out, std::string_view srcdir)
             first = false;
             ++count;
             out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::"
-                << deki_type_name(t) << ", offsetof(" << CLS << ", " << m::identifier_of(mem) << "),\n";
+                << deki_type_name(t) << ", offsetof(" << QN << ", " << m::identifier_of(mem) << "),\n";
             out << "      ";
             constexpr const char* tip = tooltip_of(mem);
             if constexpr (tip != nullptr)
@@ -1226,54 +1345,81 @@ void emit_component(std::ostream& out, std::string_view srcdir)
             }
             out << " }";
         }
-        out << "\n    };\n    return props;\n}\n\n";
+        out << "\n};\n\n";
     }
-    out << "int " << CLS << "::GetPropertyCount() { return " << count << "; }\n\n";
+    out << "extern const ::Deki::ComponentMeta " << G << "_Meta;\n";
+    out << "#endif // DEKI_EDITOR\n\n";
 
-    out << "const ::Deki::ComponentMeta& " << CLS << "::GetComponentMeta() {\n";
-    out << "    static const ::Deki::ComponentMeta meta = {\n";
-    out << "        \"" << CLS << "\",\n";
-    out << "        \"" << [:COMP:] ::StaticGuid << "\",  // serializedName (GUID)\n";
-    out << "        \"" << [:COMP:] ::ComponentCategory << "\",  // Category\n";
-    if constexpr (has_static_member(COMP, "StaticDescription"))
-        out << "        " << CLS << "::StaticDescription,   // Description (DEKI_DESCRIPTION)\n";
+    // ---- The class entry. Constant-initialised (every initializer is a constant
+    // expression), so it exists before any static initializer runs and nothing
+    // can observe it half-built.
+    constexpr bool ABSTRACT = m::is_abstract_type(COMP);
+    out << SEP << "\n// Type entry (all platforms)\n"
+        << SEP << "\n\n";
+    out << "const ::Deki::ComponentTypeInfo " << G << "_TypeInfo = {\n";
+    out << "    ::Deki::TypeName<" << QN << ">(),\n";
+    out << "    ::Deki::TypeShortName<" << QN << ">(),\n";
+    out << "    ::Deki::TypeId<" << QN << ">(),\n";
+    out << "    ::Deki::TypeId<" << BQN << ">(),\n";
+    out << "    " << (ABSTRACT ? "true" : "false") << ",   // isAbstract\n";
+    out << "    " << (declares_update_rec(COMP) ? "true" : "false") << ",   // declaresUpdate\n";
+    if constexpr (ABSTRACT)
+        out << "    nullptr,\n";
     else
-        out << "        \"\",      // Description (none declared)\n";
-    out << "        " << CLS << "::StaticType,\n";
-    out << "        " << base_name(COMP) << "::StaticType,\n";
-    out << "        " << (m::is_abstract_type(COMP) ? "true" : "false") << ",   // isAbstract\n";
-    out << "        false,   // isUnique\n";
-    out << "        " << (std::string(CLS) == "PlatformSetupComponent" ? "true" : "false") << ",   // bootSceneOnly\n";
-    out << "        false,   // platformSceneOnly\n";
-    out << "        sizeof(" << CLS << "),\n";
-    if constexpr (m::is_abstract_type(COMP))
-        out << "        nullptr,\n";
+        out << "    []() -> ::Deki::Component* { auto* c = new " << QN << "(); c->SetTypeInfo(&" << G << "_TypeInfo); return c; },\n";
+    out << "    &" << G << "_Deserialize,\n";
+    out << "    &" << G << "_ResolveObjectRefs,\n";
+    out << "    &" << G << "_RemapObjectRefs,\n";
+    if (fieldCount > 0)
+        out << "    " << G << "_Fields, " << fieldCount << ",\n";
     else
-        out << "        []() -> ::Deki::Component* { return new " << CLS << "(); },\n";
-    out << "        " << CLS << "::GetProperties(),\n";
-    out << "        " << CLS << "::GetPropertyCount(),\n";
-    out << "        {}, false";
-    if constexpr (has_static_member(COMP, "StaticDisplayName"))
-        out << ",\n        \"" << [:COMP:] ::StaticDisplayName << "\"   // displayNameOverride (from DEKI_DISPLAY_NAME)";
-    out << "\n    };\n    return meta;\n}\n\n";
+        out << "    nullptr, 0,\n";
+    out << "#ifdef DEKI_EDITOR\n    &" << G << "_Meta\n#else\n    nullptr\n#endif\n";
+    out << "};\n\n";
 
-    out << "#endif // DEKI_EDITOR\n";
-
-    if constexpr (NS[0] != '\0')
-        out << "\n}  // namespace " << NS << "\n";
-}
-
-// ---- component .gen.h stub ----
-template <m::info COMP>
-void emit_component_header(std::ostream& out, std::string_view srcdir)
-{
-    const char* CLS = std::define_static_string(m::identifier_of(COMP));
-    out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
-    out << "// Source: " << rel_src(m::source_location_of(COMP).file_name(), srcdir) << "\n";
-    out << "// NOTE: Function definitions are in this package's merged *Reflection*.gen.cpp\n";
-    out << "#pragma once\n\n";
-    out << "// GetProperties(), GetPropertyCount(), GetComponentMeta(), and ResolveObjectRefs()\n";
-    out << "// are defined there, not here: one generated TU per package, one stub per type.\n";
+    out << "#ifdef DEKI_EDITOR\n";
+    out << "const ::Deki::ComponentMeta " << G << "_Meta = {\n";
+    out << "    \"" << CLS << "\",\n";
+    out << "    ::Deki::TypeName<" << QN << ">(),  // serializedName: the scene file's \"type\"\n";
+    constexpr const char* category = tag_text_of(COMP, TAG_CATEGORY);
+    if constexpr (category != nullptr)
+        out << "    \"" << category << "\",  // DEKI_CATEGORY\n";
+    else
+        out << "    \"" << (pluginBuild ? "Game" : "General") << "\",  // category (default)\n";
+    constexpr const char* description = tag_text_of(COMP, TAG_DESCRIPTION);
+    if constexpr (description != nullptr)
+        out << "    \"" << description << "\",  // DEKI_DESCRIPTION\n";
+    else
+        out << "    \"\",      // description (none declared)\n";
+    out << "    ::Deki::TypeId<" << QN << ">(),\n";
+    out << "    ::Deki::TypeId<" << BQN << ">(),\n";
+    out << "    " << (ABSTRACT ? "true" : "false") << ",   // isAbstract\n";
+    out << "    false,   // isUnique\n";
+    out << "    " << (std::string(CLS) == "PlatformSetupComponent" ? "true" : "false") << ",   // bootSceneOnly\n";
+    out << "    false,   // platformSceneOnly\n";
+    out << "    sizeof(" << QN << "),\n";
+    if constexpr (ABSTRACT)
+        out << "    nullptr,\n";
+    else
+        out << "    " << G << "_TypeInfo.create,\n";
+    if (count > 0)
+        out << "    " << G << "_Props, " << count << ",\n";
+    else
+        out << "    nullptr, 0,\n";
+    out << "    {}, false,\n";
+    constexpr const char* displayName = tag_text_of(COMP, TAG_DISPLAY_NAME);
+    if constexpr (displayName != nullptr)
+        out << "    \"" << displayName << "\",   // displayNameOverride (DEKI_DISPLAY_NAME)\n";
+    else
+        out << "    nullptr,   // displayNameOverride\n";
+    constexpr const char* section = tag_text_of(COMP, TAG_SETTINGS_SECTION);
+    if constexpr (section != nullptr)
+        out << "    \"" << section << "\",   // settingsSection (DEKI_SETTINGS_SECTION)\n";
+    else
+        out << "    nullptr,   // settingsSection\n";
+    out << "    &" << G << "_TypeInfo\n";
+    out << "};\n";
+    out << "#endif // DEKI_EDITOR\n\n";
 }
 
 // ---- DEKI_SERIALIZABLE struct: one device (MessagePack) deserialize case ----
@@ -1824,191 +1970,163 @@ void emit_node_header(std::ostream& out, std::string_view srcdir)
 }
 
 // ---- package registration: {Prefix}Registration.gen.cpp ----
-// comps = (className, isAbstract) for every component in the package (from reflection).
-// pkg carries the prefix and the adapter list the CMake step scanned out of the .cpp files.
-// This is emitted from shard 0 only, and comps is the package's FULL component list (every
-// shard collects it; only the emitting of per-component files is sharded).
+// comps = every component in the package (from reflection). pkg carries the prefix
+// and the adapter list the CMake step scanned out of the .cpp files. Emitted from
+// shard 0 only, and comps is the package's FULL component list (every shard
+// collects it; only the emitting of per-component bodies is sharded).
 struct CompInfo
 {
-    std::string name;   // unqualified identifier (also the header's stem)
+    std::string name;      // unqualified identifier
+    std::string qn;        // qualified name ("Game::Health")
+    std::string stem;      // generated-symbol stem ("Game_Health")
     bool abstract;
-    std::string inc;
-    std::string ns;     // enclosing namespace, "" at global scope
+    bool settings;         // DEKI_SETTINGS_SECTION: a Project Settings section
+    std::string inc;       // header path relative to the package's source dir
 };
-inline std::string qualified_name(const CompInfo& c)
-{
-    return c.ns.empty() ? c.name : c.ns + "::" + c.name;
-}
 inline bool by_name(const CompInfo& a, const CompInfo& b)
 {
-    return a.name < b.name;
-}
-inline bool by_inc(const CompInfo& a, const CompInfo& b)
-{
-    return a.inc < b.inc;
+    return a.qn < b.qn;
 }
 
-void emit_registration(std::ostream& out, std::vector<CompInfo> comps, const CodegenPackage& pkg)
+// The shared body of every registration: externs for the generated entries,
+// then a function that hands them to the factory, the field tables and (editor)
+// the component and settings registries. `pluginRegistries` is false for the
+// project plugin: PluginLoader registers a plugin's metas itself, marked for
+// clearing on hot reload, and a registration from inside the DLL would leave
+// unmarked pointers behind after FreeLibrary.
+inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comps, const std::string& fnName,
+                                   const char* const* adapters, int adapterCount, bool editorRegistries, bool pluginSettings)
 {
-    const char* const PACKAGE_PREFIX = pkg.prefix;
-    const char* const* kAdapters = pkg.adapters;
-    const int kAdapterCount = pkg.adapterCount;
     std::sort(comps.begin(), comps.end(), by_name);
-    std::vector<std::string> concrete, abstr;        // qualified: named from code at global scope
-    std::vector<std::string> concreteInc, abstrInc;  // bare: the header is named after the class
-    for (auto& c : comps)
-    {
-        (c.abstract ? abstr : concrete).push_back(qualified_name(c));
-        (c.abstract ? abstrInc : concreteInc).push_back(c.name);
-    }
-    out << "// AUTO-GENERATED by the Deki reflection codegen: " << PACKAGE_PREFIX << " package registration\n";
-    out << "// " << concrete.size() << " concrete + " << abstr.size() << " abstract component(s)\n\n";
     out << "#include <deki/reflection/ComponentFactory.h>\n";
-    // ComponentRegistry is needed on ALL platforms now: the compact field tables
-    // (RegisterFields) live there, only the rich metadata is editor-only.
     out << "#include <deki/reflection/ComponentRegistry.h>\n";
-    for (auto& n : concreteInc)
-        out << "#include \"" << n << ".h\"\n";
-    for (auto& n : abstrInc)
-        out << "#include \"" << n << ".h\"\n";
+    if (editorRegistries)
+        out << "#ifdef DEKI_EDITOR\n#include <deki/reflection/SettingsRegistry.h>\n#endif\n";
     out << "\n";
-    if (kAdapterCount > 0)
+    for (auto& c : comps)
+        out << "extern const ::Deki::ComponentTypeInfo DekiGen_" << c.stem << "_TypeInfo;\n";
+    if (editorRegistries)
     {
-        out << "// Interface adapter registrations (explicit calls for static-lib builds)\n";
-        for (int i = 0; i < kAdapterCount; ++i)
-            out << "extern void " << kAdapters[i] << "();\n";
-        out << "\n";
+        out << "#ifdef DEKI_EDITOR\n";
+        for (auto& c : comps)
+            out << "extern const ::Deki::ComponentMeta DekiGen_" << c.stem << "_Meta;\n";
+        out << "#endif\n";
     }
-    out << "void " << PACKAGE_PREFIX << "_RegisterComponents() {\n";
-    if (kAdapterCount > 0)
+    if (adapterCount > 0)
+    {
+        out << "\n// Interface adapter registrations (explicit calls for static-lib builds)\n";
+        for (int i = 0; i < adapterCount; ++i)
+            out << "extern void " << adapters[i] << "();\n";
+    }
+    out << "\nvoid " << fnName << "() {\n";
+    out << "    static bool done = false;\n    if (done) return;\n    done = true;\n";
+    if (adapterCount > 0)
     {
         out << "    // Register interface adapters first (stripped by linker in static-lib builds)\n";
-        for (int i = 0; i < kAdapterCount; ++i)
-            out << "    " << kAdapters[i] << "();\n";
+        for (int i = 0; i < adapterCount; ++i)
+            out << "    " << adapters[i] << "();\n";
         out << "\n";
     }
     out << "    auto& factory = ::Deki::ComponentFactory::Instance();\n";
-    for (auto& n : concrete)
-        out << "    factory.Register(" << n << "::StaticType, []() -> ::Deki::Component* { return new " << n << "(); });\n";
-    out << "\n    // Compact field tables (all platforms — see ::Deki::FieldRef)\n";
+    for (auto& c : comps)
+        out << "    factory.Register(&DekiGen_" << c.stem << "_TypeInfo);\n";
+    out << "\n    // Compact field tables (all platforms - see ::Deki::FieldRef)\n";
     out << "    auto& registry = ::Deki::ComponentRegistry::Instance();\n";
-    for (auto& n : concrete)
-        out << "    registry.RegisterFields(" << n << "::StaticType, " << n << "::GetFields(), " << n << "::GetFieldCount());\n";
-    out << "#ifdef DEKI_EDITOR\n";
-    for (auto& n : concrete)
-        out << "    registry.Register(&" << n << "::GetComponentMeta());\n";
-    for (auto& n : abstr)
-        out << "    registry.Register(&" << n << "::GetComponentMeta());\n";
-    out << "#endif\n";
+    for (auto& c : comps)
+        out << "    registry.RegisterFields(DekiGen_" << c.stem << "_TypeInfo.typeId, DekiGen_" << c.stem
+            << "_TypeInfo.fields, DekiGen_" << c.stem << "_TypeInfo.fieldCount);\n";
+    if (editorRegistries)
+    {
+        out << "#ifdef DEKI_EDITOR\n";
+        for (auto& c : comps)
+            out << "    registry.Register(&DekiGen_" << c.stem << "_Meta);\n";
+        for (auto& c : comps)
+            if (c.settings)
+                out << "    ::Deki::SettingsRegistry::Instance()." << (pluginSettings ? "RegisterPlugin" : "Register")
+                    << "(DekiGen_" << c.stem << "_Meta.settingsSection, &DekiGen_" << c.stem << "_Meta);\n";
+        out << "#endif\n";
+    }
     out << "}\n\n";
-    out << "int " << PACKAGE_PREFIX << "_GetAutoComponentCount() {\n    return " << concrete.size() << ";\n}\n\n";
+}
+
+inline void emit_meta_accessors(std::ostream& out, std::vector<CompInfo> comps, const std::string& prefix)
+{
+    std::sort(comps.begin(), comps.end(), by_name);
+    std::vector<const CompInfo*> concrete;
+    for (auto& c : comps)
+        if (!c.abstract) concrete.push_back(&c);
+    out << "int " << prefix << "_GetAutoComponentCount() {\n    return " << concrete.size() << ";\n}\n\n";
     out << "#ifdef DEKI_EDITOR\n";
-    out << "const ::Deki::ComponentMeta* " << PACKAGE_PREFIX << "_GetAutoComponentMeta(int index) {\n";
+    out << "const ::Deki::ComponentMeta* " << prefix << "_GetAutoComponentMeta(int index) {\n";
     out << "    switch (index) {\n";
     for (size_t i = 0; i < concrete.size(); ++i)
-        out << "        case " << i << ": return &" << concrete[i] << "::GetComponentMeta();\n";
+        out << "        case " << i << ": return &DekiGen_" << concrete[i]->stem << "_Meta;\n";
     out << "        default: return nullptr;\n";
     out << "    }\n}\n#endif\n";
 }
 
-// CoreRegistration.gen.cpp (engine-core build): REGISTER_* macros + ESP32 function,
-// a different format from the per-package registration. Used when DEKI_CORE_BUILD is set.
-void emit_core_registration(std::ostream& out, std::vector<CompInfo> comps)
+void emit_registration(std::ostream& out, std::vector<CompInfo> comps, const CodegenPackage& pkg)
 {
-    std::vector<CompInfo> byInc = comps;
-    std::sort(byInc.begin(), byInc.end(), by_inc);
-    std::vector<CompInfo> byNm = comps;
-    std::sort(byNm.begin(), byNm.end(), by_name);
-    std::vector<std::string> concrete;
-    for (auto& c : byNm)
-        if (!c.abstract) concrete.push_back(qualified_name(c));
-    out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
-    out << "// Core engine component registration (" << comps.size() << " components)\n\n";
-    out << "#include <deki/reflection/ComponentFactory.h>\n";
-    // All platforms: the compact field tables live in ComponentRegistry.
-    out << "#include <deki/reflection/ComponentRegistry.h>\n";
-    for (auto& c : byInc)
-        out << "#include \"" << c.inc << "\"\n";
-    out << "\n"
-        << SEP << "\n// Desktop/Editor: Static initializer registration\n"
-        << SEP << "\n";
-    out << "// REGISTER_RUNTIME_COMPONENT registers with ComponentFactory at program startup.\n";
-    out << "// REGISTER_COMPONENT registers with ComponentRegistry (editor-only).\n\n";
-    // REGISTER_* token-paste the class name, so they are emitted inside the
-    // class's namespace with the bare identifier.
-    auto registerMacros = [&](const char* macro, bool concreteOnly)
-    {
-        std::string open;
-        for (auto& c : byNm)
-        {
-            if (concreteOnly && c.abstract) continue;
-            if (c.ns != open)
-            {
-                if (!open.empty()) out << "}  // namespace " << open << "\n";
-                if (!c.ns.empty()) out << "namespace " << c.ns << " {\n";
-                open = c.ns;
-            }
-            out << macro << "(" << c.name << ");\n";
-        }
-        if (!open.empty()) out << "}  // namespace " << open << "\n";
-    };
-    registerMacros("REGISTER_RUNTIME_COMPONENT", true);
-    // REGISTER_COMPONENT hits ComponentRegistry, which only exists in editor builds
-    // (its header is included under DEKI_EDITOR above), so guard it the same way.
-    out << "#ifdef DEKI_EDITOR\n";
-    registerMacros("REGISTER_COMPONENT", false);
-    out << "#endif\n";
-    out << "\n"
-        << SEP << "\n// ESP32/Embedded: Explicit registration function\n"
-        << SEP << "\n";
-    out << "// Static initializers are unreliable on ESP-IDF, so we register explicitly.\n\n";
-    out << "#ifndef DEKI_EDITOR\n";
-    out << "extern \"C\" void deki_register_core_components(void)\n{\n";
-    out << "    static bool registered = false;\n    if (registered) return;\n    registered = true;\n";
-    out << "    auto& factory = ::Deki::ComponentFactory::Instance();\n";
-    for (auto& n : concrete)
-        out << "    factory.Register(" << n << "::StaticType, []() -> ::Deki::Component* { return new " << n << "(); });\n";
-    out << "\n    auto& registry = ::Deki::ComponentRegistry::Instance();\n";
-    for (auto& n : concrete)
-        out << "    registry.RegisterFields(" << n << "::StaticType, " << n << "::GetFields(), " << n << "::GetFieldCount());\n";
-    out << "}\n#endif\n";
+    size_t nAbstract = 0;
+    for (auto& c : comps)
+        if (c.abstract) ++nAbstract;
+    out << "// AUTO-GENERATED by the Deki reflection codegen: " << pkg.prefix << " package registration\n";
+    out << "// " << (comps.size() - nAbstract) << " concrete + " << nAbstract << " abstract component(s)\n\n";
+    emit_registration_body(out, comps, std::string(pkg.prefix) + "_RegisterComponents", pkg.adapters, pkg.adapterCount,
+                           /*editorRegistries=*/true, /*pluginSettings=*/true);
+    emit_meta_accessors(out, comps, pkg.prefix);
 }
 
-// AllComponentRegistration.gen.cpp: one deki_register_all_components() the engine calls.
-// In-tree there are no component packages, so it registers the core concrete components only.
+// PluginRegistration.gen.cpp (project plugin): Plugin_RegisterComponents() for the
+// static firmware/simulator builds, and the DekiPlugin_* component exports the
+// editor's PluginLoader reads. The editor-side registries are left to the loader.
+void emit_plugin_registration(std::ostream& out, std::vector<CompInfo> comps, const CodegenPackage& pkg)
+{
+    out << "// AUTO-GENERATED by the Deki reflection codegen: project plugin registration\n";
+    out << "// " << comps.size() << " component(s)\n\n";
+    emit_registration_body(out, comps, std::string(pkg.prefix) + "_RegisterComponents", pkg.adapters, pkg.adapterCount,
+                           /*editorRegistries=*/false, /*pluginSettings=*/true);
+    std::sort(comps.begin(), comps.end(), by_name);
+    out << "#ifdef DEKI_EDITOR\n";
+    for (auto& c : comps)
+        out << "extern const ::Deki::ComponentMeta DekiGen_" << c.stem << "_Meta;\n";
+    out << "#endif\n\n";
+    emit_meta_accessors(out, comps, pkg.prefix);
+    out << "\n#ifdef DEKI_EDITOR\n";
+    out << "#ifdef _WIN32\n#define DEKI_GEN_PLUGIN_API __declspec(dllexport)\n#else\n#define DEKI_GEN_PLUGIN_API __attribute__((visibility(\"default\")))\n#endif\n";
+    out << "extern \"C\" {\n";
+    out << "DEKI_GEN_PLUGIN_API int DekiPlugin_GetComponentCount() { return " << pkg.prefix << "_GetAutoComponentCount(); }\n";
+    out << "DEKI_GEN_PLUGIN_API const ::Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index) { return "
+        << pkg.prefix << "_GetAutoComponentMeta(index); }\n";
+    out << "}\n#endif // DEKI_EDITOR\n";
+}
+
+// CoreRegistration.gen.cpp (engine-core build): DekiCore_RegisterComponents(), run
+// from a static initializer in the editor and from deki_register_core_components()
+// on the runtime, where static initializers are not relied on.
+void emit_core_registration(std::ostream& out, std::vector<CompInfo> comps)
+{
+    out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
+    out << "// Core engine component registration (" << comps.size() << " components)\n\n";
+    emit_registration_body(out, comps, "DekiCore_RegisterComponents", nullptr, 0,
+                           /*editorRegistries=*/true, /*pluginSettings=*/false);
+    out << "#ifdef DEKI_EDITOR\n";
+    out << "namespace {\nstruct DekiCoreRegistrar {\n    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }\n} s_DekiCoreRegistrar;\n}  // namespace\n";
+    out << "#else\n";
+    out << "// Static initializers are unreliable on ESP-IDF, so the runtime registers explicitly.\n";
+    out << "extern \"C\" void deki_register_core_components(void)\n{\n    DekiCore_RegisterComponents();\n}\n";
+    out << "#endif\n";
+}
+
+// AllComponentRegistration.gen.cpp: the one deki_register_all_components() the engine calls.
+// In-tree there are no component packages, so it registers the core components only.
 void emit_all_component_registration(std::ostream& out, std::vector<CompInfo> comps)
 {
-    std::vector<CompInfo> byInc = comps;
-    std::sort(byInc.begin(), byInc.end(), by_inc);
-    std::vector<CompInfo> byNm = comps;
-    std::sort(byNm.begin(), byNm.end(), by_name);
-    std::vector<std::string> concrete, incs;
-    for (auto& c : byNm)
-        if (!c.abstract) concrete.push_back(qualified_name(c));
-    for (auto& c : byInc)
-        if (!c.abstract) incs.push_back(c.inc);
     out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
-    out << "// Single registration function for ALL " << concrete.size() << " concrete components.\n";
-    out << "// DekiEngine calls this ONE function — it knows nothing about individual packages.\n\n\n";
-    out << "#include <deki/reflection/ComponentFactory.h>\n";
-    out << "#include <deki/reflection/ComponentRegistry.h>\n";
-    for (auto& i : incs)
-        out << "#include \"" << i << "\"\n";
-    out << "\nextern \"C\" void deki_register_all_components(void)\n{\n";
-    out << "    static bool registered = false;\n    if (registered) return;\n    registered = true;\n";
-    out << "    auto& factory = ::Deki::ComponentFactory::Instance();\n";
-    out << "#ifdef DEKI_EDITOR\n    // Editor: Register core components only (packages load separately via DLLs)\n";
-    for (auto& n : concrete)
-        out << "    factory.Register(" << n << "::StaticType, []() -> ::Deki::Component* { return new " << n << "(); });\n";
-    out << "#else\n    // Runtime: Use feature guards for selective compilation\n";
-    for (auto& n : concrete)
-        out << "    factory.Register(" << n << "::StaticType, []() -> ::Deki::Component* { return new " << n << "(); });\n";
-    out << "#endif\n";
-    out << "\n    // Compact field tables — every platform (see ::Deki::FieldRef).\n";
-    out << "    auto& registry = ::Deki::ComponentRegistry::Instance();\n";
-    for (auto& n : concrete)
-        out << "    registry.RegisterFields(" << n << "::StaticType, " << n << "::GetFields(), " << n << "::GetFieldCount());\n";
-    out << "}\n";
+    out << "// Single registration function for the " << comps.size() << " core components.\n";
+    out << "// DekiEngine calls this ONE function - it knows nothing about individual packages.\n\n";
+    out << "void DekiCore_RegisterComponents();\n\n";
+    out << "extern \"C\" void deki_register_all_components(void)\n{\n    DekiCore_RegisterComponents();\n}\n";
 }
 
 int main()
@@ -2043,29 +2161,47 @@ int main()
     std::ostringstream buf;
     auto take = [&buf]
     { std::string s = buf.str(); buf.str({}); buf.clear(); return s; };
-    // Components: .gen.cpp (reflection metadata + deserialize) and .gen.h (stub)
-    template for (constexpr auto comp : std::define_static_array(reflected_scope_members()))
+#if defined(DEKI_NO_REGISTRATION)
+    constexpr bool kPluginBuild = true;
+#else
+    constexpr bool kPluginBuild = false;
+#endif
+    // Components: their bodies go to the package's merged .gen.cpp. There is no
+    // per-type .gen.h any more: a component header includes nothing generated.
+    template for (constexpr auto comp : kComponents)
     {
-        if constexpr (m::is_type(comp) && is_component(comp) && package_index_of(comp) != -1)
+        if constexpr (package_index_of(comp) != -1)
         {
             constexpr int mi = package_index_of(comp);
             static_assert(mi >= 0, "reflection codegen: source path matches two package tags in this work unit");
-            const char* nm = std::define_static_string(m::identifier_of(comp));
-            comps[mi].push_back({ std::string(nm), m::is_abstract_type(comp),
-                                  src_rel_include(m::source_location_of(comp).file_name(), kPackages[mi].srcdir),
-                                  std::string(namespace_of(comp)) });
-            if constexpr (in_shard(m::identifier_of(comp)))
+            comps[mi].push_back({ std::string(m::identifier_of(comp)), std::string(qualified_name(comp)),
+                                  std::string(symbol_stem(comp)), m::is_abstract_type(comp),
+                                  tag_text_of(comp, TAG_SETTINGS_SECTION) != nullptr,
+                                  src_rel_include(m::source_location_of(comp).file_name(), kPackages[mi].srcdir) });
+            if constexpr (in_shard(qualified_name(comp)))
             {
-                emit_component<comp>(buf, kPackages[mi].srcdir);
+                emit_component<comp>(buf, kPackages[mi].srcdir, kPluginBuild);
                 mergedCpp[mi] += take();
-                emit_component_header<comp>(buf, kPackages[mi].srcdir);
-                write_if_changed(out_path(mi, nm, ".gen.h"), take());
                 ++nc;
             }
         }
     }
+    // A marker above nothing: DEKI_CATEGORY("...") with no component class after
+    // it in that file. Reported in the package's generated unit, where the build
+    // shows it with the file and line.
+    template for (constexpr auto tg : kTags)
+    {
+        if constexpr (package_index_of(tg) != -1 && tag_owner(tg) == m::info{})
+        {
+            constexpr int mi = package_index_of(tg);
+            constexpr auto loc = m::source_location_of(tg);
+            mergedCpp[mi] += std::string("#error \"component marker at ") + loc.file_name() + ":" + std::to_string(loc.line()) +
+                             " is not followed by a component class in that file (DEKI_CATEGORY / DEKI_DESCRIPTION / "
+                             "DEKI_DISPLAY_NAME / DEKI_SETTINGS_SECTION go right above the class)\"\n";
+        }
+    }
     // DEKI_SERIALIZABLE structs: .gen.cpp (Serialize/Deserialize) and .gen.h (stub)
-    template for (constexpr auto s : std::define_static_array(reflected_scope_members()))
+    template for (constexpr auto s : kScope)
     {
         if constexpr (m::is_type(s) && m::is_class_type(s) && m::is_complete_type(s) && is_serializable(s) && package_index_of(s) != -1 && in_shard(m::identifier_of(s)))
         {
@@ -2080,7 +2216,7 @@ int main()
         }
     }
     // DEKI_NODE structs: .gen.cpp (reflection + msgpack deserialize + self-registration) and .gen.h (stub)
-    template for (constexpr auto n : std::define_static_array(reflected_scope_members()))
+    template for (constexpr auto n : kScope)
     {
         if constexpr (m::is_type(n) && is_node(n) && package_index_of(n) != -1 && in_shard(m::identifier_of(n)))
         {
@@ -2166,7 +2302,8 @@ int main()
         {
             const std::string dir = kPackages[i].outdir;
 #if defined(DEKI_NO_REGISTRATION)
-            (void)dir;  // plugin build: components only (registration is via the editor's PluginExports.cpp)
+            emit_plugin_registration(buf, comps[i], kPackages[i]);
+            write_if_changed(dir + "/" + kPackages[i].prefix + "Registration.gen.cpp", take());
 #elif defined(DEKI_CORE_BUILD)
             emit_core_registration(buf, comps[i]);
             write_if_changed(dir + "/CoreRegistration.gen.cpp", take());

@@ -4,6 +4,35 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.11.0
+
+### Breaking
+- Macro-free components. `Deki::Component` no longer has per-class virtuals:
+  `GetType`, `GetBaseType`, `DeclaresUpdate`, `Deserialize`, `ResolveObjectRefs`
+  and `RemapObjectRefs` are plain calls through the instance's
+  `ComponentTypeInfo` (`Component::GetTypeInfo()`), attached by
+  `AddComponent<T>`, the factory and the scene loader. `DEKI_COMPONENT`,
+  `DECLARE_COMPONENT_TYPE`, `REGISTER_COMPONENT`, `REGISTER_RUNTIME_COMPONENT`
+  and `DEKI_REGISTER_PROJECT_SETTINGS*` are gone; registration is generated.
+- A component's identity is its qualified class name: `Deki::TypeId<T>()`
+  (`include/deki/TypeId.h`, computed from the compiler's function signature,
+  no RTTI) replaces `T::StaticType` and the declared GUID;
+  `ComponentMeta::serializedName` holds that name. `ComponentFactory` stores
+  `ComponentTypeInfo` entries (`Register(info)`, `Find(typeId)`).
+- The reflection codegen finds components by their base class in any namespace,
+  reads `DEKI_CATEGORY` / `DEKI_DESCRIPTION` / `DEKI_DISPLAY_NAME` /
+  `DEKI_SETTINGS_SECTION` from the lines above the class, and emits no per-type
+  `.gen.h`. `ComponentMeta` gained `settingsSection` and `typeInfo` (appended).
+- Reflection ABI 7.
+
+### Added
+- `Deki::MakeHandWrittenTypeInfo<T>()` for hand-written component classes
+  (tests); `AddComponent<T>` falls back to a minimal entry for a class the
+  codegen never saw.
+- Editor builds map 0.10 component GUIDs to class names
+  (`src/reflection/LegacyTypeNames`) when loading scenes, `ObjectRef` ids and
+  `PropertyRef` data.
+
 ## 0.10.0
 
 ### Breaking

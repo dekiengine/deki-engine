@@ -88,15 +88,16 @@ function(deki_reflection_codegen)
     if(_recursive)
       file(GLOB_RECURSE _hdrs CONFIGURE_DEPENDS "${_dir}/*.h")
       list(FILTER _hdrs EXCLUDE REGEX "/generated/")
-      # Keep only headers that declare a reflected type (component / serializable /
-      # node), so the generator TU doesn't pull in non-compiling internals. DEKI_NODE
-      # headers must be listed directly: node structs live in their own headers with
-      # no component, so relying on a transitive include from some component header
-      # is fragile (removing that include silently drops every node from codegen).
+      # Keep only headers that can declare a reflected type: a component names its
+      # base (Component / Behaviour), the other kinds carry a marker. This spares
+      # the generator TU non-compiling internals. DEKI_NODE headers must be listed
+      # directly: node structs live in their own headers with no component, so
+      # relying on a transitive include from some component header is fragile
+      # (removing that include silently drops every node from codegen).
       set(_keep "")
       foreach(_h ${_hdrs})
         file(READ "${_h}" _ht)
-        if(_ht MATCHES "DEKI_COMPONENT\\(" OR _ht MATCHES "DEKI_SERIALIZABLE" OR _ht MATCHES "DEKI_NODE\\(")
+        if(_ht MATCHES "Component" OR _ht MATCHES "Behaviour" OR _ht MATCHES "DEKI_SERIALIZABLE" OR _ht MATCHES "DEKI_NODE\\(")
           list(APPEND _keep "${_h}")
         endif()
       endforeach()

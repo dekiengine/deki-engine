@@ -13,6 +13,7 @@
 #include <deki/Scene.h>
 #else
 #include <deki/reflection/ComponentRegistry.h>
+#include "reflection/LegacyTypeNames.h"
 #endif
 
 #ifndef M_PI
@@ -515,10 +516,16 @@ Component* Object::AddComponent(const std::string& typeName)
 Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)
 {
     auto& registry = ComponentRegistry::Instance();
-    // Try serializedName (GUID) first, then fall back to class name
+    // The "type" key is the qualified class name; a bare class name and a
+    // 0.10 GUID (through the legacy table) are accepted too.
     const ComponentMeta* meta = registry.GetMeta(typeName);
     if (!meta)
         meta = registry.GetMetaByClassName(typeName);
+    if (!meta)
+    {
+        if (const char* legacyName = LegacyComponentTypeName(typeName))
+            meta = registry.GetMeta(legacyName);
+    }
     if (!meta && !classHint.empty())
     {
         // The GUID in the file is not registered but the class name written

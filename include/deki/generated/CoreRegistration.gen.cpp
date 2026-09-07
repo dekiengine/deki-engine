@@ -3,55 +3,63 @@
 
 #include <deki/reflection/ComponentFactory.h>
 #include <deki/reflection/ComponentRegistry.h>
-#include "deki/PlatformSetupComponent.h"
-#include "deki/SetupComponent.h"
-#include "deki/settings/CoreProjectSettings.h"
-#include "deki/settings/DisplayProjectSettings.h"
-#include "deki/settings/UnitProjectSettings.h"
-
-// =============================================================================
-// Desktop/Editor: Static initializer registration
-// =============================================================================
-// REGISTER_RUNTIME_COMPONENT registers with ComponentFactory at program startup.
-// REGISTER_COMPONENT registers with ComponentRegistry (editor-only).
-
-namespace Deki {
-REGISTER_RUNTIME_COMPONENT(CoreProjectSettings);
-REGISTER_RUNTIME_COMPONENT(DisplayProjectSettings);
-REGISTER_RUNTIME_COMPONENT(PlatformSetupComponent);
-REGISTER_RUNTIME_COMPONENT(UnitProjectSettings);
-}  // namespace Deki
 #ifdef DEKI_EDITOR
-namespace Deki {
-REGISTER_COMPONENT(CoreProjectSettings);
-REGISTER_COMPONENT(DisplayProjectSettings);
-REGISTER_COMPONENT(PlatformSetupComponent);
-REGISTER_COMPONENT(SetupComponent);
-REGISTER_COMPONENT(UnitProjectSettings);
-}  // namespace Deki
+#include <deki/reflection/SettingsRegistry.h>
 #endif
 
-// =============================================================================
-// ESP32/Embedded: Explicit registration function
-// =============================================================================
-// Static initializers are unreliable on ESP-IDF, so we register explicitly.
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_CoreProjectSettings_TypeInfo;
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_DisplayProjectSettings_TypeInfo;
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_PlatformSetupComponent_TypeInfo;
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_SetupComponent_TypeInfo;
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_UnitProjectSettings_TypeInfo;
+#ifdef DEKI_EDITOR
+extern const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta;
+extern const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta;
+extern const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta;
+extern const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta;
+extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;
+#endif
 
-#ifndef DEKI_EDITOR
+void DekiCore_RegisterComponents() {
+    static bool done = false;
+    if (done) return;
+    done = true;
+    auto& factory = ::Deki::ComponentFactory::Instance();
+    factory.Register(&DekiGen_Deki_CoreProjectSettings_TypeInfo);
+    factory.Register(&DekiGen_Deki_DisplayProjectSettings_TypeInfo);
+    factory.Register(&DekiGen_Deki_PlatformSetupComponent_TypeInfo);
+    factory.Register(&DekiGen_Deki_SetupComponent_TypeInfo);
+    factory.Register(&DekiGen_Deki_UnitProjectSettings_TypeInfo);
+
+    // Compact field tables (all platforms - see ::Deki::FieldRef)
+    auto& registry = ::Deki::ComponentRegistry::Instance();
+    registry.RegisterFields(DekiGen_Deki_CoreProjectSettings_TypeInfo.typeId, DekiGen_Deki_CoreProjectSettings_TypeInfo.fields, DekiGen_Deki_CoreProjectSettings_TypeInfo.fieldCount);
+    registry.RegisterFields(DekiGen_Deki_DisplayProjectSettings_TypeInfo.typeId, DekiGen_Deki_DisplayProjectSettings_TypeInfo.fields, DekiGen_Deki_DisplayProjectSettings_TypeInfo.fieldCount);
+    registry.RegisterFields(DekiGen_Deki_PlatformSetupComponent_TypeInfo.typeId, DekiGen_Deki_PlatformSetupComponent_TypeInfo.fields, DekiGen_Deki_PlatformSetupComponent_TypeInfo.fieldCount);
+    registry.RegisterFields(DekiGen_Deki_SetupComponent_TypeInfo.typeId, DekiGen_Deki_SetupComponent_TypeInfo.fields, DekiGen_Deki_SetupComponent_TypeInfo.fieldCount);
+    registry.RegisterFields(DekiGen_Deki_UnitProjectSettings_TypeInfo.typeId, DekiGen_Deki_UnitProjectSettings_TypeInfo.fields, DekiGen_Deki_UnitProjectSettings_TypeInfo.fieldCount);
+#ifdef DEKI_EDITOR
+    registry.Register(&DekiGen_Deki_CoreProjectSettings_Meta);
+    registry.Register(&DekiGen_Deki_DisplayProjectSettings_Meta);
+    registry.Register(&DekiGen_Deki_PlatformSetupComponent_Meta);
+    registry.Register(&DekiGen_Deki_SetupComponent_Meta);
+    registry.Register(&DekiGen_Deki_UnitProjectSettings_Meta);
+    ::Deki::SettingsRegistry::Instance().Register(DekiGen_Deki_CoreProjectSettings_Meta.settingsSection, &DekiGen_Deki_CoreProjectSettings_Meta);
+    ::Deki::SettingsRegistry::Instance().Register(DekiGen_Deki_DisplayProjectSettings_Meta.settingsSection, &DekiGen_Deki_DisplayProjectSettings_Meta);
+    ::Deki::SettingsRegistry::Instance().Register(DekiGen_Deki_UnitProjectSettings_Meta.settingsSection, &DekiGen_Deki_UnitProjectSettings_Meta);
+#endif
+}
+
+#ifdef DEKI_EDITOR
+namespace {
+struct DekiCoreRegistrar {
+    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }
+} s_DekiCoreRegistrar;
+}  // namespace
+#else
+// Static initializers are unreliable on ESP-IDF, so the runtime registers explicitly.
 extern "C" void deki_register_core_components(void)
 {
-    static bool registered = false;
-    if (registered) return;
-    registered = true;
-    auto& factory = ::Deki::ComponentFactory::Instance();
-    factory.Register(Deki::CoreProjectSettings::StaticType, []() -> ::Deki::Component* { return new Deki::CoreProjectSettings(); });
-    factory.Register(Deki::DisplayProjectSettings::StaticType, []() -> ::Deki::Component* { return new Deki::DisplayProjectSettings(); });
-    factory.Register(Deki::PlatformSetupComponent::StaticType, []() -> ::Deki::Component* { return new Deki::PlatformSetupComponent(); });
-    factory.Register(Deki::UnitProjectSettings::StaticType, []() -> ::Deki::Component* { return new Deki::UnitProjectSettings(); });
-
-    auto& registry = ::Deki::ComponentRegistry::Instance();
-    registry.RegisterFields(Deki::CoreProjectSettings::StaticType, Deki::CoreProjectSettings::GetFields(), Deki::CoreProjectSettings::GetFieldCount());
-    registry.RegisterFields(Deki::DisplayProjectSettings::StaticType, Deki::DisplayProjectSettings::GetFields(), Deki::DisplayProjectSettings::GetFieldCount());
-    registry.RegisterFields(Deki::PlatformSetupComponent::StaticType, Deki::PlatformSetupComponent::GetFields(), Deki::PlatformSetupComponent::GetFieldCount());
-    registry.RegisterFields(Deki::UnitProjectSettings::StaticType, Deki::UnitProjectSettings::GetFields(), Deki::UnitProjectSettings::GetFieldCount());
+    DekiCore_RegisterComponents();
 }
 #endif

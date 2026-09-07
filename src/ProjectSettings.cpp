@@ -441,7 +441,7 @@ bool Load(const uint8_t* data, size_t size)
                     // (camera world scale) directly. Without this, cameras using
                     // the inherit sentinel (pixelsPerMeter == 0) fall back to the
                     // engine-default ppm and the scene renders at the wrong scale.
-                    if (sectionName == UnitProjectSettings::StaticSettingsSection)
+                    if (sectionName == "Units")  // UnitProjectSettings' DEKI_SETTINGS_SECTION
                     {
                         float ppm = 0.0f;
                         if (ReadFloatSettingByHash(data, sectionStart, sectionEnd,

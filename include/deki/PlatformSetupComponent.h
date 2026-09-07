@@ -28,11 +28,11 @@
 namespace Deki
 {
 
+DEKI_CATEGORY("System")
+DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the startup scene.")
 class PlatformSetupComponent : public Behaviour
 {
 public:
-    DEKI_COMPONENT(PlatformSetupComponent, Behaviour, "System", "e1b3c909-aaa1-49f4-8d62-04145f79f2a0", "")
-    DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the startup scene.")
 
     /** @brief SetupComponents to initialize in order (use ObjectRef picker in editor) */
     // Boot scenes written before the camelCase rename spell this key
@@ -60,6 +60,5 @@ private:
 };
 
 // Generated property metadata
-#include "deki/generated/PlatformSetupComponent.gen.h"
 
 }  // namespace Deki

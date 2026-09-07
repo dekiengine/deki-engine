@@ -17,7 +17,7 @@
  * static struct MyAdapterRegistrar {
  *     MyAdapterRegistrar() {
  *         ComponentInterfaceAdapters::Register(
- *             IClipProvider::InterfaceID, MyComponent::StaticType,
+ *             IClipProvider::InterfaceID, ::Deki::TypeId<MyComponent>(),
  *             [](Component* c) -> void* {
  *                 return static_cast<IClipProvider*>(static_cast<MyComponent*>(c));
  *             });

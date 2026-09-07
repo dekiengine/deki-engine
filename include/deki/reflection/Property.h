@@ -26,7 +26,8 @@ namespace Deki
 {
 
 class Component;
-class Scene;  // ResolveObjectRefs(Scene*) in the DEKI_COMPONENT macros
+class Scene;
+struct ComponentTypeInfo;  // Component.h
 
 // ============================================================================
 // Export marker for property generator
@@ -147,26 +148,6 @@ namespace deki_refl {
 // member; the alias must differ from the current identifier.
 #define DEKI_RENAMED_FROM(oldName)
 #endif
-
-// Mark a Component subclass as a project-settings type and assign it a
-// section name (e.g. "Rendering", "Audio") in the editor's Project Settings
-// panel. Use inside the class body. The SettingsRegistry reads
-// ClassName::StaticSettingsSection at registration time.
-//
-// Usage:
-//   class RenderingProjectSettings : public Component {
-//       DEKI_COMPONENT(RenderingProjectSettings, Component, "Settings",
-//                      "<guid>", "")
-//       DEKI_PROJECT_SETTINGS_SECTION("Rendering")
-//   public:
-//       DEKI_TOOLTIP("...")
-//       DEKI_EXPORT bool half_width_framebuffer = false;
-//   };
-//
-// Pair with DEKI_REGISTER_PROJECT_SETTINGS / DEKI_REGISTER_PROJECT_SETTINGS_PLUGIN
-// in the .cpp to actually register with the registry.
-#define DEKI_PROJECT_SETTINGS_SECTION(SectionName) \
-    public: static constexpr const char* StaticSettingsSection = SectionName;
 
 // ============================================================================
 // Serializable struct markers (Unity-style automatic serialization)
@@ -342,12 +323,12 @@ struct PropertyInfo {
  * @brief Component metadata for runtime reflection
  */
 struct ComponentMeta {
-    const char* name;           // Class name for display (the C++ class name)
-    const char* serializedName; // Stable GUID for scene serialization (e.g., "a1b2c3d4-e5f6-7890-abcd-ef0123456789")
+    const char* name;           // The identifier alone ("Health"): display, and the scene file's "class" hint
+    const char* serializedName; // The fully qualified C++ name ("Game::Health"): the scene file's "type" key
     const char* category;       // Category (e.g., "2D", "Rendering")
     const char* description;    // Description text
 
-    uint32_t typeId;            // ComponentType from DECLARE_COMPONENT_TYPE
+    uint32_t typeId;            // TypeId<T>() == HashString(serializedName)
     uint32_t baseTypeId;        // Base class ComponentType
 
     bool isAbstract;            // True if component cannot be instantiated
@@ -368,10 +349,18 @@ struct ComponentMeta {
     mutable char displayNameBuffer[64];
     mutable bool displayNameGenerated;
 
-    // Explicit display name override (set via DEKI_DISPLAY_NAME("...") in the class).
+    // Explicit display name override (DEKI_DISPLAY_NAME("...") above the class).
     // When non-null, GetDisplayName() returns this verbatim instead of auto-generating.
     // Trails the struct so existing .gen.cpp initializers remain valid (default-inits to nullptr).
     const char* displayNameOverride = nullptr;
+
+    // DEKI_SETTINGS_SECTION: the Project Settings section this type provides;
+    // nullptr for an ordinary scene component. Trails the struct (append-only rule).
+    const char* settingsSection = nullptr;
+
+    // The runtime entry for this class (factory, deserializer, field table).
+    // Trails the struct (append-only rule).
+    const ComponentTypeInfo* typeInfo = nullptr;
 
     // Get the display name. Prefers an explicit override; otherwise derives from `name`.
     const char* GetDisplayName() const {
@@ -445,90 +434,56 @@ inline const T& GetNodePropertyRef(const void* base, const PropertyInfo& prop) {
 }
 
 // ============================================================================
-// Unified component declaration macro
+// Component metadata markers (optional, ABOVE the class)
 // ============================================================================
-// Use DEKI_COMPONENT inside the class declaration.
-// Use DEKI_EXPORT above each field to expose in editor.
-// Include the generated .gen.h at end of header.
+// A component is any class deriving publicly from Deki::Component or
+// Deki::Behaviour. The reflection codegen finds it by that alone: no macro in
+// the class, no generated include, and its identity is its qualified C++ name
+// (see TypeId.h). These markers add editor metadata. They sit on the lines right
+// above the class and attach to the next component declared in the same file:
 //
-// Usage:
-//   class MyComponent : public Behaviour
+//   DEKI_CATEGORY("Enemies")
+//   DEKI_DESCRIPTION("Hit points for anything that can be damaged.")
+//   class Health : public Deki::Component
 //   {
-//       DEKI_COMPONENT(MyComponent, Behaviour, "2D", "your-guid-here", "DEKI_FEATURE_MY")
 //   public:
-//       DEKI_EXPORT
-//       int myProperty;
+//       DEKI_EXPORT int hp = 10;
 //   };
-//   #include "generated/MyComponent.gen.h"
 //
-
-// ============================================================================
-// Reflection method declarations (editor-only)
-// ============================================================================
-// These methods are implemented in generated .gen.cpp files.
-// On embedded platforms, reflection is not needed - only Deserialize() is used.
-
-#ifdef DEKI_EDITOR
-    #define DEKI_REFLECTION_DECLARATIONS() \
-        static const ::Deki::PropertyInfo* GetProperties(); \
-        static int GetPropertyCount(); \
-        static const ::Deki::ComponentMeta& GetComponentMeta();
+// DEKI_CATEGORY      Add Component picker group; defaults to "Game" for project
+//                    scripts and "General" for packages.
+// DEKI_DESCRIPTION   One line on what the component DOES, shown under its name
+//                    in the picker. Write it for a reader who has never opened
+//                    the class.
+// DEKI_DISPLAY_NAME  Inspector name when the one derived from the class name
+//                    ("DS3231RTCComponent" -> "DS3231 RTC") is not right.
+// DEKI_SETTINGS_SECTION  Makes the component a Project Settings section of
+//                    that name instead of a scene component.
+//
+// Only the reflection generator sees them; every other build expands them to
+// nothing. Exported fields must be public: the generated code reaches them
+// from outside the class.
+#if defined(DEKI_REFLECT)
+namespace deki_refl {
+    struct category_tag { const char* text; };
+    struct description_tag { const char* text; };
+    struct display_name_tag { const char* text; };
+    struct settings_section_tag { const char* text; };
+}
+#define DEKI_REFL_CONCAT2(a, b) a##b
+#define DEKI_REFL_CONCAT(a, b) DEKI_REFL_CONCAT2(a, b)
+#define DEKI_REFL_TAG(Tag, text) \
+    inline constexpr ::Deki::deki_refl::Tag DEKI_REFL_CONCAT(deki_refl_tag_, __COUNTER__){ std::define_static_string(text) };
+#define DEKI_CATEGORY(text)         DEKI_REFL_TAG(category_tag, text)
+#define DEKI_DESCRIPTION(text)      DEKI_REFL_TAG(description_tag, text)
+#define DEKI_DISPLAY_NAME(text)     DEKI_REFL_TAG(display_name_tag, text)
+#define DEKI_SETTINGS_SECTION(text) DEKI_REFL_TAG(settings_section_tag, text)
 #else
-    #define DEKI_REFLECTION_DECLARATIONS() /* No reflection on embedded */
+#define DEKI_CATEGORY(text)
+#define DEKI_DESCRIPTION(text)
+#define DEKI_DISPLAY_NAME(text)
+#define DEKI_SETTINGS_SECTION(text)
 #endif
-
-// GetFields/GetFieldCount are NOT inside DEKI_REFLECTION_DECLARATIONS: the
-// compact field table is emitted for every platform (see FieldRef), unlike
-// the editor-only rich metadata.
-#define DEKI_COMPONENT_BASE(BaseTypeName, Category) \
-        static constexpr ::Deki::ComponentType BaseStaticType = BaseTypeName::StaticType; \
-        static constexpr const char* ComponentCategory = Category; \
-        ::Deki::ComponentType GetType() const override { return StaticType; } \
-        ::Deki::ComponentType GetBaseType() const override { return BaseStaticType; } \
-        bool Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) override; \
-        void ResolveObjectRefs(::Deki::Scene* scene) override; \
-        void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) override; \
-        bool DeclaresUpdate() const override; \
-        static const ::Deki::FieldRef* GetFields(); \
-        static int GetFieldCount(); \
-        DEKI_REFLECTION_DECLARATIONS()
-
-#define DEKI_COMPONENT(TypeName, BaseTypeName, Category, TypeGuid, FeatureDefine) \
-    public: \
-        static constexpr ::Deki::ComponentType StaticType = ::Deki::HashString(TypeGuid); \
-        static constexpr const char* StaticGuid = TypeGuid; \
-        static constexpr const char* StaticFeatureDefine = FeatureDefine; \
-        DEKI_COMPONENT_BASE(BaseTypeName, Category)
-
-// Optional: declare an explicit inspector display name for this component.
-// Place inside the class body. The metadata generator picks it up and wires it
-// into the component's ComponentMeta::displayNameOverride; runtime
-// GetDisplayName() returns this string verbatim instead of deriving from the class name.
-//
-//   class DS3231RTCComponent : public SetupComponent {
-//       DEKI_COMPONENT(DS3231RTCComponent, SetupComponent, "Sensors", "<guid>", "")
-//       DEKI_DISPLAY_NAME("DS3231 RTC")
-//       ...
-//   };
-//
-// Expands to a static constexpr string the generator can also reference directly.
-#define DEKI_DISPLAY_NAME(name) \
-    public: \
-        static constexpr const char* StaticDisplayName = name;
-
-// Optional: one line on what this component DOES, shown under its name in the
-// Add Component picker. Write it for a reader who has never opened the class:
-// a project accumulates a dozen components with names like "HeroController"
-// and "LivingController", and the name alone does not say which is which.
-//
-//   class ScrollComponent : public Behaviour {
-//       DEKI_COMPONENT(ScrollComponent, Behaviour, "2D", "<guid>", "")
-//       DEKI_DESCRIPTION("Drag-scrolls its children with momentum and clamping.")
-//       ...
-//   };
-#define DEKI_DESCRIPTION(text) \
-    public: \
-        static constexpr const char* StaticDescription = text;
 
 // ============================================================================
 // Node declaration macro (standalone node-graph tool; NOT a component)

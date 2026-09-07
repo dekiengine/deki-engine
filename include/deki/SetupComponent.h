@@ -43,10 +43,10 @@
 namespace Deki
 {
 
+DEKI_CATEGORY("System")
 class SetupComponent : public Behaviour
 {
 public:
-    DEKI_COMPONENT(SetupComponent, Behaviour, "System", "f2c936db-c42a-47f3-bf97-931cab7e44df", "")
 
     using SetupCallback = std::function<void(bool success)>;
 
@@ -102,6 +102,5 @@ struct EditorAutoSetupRegistrar
 #endif
 
 // Generated property metadata
-#include "deki/generated/SetupComponent.gen.h"
 
 }  // namespace Deki

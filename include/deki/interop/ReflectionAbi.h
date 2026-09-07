@@ -98,8 +98,16 @@ struct DekiReflectionAbi
  *    every exported engine function changed, so a 1.x package DLL would fail to
  *    load with unresolved imports; the bump turns that into the loader's
  *    "built against another engine, rebuilding" path instead.
+ *
+ * 7: engine 0.11 (macro-free components). Deki::Component lost six virtuals
+ *    (GetType, GetBaseType, DeclaresUpdate, Deserialize, ResolveObjectRefs,
+ *    RemapObjectRefs are now plain calls through the instance's
+ *    ComponentTypeInfo pointer, which also grew the class by one pointer), and
+ *    a component's identity is the hash of its qualified class name instead of
+ *    a declared GUID. sizeofDekiComponent catches the size, the version bump
+ *    catches the vtable.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 6;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 7;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

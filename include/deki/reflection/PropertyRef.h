@@ -98,7 +98,7 @@ struct PropertyRef
 {
     // ---- Authored / serialized ----
     std::string object;     // object name in the scene; "" = own object
-    std::string component;  // component type GUID (Component::StaticGuid)
+    std::string component;  // component type GUID (::Deki::TypeName<Component>())
     std::string field;      // field name as declared in C++
 
     // ---- Derived at load (Rehash), never serialized ----

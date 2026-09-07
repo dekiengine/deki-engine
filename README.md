@@ -31,10 +31,10 @@ in the editor's `tests/` tree.
 ## A component
 
 ```cpp
-class Mover : public Deki::Behaviour
+DEKI_CATEGORY("Game")                                  // optional, above the class
+DEKI_DESCRIPTION("Moves the object along X at a constant speed.")
+class Mover : public Deki::Behaviour                   // deriving is the whole declaration
 {
-    DEKI_COMPONENT(Mover, Deki::Behaviour, "Game")   // (Name, Base, Category[, Guid, FeatureDefine])
-    DEKI_DESCRIPTION("Moves the object along X at a constant speed.")
 public:
     DEKI_EXPORT DEKI_RANGE(0, 10)
     float speed = 1.0f;                            // reflected: this name IS the file key
@@ -54,11 +54,11 @@ scene files: renaming one is a file-format change, done with
 | Path | What it is |
 | --- | --- |
 | `include/deki/` | The public headers, included as `<deki/Object.h>`: `Deki::Engine` (frame loop), `Deki::Object`, `Deki::Component`/`Deki::Behaviour`, `Deki::Scene`, `Deki::SceneSystem`, `SceneMessagePack` (runtime scene format). Everything is in `namespace Deki`, unprefixed, and so are the file names |
-| `include/deki/reflection/` | `Property.h` (`DEKI_COMPONENT`, `DEKI_EXPORT`, attributes), `ComponentRegistry`, `ComponentFactory`, `SettingsRegistry` |
+| `include/deki/reflection/` | `Property.h` (`DEKI_EXPORT`, the attributes, the markers above a class), `ComponentRegistry`, `ComponentFactory`, `SettingsRegistry`; `TypeId.h` (a component's identity is its qualified class name) |
 | `include/deki/assets/` | `AssetManager`, `AssetRef<T>`, asset packs |
 | `include/deki/providers/` | The provider interfaces packages implement |
 | `include/deki/interop/` | `Plugin.h` (the C exports a package DLL provides), `ReflectionAbi.h` (the ABI handshake and its changelog); the C symbols keep the `DekiPlugin_` prefix |
-| `include/deki/generated/` | Codegen output: `.gen.h` (ignored) and the tracked `.gen.cpp` |
+| `include/deki/generated/` | Codegen output: the tracked `.gen.cpp` (components need no generated header) |
 | `src/` | Implementation, and the engine-internal headers (`LifecycleManager.h`, `MissingComponent.h`, `AuthoredFormat.h`, the provider registry) that only the editor's own binaries include, via the `deki-engine-internal` target |
 | `tools/`, `cmake/` | The reflection code generator and its CMake driver |
 

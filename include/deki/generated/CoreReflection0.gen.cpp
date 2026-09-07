@@ -8,15 +8,17 @@
 #include "deki/SetupComponent.h"
 #include <deki/SceneMessagePack.h>
 #include <deki/Scene.h>
+#include <deki/reflection/Property.h>
 #include <unordered_map>
 
-namespace Deki {
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_SetupComponent_TypeInfo;
 
 // =============================================================================
 // Runtime Deserialization (all platforms)
 // =============================================================================
 
-bool SetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+static bool DekiGen_Deki_SetupComponent_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+    Deki::SetupComponent& self = *static_cast<Deki::SetupComponent*>(_c); (void)self;
     for (uint32_t i = 0; i < mapSize; i++) {
         const char* key; uint16_t keyLen;
         if (!parser.ReadString(key, keyLen)) return false;
@@ -29,35 +31,21 @@ bool SetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser
 // ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead
 // =============================================================================
 
-void SetupComponent::ResolveObjectRefs(::Deki::Scene* scene) {
-    (void)scene; // No ::Deki::ObjectRef or AssetRef properties
-}
-
-// =============================================================================
-// Update declaration (all platforms)
-// =============================================================================
-
-bool SetupComponent::DeclaresUpdate() const {
-    return false;
+static void DekiGen_Deki_SetupComponent_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {
+    Deki::SetupComponent& self = *static_cast<Deki::SetupComponent*>(_c); (void)self; (void)scene;
 }
 
 // =============================================================================
 // ::Deki::ObjectRef ID Remapping (all platforms)
 // =============================================================================
 
-void SetupComponent::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {
-    (void)idRemap; // No ::Deki::ObjectRef properties
+static void DekiGen_Deki_SetupComponent_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {
+    Deki::SetupComponent& self = *static_cast<Deki::SetupComponent*>(_c); (void)self; (void)idRemap;
 }
 
 // =============================================================================
 // Compact Field Table (all platforms)
 // =============================================================================
-
-const ::Deki::FieldRef* SetupComponent::GetFields() {
-    return nullptr;
-}
-
-int SetupComponent::GetFieldCount() { return 0; }
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -65,51 +53,71 @@ int SetupComponent::GetFieldCount() { return 0; }
 
 #ifdef DEKI_EDITOR
 
-const ::Deki::PropertyInfo* SetupComponent::GetProperties() {
-    return nullptr;
-}
-
-int SetupComponent::GetPropertyCount() { return 0; }
-
-const ::Deki::ComponentMeta& SetupComponent::GetComponentMeta() {
-    static const ::Deki::ComponentMeta meta = {
-        "SetupComponent",
-        "f2c936db-c42a-47f3-bf97-931cab7e44df",  // serializedName (GUID)
-        "System",  // Category
-        "",      // Description (none declared)
-        SetupComponent::StaticType,
-        Behaviour::StaticType,
-        true,   // isAbstract
-        false,   // isUnique
-        false,   // bootSceneOnly
-        false,   // platformSceneOnly
-        sizeof(SetupComponent),
-        nullptr,
-        SetupComponent::GetProperties(),
-        SetupComponent::GetPropertyCount(),
-        {}, false
-    };
-    return meta;
-}
-
+extern const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta;
 #endif // DEKI_EDITOR
 
-}  // namespace Deki
+// =============================================================================
+// Type entry (all platforms)
+// =============================================================================
+
+const ::Deki::ComponentTypeInfo DekiGen_Deki_SetupComponent_TypeInfo = {
+    ::Deki::TypeName<Deki::SetupComponent>(),
+    ::Deki::TypeShortName<Deki::SetupComponent>(),
+    ::Deki::TypeId<Deki::SetupComponent>(),
+    ::Deki::TypeId<Deki::Behaviour>(),
+    true,   // isAbstract
+    false,   // declaresUpdate
+    nullptr,
+    &DekiGen_Deki_SetupComponent_Deserialize,
+    &DekiGen_Deki_SetupComponent_ResolveObjectRefs,
+    &DekiGen_Deki_SetupComponent_RemapObjectRefs,
+    nullptr, 0,
+#ifdef DEKI_EDITOR
+    &DekiGen_Deki_SetupComponent_Meta
+#else
+    nullptr
+#endif
+};
+
+#ifdef DEKI_EDITOR
+const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta = {
+    "SetupComponent",
+    ::Deki::TypeName<Deki::SetupComponent>(),  // serializedName: the scene file's "type"
+    "System",  // DEKI_CATEGORY
+    "",      // description (none declared)
+    ::Deki::TypeId<Deki::SetupComponent>(),
+    ::Deki::TypeId<Deki::Behaviour>(),
+    true,   // isAbstract
+    false,   // isUnique
+    false,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki::SetupComponent),
+    nullptr,
+    nullptr, 0,
+    {}, false,
+    nullptr,   // displayNameOverride
+    nullptr,   // settingsSection
+    &DekiGen_Deki_SetupComponent_TypeInfo
+};
+#endif // DEKI_EDITOR
+
 // AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT
 // Source: deki/PlatformSetupComponent.h
 
 #include "deki/PlatformSetupComponent.h"
 #include <deki/SceneMessagePack.h>
 #include <deki/Scene.h>
+#include <deki/reflection/Property.h>
 #include <unordered_map>
 
-namespace Deki {
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_PlatformSetupComponent_TypeInfo;
 
 // =============================================================================
 // Runtime Deserialization (all platforms)
 // =============================================================================
 
-bool PlatformSetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+static bool DekiGen_Deki_PlatformSetupComponent_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+    Deki::PlatformSetupComponent& self = *static_cast<Deki::PlatformSetupComponent*>(_c); (void)self;
     for (uint32_t i = 0; i < mapSize; i++) {
         const char* key; uint16_t keyLen;
         if (!parser.ReadString(key, keyLen)) return false;
@@ -120,9 +128,9 @@ bool PlatformSetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser
             case ::Deki::HashString("setupComponents"): {
                 uint32_t arrSize;
                 if (parser.ReadArraySize(arrSize)) {
-                    setupComponents.clear();
+                    self.setupComponents.clear();
                     for (uint32_t i = 0; i < arrSize; i++) {
-                        decltype(setupComponents)::value_type ref;
+                        decltype(self.setupComponents)::value_type ref;
                         uint8_t _pb;
                         if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == 0xdd)) {
                             uint32_t _as; if (parser.ReadArraySize(_as) && _as >= 2) {
@@ -134,7 +142,7 @@ bool PlatformSetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser
                             int32_t v;
                             if (parser.ReadInt(v)) { ref.id = static_cast<uint32_t>(v); ref.componentTypeId = 0; }
                         }
-                        setupComponents.push_back(ref);
+                        self.setupComponents.push_back(ref);
                     }
                 }
                 break;
@@ -149,27 +157,21 @@ bool PlatformSetupComponent::Deserialize(::Deki::SceneFormat::SceneMsgPackParser
 // ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead
 // =============================================================================
 
-void PlatformSetupComponent::ResolveObjectRefs(::Deki::Scene* scene) {
-    for (auto& ref : setupComponents) {
+static void DekiGen_Deki_PlatformSetupComponent_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {
+    Deki::PlatformSetupComponent& self = *static_cast<Deki::PlatformSetupComponent*>(_c); (void)self; (void)scene;
+    for (auto& ref : self.setupComponents) {
         if (ref.id != 0 && ref.resolved == nullptr)
             ref.resolved = scene->FindDekiObject(ref.id);
     }
 }
 
 // =============================================================================
-// Update declaration (all platforms)
-// =============================================================================
-
-bool PlatformSetupComponent::DeclaresUpdate() const {
-    return true;
-}
-
-// =============================================================================
 // ::Deki::ObjectRef ID Remapping (all platforms)
 // =============================================================================
 
-void PlatformSetupComponent::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {
-    for (auto& ref : setupComponents) {
+static void DekiGen_Deki_PlatformSetupComponent_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {
+    Deki::PlatformSetupComponent& self = *static_cast<Deki::PlatformSetupComponent*>(_c); (void)self; (void)idRemap;
+    for (auto& ref : self.setupComponents) {
         auto it = idRemap.find(ref.id);
         if (it != idRemap.end()) { ref.id = it->second; ref.resolved = nullptr; }
     }
@@ -179,15 +181,10 @@ void PlatformSetupComponent::RemapObjectRefs(const std::unordered_map<uint32_t, 
 // Compact Field Table (all platforms)
 // =============================================================================
 
-const ::Deki::FieldRef* PlatformSetupComponent::GetFields() {
-    static const ::Deki::FieldRef fields[] = {
-        { ::Deki::HashString("setupComponents"), (uint16_t)offsetof(PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },
-        { ::Deki::HashString("setup_components"), (uint16_t)offsetof(PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },  // DEKI_RENAMED_FROM
-    };
-    return fields;
-}
-
-int PlatformSetupComponent::GetFieldCount() { return 2; }
+static const ::Deki::FieldRef DekiGen_Deki_PlatformSetupComponent_Fields[] = {
+    { ::Deki::HashString("setupComponents"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },
+    { ::Deki::HashString("setup_components"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },  // DEKI_RENAMED_FROM
+};
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -195,63 +192,84 @@ int PlatformSetupComponent::GetFieldCount() { return 2; }
 
 #ifdef DEKI_EDITOR
 
-const ::Deki::PropertyInfo* PlatformSetupComponent::GetProperties() {
-    static const ::Deki::PropertyInfo props[] = {
-    { "setupComponents", nullptr, ::Deki::PropertyType::Array, offsetof(PlatformSetupComponent, setupComponents),
+static const ::Deki::PropertyInfo DekiGen_Deki_PlatformSetupComponent_Props[] = {
+    { "setupComponents", nullptr, ::Deki::PropertyType::Array, offsetof(Deki::PlatformSetupComponent, setupComponents),
       nullptr, 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::ObjectRef, nullptr, 0, 0, "SetupComponent", false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, "setup_components" }
-    };
-    return props;
-}
+};
 
-int PlatformSetupComponent::GetPropertyCount() { return 1; }
-
-const ::Deki::ComponentMeta& PlatformSetupComponent::GetComponentMeta() {
-    static const ::Deki::ComponentMeta meta = {
-        "PlatformSetupComponent",
-        "e1b3c909-aaa1-49f4-8d62-04145f79f2a0",  // serializedName (GUID)
-        "System",  // Category
-        PlatformSetupComponent::StaticDescription,   // Description (DEKI_DESCRIPTION)
-        PlatformSetupComponent::StaticType,
-        Behaviour::StaticType,
-        false,   // isAbstract
-        false,   // isUnique
-        true,   // bootSceneOnly
-        false,   // platformSceneOnly
-        sizeof(PlatformSetupComponent),
-        []() -> ::Deki::Component* { return new PlatformSetupComponent(); },
-        PlatformSetupComponent::GetProperties(),
-        PlatformSetupComponent::GetPropertyCount(),
-        {}, false
-    };
-    return meta;
-}
-
+extern const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta;
 #endif // DEKI_EDITOR
 
-}  // namespace Deki
+// =============================================================================
+// Type entry (all platforms)
+// =============================================================================
+
+const ::Deki::ComponentTypeInfo DekiGen_Deki_PlatformSetupComponent_TypeInfo = {
+    ::Deki::TypeName<Deki::PlatformSetupComponent>(),
+    ::Deki::TypeShortName<Deki::PlatformSetupComponent>(),
+    ::Deki::TypeId<Deki::PlatformSetupComponent>(),
+    ::Deki::TypeId<Deki::Behaviour>(),
+    false,   // isAbstract
+    true,   // declaresUpdate
+    []() -> ::Deki::Component* { auto* c = new Deki::PlatformSetupComponent(); c->SetTypeInfo(&DekiGen_Deki_PlatformSetupComponent_TypeInfo); return c; },
+    &DekiGen_Deki_PlatformSetupComponent_Deserialize,
+    &DekiGen_Deki_PlatformSetupComponent_ResolveObjectRefs,
+    &DekiGen_Deki_PlatformSetupComponent_RemapObjectRefs,
+    DekiGen_Deki_PlatformSetupComponent_Fields, 2,
+#ifdef DEKI_EDITOR
+    &DekiGen_Deki_PlatformSetupComponent_Meta
+#else
+    nullptr
+#endif
+};
+
+#ifdef DEKI_EDITOR
+const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta = {
+    "PlatformSetupComponent",
+    ::Deki::TypeName<Deki::PlatformSetupComponent>(),  // serializedName: the scene file's "type"
+    "System",  // DEKI_CATEGORY
+    "Runs each Setup Component in order at boot, then loads the startup scene.",  // DEKI_DESCRIPTION
+    ::Deki::TypeId<Deki::PlatformSetupComponent>(),
+    ::Deki::TypeId<Deki::Behaviour>(),
+    false,   // isAbstract
+    false,   // isUnique
+    true,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki::PlatformSetupComponent),
+    DekiGen_Deki_PlatformSetupComponent_TypeInfo.create,
+    DekiGen_Deki_PlatformSetupComponent_Props, 1,
+    {}, false,
+    nullptr,   // displayNameOverride
+    nullptr,   // settingsSection
+    &DekiGen_Deki_PlatformSetupComponent_TypeInfo
+};
+#endif // DEKI_EDITOR
+
 // AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT
 // Source: deki/settings/CoreProjectSettings.h
 
 #include "deki/settings/CoreProjectSettings.h"
 #include <deki/SceneMessagePack.h>
 #include <deki/Scene.h>
+#include <deki/reflection/Property.h>
 #include <unordered_map>
 
-namespace Deki {
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_CoreProjectSettings_TypeInfo;
 
 // =============================================================================
 // Runtime Deserialization (all platforms)
 // =============================================================================
 
-bool CoreProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+static bool DekiGen_Deki_CoreProjectSettings_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+    Deki::CoreProjectSettings& self = *static_cast<Deki::CoreProjectSettings*>(_c); (void)self;
     for (uint32_t i = 0; i < mapSize; i++) {
         const char* key; uint16_t keyLen;
         if (!parser.ReadString(key, keyLen)) return false;
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
-            case ::Deki::HashString("capFps"): { bool v; if (parser.ReadBool(v)) capFps = v; break; }
-            case ::Deki::HashString("targetFps"): { int32_t v; if (parser.ReadInt(v)) targetFps = static_cast<decltype(targetFps)>(v); break; }
+            case ::Deki::HashString("capFps"): { bool v; if (parser.ReadBool(v)) self.capFps = v; break; }
+            case ::Deki::HashString("targetFps"): { int32_t v; if (parser.ReadInt(v)) self.targetFps = static_cast<decltype(self.targetFps)>(v); break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -262,39 +280,26 @@ bool CoreProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& p
 // ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead
 // =============================================================================
 
-void CoreProjectSettings::ResolveObjectRefs(::Deki::Scene* scene) {
-    (void)scene; // No ::Deki::ObjectRef or AssetRef properties
-}
-
-// =============================================================================
-// Update declaration (all platforms)
-// =============================================================================
-
-bool CoreProjectSettings::DeclaresUpdate() const {
-    return false;
+static void DekiGen_Deki_CoreProjectSettings_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {
+    Deki::CoreProjectSettings& self = *static_cast<Deki::CoreProjectSettings*>(_c); (void)self; (void)scene;
 }
 
 // =============================================================================
 // ::Deki::ObjectRef ID Remapping (all platforms)
 // =============================================================================
 
-void CoreProjectSettings::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {
-    (void)idRemap; // No ::Deki::ObjectRef properties
+static void DekiGen_Deki_CoreProjectSettings_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {
+    Deki::CoreProjectSettings& self = *static_cast<Deki::CoreProjectSettings*>(_c); (void)self; (void)idRemap;
 }
 
 // =============================================================================
 // Compact Field Table (all platforms)
 // =============================================================================
 
-const ::Deki::FieldRef* CoreProjectSettings::GetFields() {
-    static const ::Deki::FieldRef fields[] = {
-        { ::Deki::HashString("capFps"), (uint16_t)offsetof(CoreProjectSettings, capFps), (uint8_t)::Deki::PropertyType::Bool, 0 },
-        { ::Deki::HashString("targetFps"), (uint16_t)offsetof(CoreProjectSettings, targetFps), (uint8_t)::Deki::PropertyType::Int32, 0 },
-    };
-    return fields;
-}
-
-int CoreProjectSettings::GetFieldCount() { return 2; }
+static const ::Deki::FieldRef DekiGen_Deki_CoreProjectSettings_Fields[] = {
+    { ::Deki::HashString("capFps"), (uint16_t)offsetof(Deki::CoreProjectSettings, capFps), (uint8_t)::Deki::PropertyType::Bool, 0 },
+    { ::Deki::HashString("targetFps"), (uint16_t)offsetof(Deki::CoreProjectSettings, targetFps), (uint8_t)::Deki::PropertyType::Int32, 0 },
+};
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -302,65 +307,86 @@ int CoreProjectSettings::GetFieldCount() { return 2; }
 
 #ifdef DEKI_EDITOR
 
-const ::Deki::PropertyInfo* CoreProjectSettings::GetProperties() {
-    static const ::Deki::PropertyInfo props[] = {
-    { "capFps", nullptr, ::Deki::PropertyType::Bool, offsetof(CoreProjectSettings, capFps),
-      "Cap play-mode FPS at the target frame rate below. Disable to let the game run at the editor's refresh rate (typically 60 Hz with vsync).", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetFps", nullptr, ::Deki::PropertyType::Int32, offsetof(CoreProjectSettings, targetFps),
+static const ::Deki::PropertyInfo DekiGen_Deki_CoreProjectSettings_Props[] = {
+    { "capFps", nullptr, ::Deki::PropertyType::Bool, offsetof(Deki::CoreProjectSettings, capFps),
+      "Cap play-mode FPS at the target frame rate below. Disable to let the game run at the editor's refresh rate (typically 60 Hz with vsync).", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetFps", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::CoreProjectSettings, targetFps),
       "Target frame rate (FPS) when capping is enabled. The game tries to hit this rate; if the hardware can't keep up it runs slower. Ignored when 'Cap FPS' is off.", 1.0, 240.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
-    };
-    return props;
-}
+};
 
-int CoreProjectSettings::GetPropertyCount() { return 2; }
-
-const ::Deki::ComponentMeta& CoreProjectSettings::GetComponentMeta() {
-    static const ::Deki::ComponentMeta meta = {
-        "CoreProjectSettings",
-        "6b2f4d17-8c93-4a5e-b0d6-27e91fa3c845",  // serializedName (GUID)
-        "Settings",  // Category
-        "",      // Description (none declared)
-        CoreProjectSettings::StaticType,
-        Component::StaticType,
-        false,   // isAbstract
-        false,   // isUnique
-        false,   // bootSceneOnly
-        false,   // platformSceneOnly
-        sizeof(CoreProjectSettings),
-        []() -> ::Deki::Component* { return new CoreProjectSettings(); },
-        CoreProjectSettings::GetProperties(),
-        CoreProjectSettings::GetPropertyCount(),
-        {}, false
-    };
-    return meta;
-}
-
+extern const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta;
 #endif // DEKI_EDITOR
 
-}  // namespace Deki
+// =============================================================================
+// Type entry (all platforms)
+// =============================================================================
+
+const ::Deki::ComponentTypeInfo DekiGen_Deki_CoreProjectSettings_TypeInfo = {
+    ::Deki::TypeName<Deki::CoreProjectSettings>(),
+    ::Deki::TypeShortName<Deki::CoreProjectSettings>(),
+    ::Deki::TypeId<Deki::CoreProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> ::Deki::Component* { auto* c = new Deki::CoreProjectSettings(); c->SetTypeInfo(&DekiGen_Deki_CoreProjectSettings_TypeInfo); return c; },
+    &DekiGen_Deki_CoreProjectSettings_Deserialize,
+    &DekiGen_Deki_CoreProjectSettings_ResolveObjectRefs,
+    &DekiGen_Deki_CoreProjectSettings_RemapObjectRefs,
+    DekiGen_Deki_CoreProjectSettings_Fields, 2,
+#ifdef DEKI_EDITOR
+    &DekiGen_Deki_CoreProjectSettings_Meta
+#else
+    nullptr
+#endif
+};
+
+#ifdef DEKI_EDITOR
+const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta = {
+    "CoreProjectSettings",
+    ::Deki::TypeName<Deki::CoreProjectSettings>(),  // serializedName: the scene file's "type"
+    "Settings",  // DEKI_CATEGORY
+    "",      // description (none declared)
+    ::Deki::TypeId<Deki::CoreProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // isUnique
+    false,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki::CoreProjectSettings),
+    DekiGen_Deki_CoreProjectSettings_TypeInfo.create,
+    DekiGen_Deki_CoreProjectSettings_Props, 2,
+    {}, false,
+    nullptr,   // displayNameOverride
+    "Core",   // settingsSection (DEKI_SETTINGS_SECTION)
+    &DekiGen_Deki_CoreProjectSettings_TypeInfo
+};
+#endif // DEKI_EDITOR
+
 // AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT
 // Source: deki/settings/DisplayProjectSettings.h
 
 #include "deki/settings/DisplayProjectSettings.h"
 #include <deki/SceneMessagePack.h>
 #include <deki/Scene.h>
+#include <deki/reflection/Property.h>
 #include <unordered_map>
 
-namespace Deki {
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_DisplayProjectSettings_TypeInfo;
 
 // =============================================================================
 // Runtime Deserialization (all platforms)
 // =============================================================================
 
-bool DisplayProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+static bool DekiGen_Deki_DisplayProjectSettings_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+    Deki::DisplayProjectSettings& self = *static_cast<Deki::DisplayProjectSettings*>(_c); (void)self;
     for (uint32_t i = 0; i < mapSize; i++) {
         const char* key; uint16_t keyLen;
         if (!parser.ReadString(key, keyLen)) return false;
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
-            case ::Deki::HashString("targetWidth"): { int32_t v; if (parser.ReadInt(v)) targetWidth = static_cast<decltype(targetWidth)>(v); break; }
-            case ::Deki::HashString("targetHeight"): { int32_t v; if (parser.ReadInt(v)) targetHeight = static_cast<decltype(targetHeight)>(v); break; }
-            case ::Deki::HashString("colorFormat"): { int32_t v; if (parser.ReadInt(v)) colorFormat = static_cast<decltype(colorFormat)>(v); break; }
+            case ::Deki::HashString("targetWidth"): { int32_t v; if (parser.ReadInt(v)) self.targetWidth = static_cast<decltype(self.targetWidth)>(v); break; }
+            case ::Deki::HashString("targetHeight"): { int32_t v; if (parser.ReadInt(v)) self.targetHeight = static_cast<decltype(self.targetHeight)>(v); break; }
+            case ::Deki::HashString("colorFormat"): { int32_t v; if (parser.ReadInt(v)) self.colorFormat = static_cast<decltype(self.colorFormat)>(v); break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -371,40 +397,27 @@ bool DisplayProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser
 // ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead
 // =============================================================================
 
-void DisplayProjectSettings::ResolveObjectRefs(::Deki::Scene* scene) {
-    (void)scene; // No ::Deki::ObjectRef or AssetRef properties
-}
-
-// =============================================================================
-// Update declaration (all platforms)
-// =============================================================================
-
-bool DisplayProjectSettings::DeclaresUpdate() const {
-    return false;
+static void DekiGen_Deki_DisplayProjectSettings_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {
+    Deki::DisplayProjectSettings& self = *static_cast<Deki::DisplayProjectSettings*>(_c); (void)self; (void)scene;
 }
 
 // =============================================================================
 // ::Deki::ObjectRef ID Remapping (all platforms)
 // =============================================================================
 
-void DisplayProjectSettings::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {
-    (void)idRemap; // No ::Deki::ObjectRef properties
+static void DekiGen_Deki_DisplayProjectSettings_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {
+    Deki::DisplayProjectSettings& self = *static_cast<Deki::DisplayProjectSettings*>(_c); (void)self; (void)idRemap;
 }
 
 // =============================================================================
 // Compact Field Table (all platforms)
 // =============================================================================
 
-const ::Deki::FieldRef* DisplayProjectSettings::GetFields() {
-    static const ::Deki::FieldRef fields[] = {
-        { ::Deki::HashString("targetWidth"), (uint16_t)offsetof(DisplayProjectSettings, targetWidth), (uint8_t)::Deki::PropertyType::Int32, 0 },
-        { ::Deki::HashString("targetHeight"), (uint16_t)offsetof(DisplayProjectSettings, targetHeight), (uint8_t)::Deki::PropertyType::Int32, 0 },
-        { ::Deki::HashString("colorFormat"), (uint16_t)offsetof(DisplayProjectSettings, colorFormat), (uint8_t)::Deki::PropertyType::Enum, 4 },
-    };
-    return fields;
-}
-
-int DisplayProjectSettings::GetFieldCount() { return 3; }
+static const ::Deki::FieldRef DekiGen_Deki_DisplayProjectSettings_Fields[] = {
+    { ::Deki::HashString("targetWidth"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetWidth), (uint8_t)::Deki::PropertyType::Int32, 0 },
+    { ::Deki::HashString("targetHeight"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetHeight), (uint8_t)::Deki::PropertyType::Int32, 0 },
+    { ::Deki::HashString("colorFormat"), (uint16_t)offsetof(Deki::DisplayProjectSettings, colorFormat), (uint8_t)::Deki::PropertyType::Enum, 4 },
+};
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -417,65 +430,86 @@ int DisplayProjectSettings::GetFieldCount() { return 3; }
 static const char* const s_ColorFormat_Values[] = { "RGB565", "RGB888", "ARGB8888", "RGB565A8" };
 #endif
 
-const ::Deki::PropertyInfo* DisplayProjectSettings::GetProperties() {
-    static const ::Deki::PropertyInfo props[] = {
-    { "targetWidth", nullptr, ::Deki::PropertyType::Int32, offsetof(DisplayProjectSettings, targetWidth),
-      "Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetHeight", nullptr, ::Deki::PropertyType::Int32, offsetof(DisplayProjectSettings, targetHeight),
-      "Logical render height in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "colorFormat", nullptr, ::Deki::PropertyType::Enum, offsetof(DisplayProjectSettings, colorFormat),
+static const ::Deki::PropertyInfo DekiGen_Deki_DisplayProjectSettings_Props[] = {
+    { "targetWidth", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetWidth),
+      "Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetHeight", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetHeight),
+      "Logical render height in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "colorFormat", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::DisplayProjectSettings, colorFormat),
       "Framebuffer pixel format. RGB565 (default) is the smallest and fastest — typical for embedded displays. RGB888 gives full 8-bit color but uses 50% more memory. ARGB8888 adds an alpha channel and uses 100% more memory.", 0, 0, false, nullptr, s_ColorFormat_Values, 4, 4, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
-    };
-    return props;
-}
+};
 
-int DisplayProjectSettings::GetPropertyCount() { return 3; }
-
-const ::Deki::ComponentMeta& DisplayProjectSettings::GetComponentMeta() {
-    static const ::Deki::ComponentMeta meta = {
-        "DisplayProjectSettings",
-        "1c8e7f24-3a9b-4d52-8e6c-f1a40b2d9e83",  // serializedName (GUID)
-        "Settings",  // Category
-        "",      // Description (none declared)
-        DisplayProjectSettings::StaticType,
-        Component::StaticType,
-        false,   // isAbstract
-        false,   // isUnique
-        false,   // bootSceneOnly
-        false,   // platformSceneOnly
-        sizeof(DisplayProjectSettings),
-        []() -> ::Deki::Component* { return new DisplayProjectSettings(); },
-        DisplayProjectSettings::GetProperties(),
-        DisplayProjectSettings::GetPropertyCount(),
-        {}, false
-    };
-    return meta;
-}
-
+extern const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta;
 #endif // DEKI_EDITOR
 
-}  // namespace Deki
+// =============================================================================
+// Type entry (all platforms)
+// =============================================================================
+
+const ::Deki::ComponentTypeInfo DekiGen_Deki_DisplayProjectSettings_TypeInfo = {
+    ::Deki::TypeName<Deki::DisplayProjectSettings>(),
+    ::Deki::TypeShortName<Deki::DisplayProjectSettings>(),
+    ::Deki::TypeId<Deki::DisplayProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> ::Deki::Component* { auto* c = new Deki::DisplayProjectSettings(); c->SetTypeInfo(&DekiGen_Deki_DisplayProjectSettings_TypeInfo); return c; },
+    &DekiGen_Deki_DisplayProjectSettings_Deserialize,
+    &DekiGen_Deki_DisplayProjectSettings_ResolveObjectRefs,
+    &DekiGen_Deki_DisplayProjectSettings_RemapObjectRefs,
+    DekiGen_Deki_DisplayProjectSettings_Fields, 3,
+#ifdef DEKI_EDITOR
+    &DekiGen_Deki_DisplayProjectSettings_Meta
+#else
+    nullptr
+#endif
+};
+
+#ifdef DEKI_EDITOR
+const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta = {
+    "DisplayProjectSettings",
+    ::Deki::TypeName<Deki::DisplayProjectSettings>(),  // serializedName: the scene file's "type"
+    "Settings",  // DEKI_CATEGORY
+    "",      // description (none declared)
+    ::Deki::TypeId<Deki::DisplayProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // isUnique
+    false,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki::DisplayProjectSettings),
+    DekiGen_Deki_DisplayProjectSettings_TypeInfo.create,
+    DekiGen_Deki_DisplayProjectSettings_Props, 3,
+    {}, false,
+    nullptr,   // displayNameOverride
+    "Framebuffer",   // settingsSection (DEKI_SETTINGS_SECTION)
+    &DekiGen_Deki_DisplayProjectSettings_TypeInfo
+};
+#endif // DEKI_EDITOR
+
 // AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT
 // Source: deki/settings/UnitProjectSettings.h
 
 #include "deki/settings/UnitProjectSettings.h"
 #include <deki/SceneMessagePack.h>
 #include <deki/Scene.h>
+#include <deki/reflection/Property.h>
 #include <unordered_map>
 
-namespace Deki {
+extern const ::Deki::ComponentTypeInfo DekiGen_Deki_UnitProjectSettings_TypeInfo;
 
 // =============================================================================
 // Runtime Deserialization (all platforms)
 // =============================================================================
 
-bool UnitProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+static bool DekiGen_Deki_UnitProjectSettings_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {
+    Deki::UnitProjectSettings& self = *static_cast<Deki::UnitProjectSettings*>(_c); (void)self;
     for (uint32_t i = 0; i < mapSize; i++) {
         const char* key; uint16_t keyLen;
         if (!parser.ReadString(key, keyLen)) return false;
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
-            case ::Deki::HashString("inspectorUnit"): { int32_t v; if (parser.ReadInt(v)) inspectorUnit = static_cast<decltype(inspectorUnit)>(v); break; }
-            case ::Deki::HashString("pixelsPerMeter"): { float v; if (parser.ReadFloat(v)) pixelsPerMeter = v; break; }
+            case ::Deki::HashString("inspectorUnit"): { int32_t v; if (parser.ReadInt(v)) self.inspectorUnit = static_cast<decltype(self.inspectorUnit)>(v); break; }
+            case ::Deki::HashString("pixelsPerMeter"): { float v; if (parser.ReadFloat(v)) self.pixelsPerMeter = v; break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -486,39 +520,26 @@ bool UnitProjectSettings::Deserialize(::Deki::SceneFormat::SceneMsgPackParser& p
 // ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead
 // =============================================================================
 
-void UnitProjectSettings::ResolveObjectRefs(::Deki::Scene* scene) {
-    (void)scene; // No ::Deki::ObjectRef or AssetRef properties
-}
-
-// =============================================================================
-// Update declaration (all platforms)
-// =============================================================================
-
-bool UnitProjectSettings::DeclaresUpdate() const {
-    return false;
+static void DekiGen_Deki_UnitProjectSettings_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {
+    Deki::UnitProjectSettings& self = *static_cast<Deki::UnitProjectSettings*>(_c); (void)self; (void)scene;
 }
 
 // =============================================================================
 // ::Deki::ObjectRef ID Remapping (all platforms)
 // =============================================================================
 
-void UnitProjectSettings::RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap) {
-    (void)idRemap; // No ::Deki::ObjectRef properties
+static void DekiGen_Deki_UnitProjectSettings_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {
+    Deki::UnitProjectSettings& self = *static_cast<Deki::UnitProjectSettings*>(_c); (void)self; (void)idRemap;
 }
 
 // =============================================================================
 // Compact Field Table (all platforms)
 // =============================================================================
 
-const ::Deki::FieldRef* UnitProjectSettings::GetFields() {
-    static const ::Deki::FieldRef fields[] = {
-        { ::Deki::HashString("inspectorUnit"), (uint16_t)offsetof(UnitProjectSettings, inspectorUnit), (uint8_t)::Deki::PropertyType::Enum, 1 },
-        { ::Deki::HashString("pixelsPerMeter"), (uint16_t)offsetof(UnitProjectSettings, pixelsPerMeter), (uint8_t)::Deki::PropertyType::Float, 0 },
-    };
-    return fields;
-}
-
-int UnitProjectSettings::GetFieldCount() { return 2; }
+static const ::Deki::FieldRef DekiGen_Deki_UnitProjectSettings_Fields[] = {
+    { ::Deki::HashString("inspectorUnit"), (uint16_t)offsetof(Deki::UnitProjectSettings, inspectorUnit), (uint8_t)::Deki::PropertyType::Enum, 1 },
+    { ::Deki::HashString("pixelsPerMeter"), (uint16_t)offsetof(Deki::UnitProjectSettings, pixelsPerMeter), (uint8_t)::Deki::PropertyType::Float, 0 },
+};
 
 // =============================================================================
 // Editor Reflection (editor-only)
@@ -531,38 +552,57 @@ int UnitProjectSettings::GetFieldCount() { return 2; }
 static const char* const s_UnitMode_Values[] = { "Pixels", "Meters" };
 #endif
 
-const ::Deki::PropertyInfo* UnitProjectSettings::GetProperties() {
-    static const ::Deki::PropertyInfo props[] = {
-    { "inspectorUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(UnitProjectSettings, inspectorUnit),
-      "Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.", 0, 0, false, nullptr, s_UnitMode_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "pixelsPerMeter", nullptr, ::Deki::PropertyType::Float, offsetof(UnitProjectSettings, pixelsPerMeter),
+static const ::Deki::PropertyInfo DekiGen_Deki_UnitProjectSettings_Props[] = {
+    { "inspectorUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::UnitProjectSettings, inspectorUnit),
+      "Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.", 0, 0, false, nullptr, s_UnitMode_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "pixelsPerMeter", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::UnitProjectSettings, pixelsPerMeter),
       "World scale: how many framebuffer pixels render one meter of world space. Drives inspector px<->m conversion and the default zoom of new cameras (CameraComponent::pixelsPerMeter sentinel).", 1.0, 1024.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
-    };
-    return props;
-}
+};
 
-int UnitProjectSettings::GetPropertyCount() { return 2; }
-
-const ::Deki::ComponentMeta& UnitProjectSettings::GetComponentMeta() {
-    static const ::Deki::ComponentMeta meta = {
-        "UnitProjectSettings",
-        "3eaf9b46-5c1d-4f74-af8e-132d6f4abca5",  // serializedName (GUID)
-        "Settings",  // Category
-        "",      // Description (none declared)
-        UnitProjectSettings::StaticType,
-        Component::StaticType,
-        false,   // isAbstract
-        false,   // isUnique
-        false,   // bootSceneOnly
-        false,   // platformSceneOnly
-        sizeof(UnitProjectSettings),
-        []() -> ::Deki::Component* { return new UnitProjectSettings(); },
-        UnitProjectSettings::GetProperties(),
-        UnitProjectSettings::GetPropertyCount(),
-        {}, false
-    };
-    return meta;
-}
-
+extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;
 #endif // DEKI_EDITOR
 
-}  // namespace Deki
+// =============================================================================
+// Type entry (all platforms)
+// =============================================================================
+
+const ::Deki::ComponentTypeInfo DekiGen_Deki_UnitProjectSettings_TypeInfo = {
+    ::Deki::TypeName<Deki::UnitProjectSettings>(),
+    ::Deki::TypeShortName<Deki::UnitProjectSettings>(),
+    ::Deki::TypeId<Deki::UnitProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // declaresUpdate
+    []() -> ::Deki::Component* { auto* c = new Deki::UnitProjectSettings(); c->SetTypeInfo(&DekiGen_Deki_UnitProjectSettings_TypeInfo); return c; },
+    &DekiGen_Deki_UnitProjectSettings_Deserialize,
+    &DekiGen_Deki_UnitProjectSettings_ResolveObjectRefs,
+    &DekiGen_Deki_UnitProjectSettings_RemapObjectRefs,
+    DekiGen_Deki_UnitProjectSettings_Fields, 2,
+#ifdef DEKI_EDITOR
+    &DekiGen_Deki_UnitProjectSettings_Meta
+#else
+    nullptr
+#endif
+};
+
+#ifdef DEKI_EDITOR
+const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta = {
+    "UnitProjectSettings",
+    ::Deki::TypeName<Deki::UnitProjectSettings>(),  // serializedName: the scene file's "type"
+    "Settings",  // DEKI_CATEGORY
+    "",      // description (none declared)
+    ::Deki::TypeId<Deki::UnitProjectSettings>(),
+    ::Deki::TypeId<Deki::Component>(),
+    false,   // isAbstract
+    false,   // isUnique
+    false,   // bootSceneOnly
+    false,   // platformSceneOnly
+    sizeof(Deki::UnitProjectSettings),
+    DekiGen_Deki_UnitProjectSettings_TypeInfo.create,
+    DekiGen_Deki_UnitProjectSettings_Props, 2,
+    {}, false,
+    nullptr,   // displayNameOverride
+    "Units",   // settingsSection (DEKI_SETTINGS_SECTION)
+    &DekiGen_Deki_UnitProjectSettings_TypeInfo
+};
+#endif // DEKI_EDITOR
+
