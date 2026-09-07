@@ -4,6 +4,15 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.11.1
+
+### Fixed
+- `DekiReflectionCodegen.cmake` reflects, for a project plugin, every header
+  with a derived class (`: public X`), so a component whose base is another
+  project component is found even when the header never spells `Component`
+  or `Behaviour`. Package and engine headers keep the narrower rule (the
+  engine's ESP32 platform headers need ESP-IDF).
+
 ## 0.11.0
 
 ### Breaking

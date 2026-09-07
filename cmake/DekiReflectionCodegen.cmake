@@ -88,16 +88,26 @@ function(deki_reflection_codegen)
     if(_recursive)
       file(GLOB_RECURSE _hdrs CONFIGURE_DEPENDS "${_dir}/*.h")
       list(FILTER _hdrs EXCLUDE REGEX "/generated/")
-      # Keep only headers that can declare a reflected type: a component names its
-      # base (Component / Behaviour), the other kinds carry a marker. This spares
-      # the generator TU non-compiling internals. DEKI_NODE headers must be listed
-      # directly: node structs live in their own headers with no component, so
-      # relying on a transitive include from some component header is fragile
-      # (removing that include silently drops every node from codegen).
+      # Keep only headers that can declare a reflected type: a component names
+      # Component or Behaviour, the other kinds carry a marker. This spares the
+      # generator TU non-compiling internals (the engine's ESP32 platform headers
+      # need ESP-IDF). A PROJECT header may instead derive from a component of the
+      # project's own (`class Slime : public EnemyBase`) and never spell either
+      # word, so in plugin mode any derived class qualifies; project headers must
+      # compile on the desktop anyway. DEKI_NODE headers must be listed directly:
+      # node structs live in their own headers with no component, so relying on
+      # a transitive include from some component header is fragile (removing
+      # that include silently drops every node from codegen).
       set(_keep "")
       foreach(_h ${_hdrs})
         file(READ "${_h}" _ht)
+        set(_reflected FALSE)
         if(_ht MATCHES "Component" OR _ht MATCHES "Behaviour" OR _ht MATCHES "DEKI_SERIALIZABLE" OR _ht MATCHES "DEKI_NODE\\(")
+          set(_reflected TRUE)
+        elseif(ARG_PLUGIN AND _ht MATCHES ": *public ")
+          set(_reflected TRUE)
+        endif()
+        if(_reflected)
           list(APPEND _keep "${_h}")
         endif()
       endforeach()

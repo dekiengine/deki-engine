@@ -528,14 +528,15 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
     }
     if (!meta && !classHint.empty())
     {
-        // The GUID in the file is not registered but the class name written
-        // beside it is: the component's type GUID changed. Load it by name;
-        // the next save writes the current GUID.
+        // The type in the file is not registered but the class name written
+        // beside it is: the class was renamed or moved, or the file predates
+        // 0.11 and holds a project component's GUID. Load it by name; the next
+        // save writes the current type.
         meta = registry.GetMetaByClassName(classHint);
         if (meta)
             DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: GUID '%s' is not registered; resolved '%s' by class name "
-                     "(object='%s' id=%u). Re-save the scene to write the current GUID.",
+                     "AddComponent: type '%s' is not registered; resolved '%s' by class name "
+                     "(object='%s' id=%u). Re-save the scene to write the current type.",
                      typeName.c_str(), classHint.c_str(), name.c_str(), id);
     }
     if (!meta)
@@ -545,14 +546,14 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
         if (!classHint.empty())
         {
             DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: '%s' (GUID %s) not registered on object '%s' (id=%u, scene='%s'). "
+                     "AddComponent: '%s' (type %s) not registered on object '%s' (id=%u, scene='%s'). "
                      "Package providing this component is likely not loaded.",
                      classHint.c_str(), typeName.c_str(), name.c_str(), id, sceneName);
         }
         else if (looksLikeGuid)
         {
             DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: GUID '%s' not registered - class name unknown "
+                     "AddComponent: 0.10 GUID '%s' not registered - class name unknown "
                      "(object='%s' id=%u scene='%s'). Re-save this scene in the editor to embed a class-name hint.",
                      typeName.c_str(), name.c_str(), id, sceneName);
         }
