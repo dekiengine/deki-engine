@@ -13,6 +13,7 @@
 #include <deki/Scene.h>
 #else
 #include <deki/reflection/ComponentRegistry.h>
+#include "ObjectInternal.h"
 #include "reflection/LegacyTypeNames.h"
 #endif
 
@@ -507,10 +508,15 @@ void Object::SetScaleY(float newScaleY)
     MarkWorldTransformDirty();
 }
 
-#ifdef DEKI_EDITOR
-Component* Object::AddComponent(const std::string& typeName)
+void Internal::AttachComponent(Object& object, Component* component)
 {
-    return AddComponent(typeName, {});
+    object.AddComponent(component);
+}
+
+#ifdef DEKI_EDITOR
+Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint)
+{
+    return object.AddComponent(typeName, classHint);
 }
 
 Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)

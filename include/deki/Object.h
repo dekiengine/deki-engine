@@ -18,6 +18,19 @@
 namespace Deki
 {
 
+class Object;
+
+// Engine-internal entry points (src/ObjectInternal.h): the scene loaders and
+// the editor create components from a file's type name or a pre-built
+// instance. A script adds a component with AddComponent<T>() and nothing else.
+namespace Internal
+{
+void AttachComponent(Object& object, Component* component);
+#ifdef DEKI_EDITOR
+Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
+#endif
+}  // namespace Internal
+
 struct WorldTransform
 {
     float x;
@@ -241,29 +254,21 @@ public:
         return component;
     }
 
-    /**
-     * @brief Add a pre-created component (runtime scene loading)
-     * @param component The component to add (takes ownership)
-     */
+private:
+    // Not part of the script API: reached through Deki::Internal (see the top
+    // of this file). A script that needs a component names its type.
+    friend void Internal::AttachComponent(Object& object, Component* component);
     void AddComponent(Component* component)
     {
         component->SetOwner(this);
         components.push_back(component);
     }
-
 #ifdef DEKI_EDITOR
-    /**
-     * @brief Editor only: add a component by its qualified class name, the
-     *        string a scene file carries (a bare class name and a 0.10 GUID are
-     *        accepted too). This is how the editor's own commands, panels and
-     *        the scene loader add what the user picked; scripts use
-     *        AddComponent<T>().
-     * @return The new component, or nullptr when the class is not registered
-     */
-    Component* AddComponent(const std::string& typeName);
-    /// Scene loader: the file's "type" plus its "class" hint for a renamed type.
+    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
     Component* AddComponent(const std::string& typeName, const std::string& classHint);
 #endif
+
+public:
     /**
      * @brief Get component by type, including derived types
      * Matches both exact type and components that inherit from T.

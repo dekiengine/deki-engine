@@ -3,6 +3,7 @@
 #include <deki/Object.h>
 #include <deki/Component.h>
 #include "MissingComponent.h"
+#include "ObjectInternal.h"
 #include <deki/reflection/ComponentFactory.h>
 #include <cstring>
 #include <vector>
@@ -757,7 +758,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             }
             m_Pos = savedPos;  // Restore position (already skipped past data)
 
-            obj->AddComponent(comp);
+            Internal::AttachComponent(*obj, comp);
             DEKI_LOG_INTERNAL("SceneMsgPackParser: Added component (typeId: 0x%08x) to '%s'",
                               deferred.typeId, name.c_str());
         }
@@ -773,7 +774,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 size_t rawSize = deferred.dataEndPos - deferred.dataPos;
                 missing->m_RawData.assign(m_Data + deferred.dataPos, m_Data + deferred.dataEndPos);
             }
-            obj->AddComponent(missing);
+            Internal::AttachComponent(*obj, missing);
             DEKI_LOG_WARNING("SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' — data preserved",
                              (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, name.c_str());
         }

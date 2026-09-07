@@ -4,6 +4,15 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.12.3
+
+### Changed
+- `AddComponent<T>()` is the only `AddComponent` a script can see. The
+  by-name and pre-built-instance forms are private to `Deki::Object`, reached
+  through the engine-internal `Deki::Internal` entry points by the scene
+  loaders and the editor; package editor code that builds objects on the
+  user's behalf calls `DekiEditor::AddComponentByName()` from the editor DLL.
+
 ## 0.12.2
 
 ### Changed
