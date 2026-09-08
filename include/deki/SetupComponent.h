@@ -28,9 +28,9 @@
  * to reference setup components.
  *
  * Usage:
- *   class MyHardwareComponent : public SetupComponent {
- *       DEKI_COMPONENT(MyHardwareComponent, SetupComponent, "System", "your-guid-here", "DEKI_FEATURE_MY_HARDWARE")
- *
+ *   DEKI_CATEGORY("System")
+ *   class MyHardwareComponent : public Deki::SetupComponent {
+ *   public:
  *       void Setup(SetupCallback onComplete) override {
  *           bool success = InitializeHardware();
  *           onComplete(success);
