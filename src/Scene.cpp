@@ -226,8 +226,8 @@ void Scene::ClearScene()
         delete obj;
     }
     objects.clear();
-    m_BehavioursCache.clear();
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCache.clear();
+    m_ComponentsCacheDirty = true;
     m_IsLoaded = false;
 }
 
@@ -419,7 +419,7 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
     // Attach under the target's root. The Behaviour lifecycle is picked
     // up via the behaviours cache rebuild on the next frame.
     targetRoot->AddChild(root);
-    targetScene->InvalidateBehavioursCache();
+    targetScene->InvalidateComponentsCache();
 
     // Remap object IDs to avoid duplicates when multiple instances exist
     std::unordered_map<uint32_t, uint32_t> idRemap;
@@ -470,7 +470,7 @@ void Scene::AddObject(Object* obj)
     objects.push_back(obj);
     DEKI_LOG_INTERNAL("Scene::AddObject: Added '%s', objects.size()=%zu, this=%p",
                       obj ? obj->GetName().c_str() : "null", objects.size(), (void*)this);
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCacheDirty = true;
 }
 
 Object* Scene::CreateDekiObject(const std::string& name)
@@ -512,7 +512,7 @@ void Scene::RemoveObject(Object* obj)
 {
     if (obj) obj->SetOwnerScene(nullptr);
     objects.erase(std::remove(objects.begin(), objects.end(), obj), objects.end());
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCacheDirty = true;
 }
 
 Object* Scene::FindDekiObject(const std::string& name)
@@ -540,18 +540,18 @@ Object* Scene::FindDekiObject(uint32_t id)
     return nullptr;
 }
 
-const std::vector<Behaviour*>& Scene::GetBehaviours()
+const std::vector<Component*>& Scene::GetActiveComponents()
 {
-    if (m_BehavioursCacheDirty)
+    if (m_ComponentsCacheDirty)
     {
-        RebuildBehavioursCache();
+        RebuildComponentsCache();
     }
-    return m_BehavioursCache;
+    return m_ComponentsCache;
 }
 
-void Scene::RebuildBehavioursCache()
+void Scene::RebuildComponentsCache()
 {
-    m_BehavioursCache.clear();
+    m_ComponentsCache.clear();
 
     // Inactive objects are skipped along with their whole subtree.
     for (auto* obj : objects)
@@ -559,14 +559,10 @@ void Scene::RebuildBehavioursCache()
         VisitActiveSubtree(obj, [this](Object* o)
                            {
             for (auto* comp : o->GetComponents())
-            {
-                // AsBehaviour(): RTTI-free, works through any base chain.
-                if (Behaviour* behaviour = comp->AsBehaviour())
-                    m_BehavioursCache.push_back(behaviour);
-            } });
+                m_ComponentsCache.push_back(comp); });
     }
 
-    m_BehavioursCacheDirty = false;
+    m_ComponentsCacheDirty = false;
 }
 
 // =============================================================================
@@ -602,7 +598,7 @@ void Scene::InsertObjectAt(Object* obj, size_t index)
 
     objects.insert(objects.begin() + index, obj);
     // Note: Do NOT call SortObjectsByOrder() here - we want manual ordering
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCacheDirty = true;
 }
 
 int Scene::GetObjectIndex(Object* obj) const
@@ -1679,7 +1675,7 @@ bool Scene::ExpandInstance(Object* instanceObj)
         for (auto* comp : obj->GetComponents())
             comp->ResetRefsResolved(); });
 
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCacheDirty = true;
     s_ExpandingGuids.erase(guid);
     return true;
 }
@@ -1696,7 +1692,7 @@ void Scene::CollapseInstance(Object* instanceObj)
         delete child;
     }
 
-    m_BehavioursCacheDirty = true;
+    m_ComponentsCacheDirty = true;
 }
 
 void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)

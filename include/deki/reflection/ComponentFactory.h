@@ -131,16 +131,24 @@ template <class T, class Base>
 constexpr ComponentType HandWrittenBaseId()
 {
     if constexpr (std::is_void<Base>::value)
-        return std::is_base_of<Behaviour, T>::value ? TypeId<Behaviour>() : TypeId<Component>();
+        return TypeId<Component>();
     else
         return TypeId<Base>();
+}
+// Does T (or a base between T and Component) declare Update()? The member
+// pointer's class is whoever declared it, so an inherited Component::Update
+// gives Component's pointer type.
+template <class T>
+constexpr bool DeclaresUpdate()
+{
+    return !std::is_same<decltype(&T::Update), void (Component::*)()>::value;
 }
 }  // namespace detail
 
 /**
- * `Base` names the direct component base when it is not Deki::Behaviour /
- * Deki::Component itself (a test renderer deriving from RendererComponent), so
- * lookups by base type find the instance. A class that builds its own entry
+ * `Base` names the direct component base when it is not Deki::Component
+ * itself (a test renderer deriving from RendererComponent), so lookups by base
+ * type find the instance. A class that builds its own entry
  * attaches it with SetTypeInfo() in its constructor; AddComponent<T> keeps it.
  */
 template <class T, class Base = void>
@@ -171,8 +179,7 @@ const ComponentTypeInfo* TypeInfoFor()
     static_assert(std::is_base_of<Component, T>::value, "AddComponent<T>: T must derive from Deki::Component");
     if (const ComponentTypeInfo* info = ComponentFactory::Instance().Find(TypeId<T>()))
         return info;
-    // Whether Update() is declared cannot be known here: let a behaviour tick.
-    static const ComponentTypeInfo fallback = MakeHandWrittenTypeInfo<T>(std::is_base_of<Behaviour, T>::value);
+    static const ComponentTypeInfo fallback = MakeHandWrittenTypeInfo<T>(detail::DeclaresUpdate<T>());
     return &fallback;
 }
 

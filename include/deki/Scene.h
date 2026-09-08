@@ -7,7 +7,7 @@
 #include <functional>
 
 #include <deki/Object.h>
-#include <deki/Behaviour.h>
+#include <deki/Component.h>
 #include <deki/Export.h>  // DEKI_ENGINE_API — NOT DekiEngine.h, which includes us back
 
 #ifdef DEKI_EDITOR
@@ -108,12 +108,12 @@ public:
 
     const std::vector<Object*>& GetObjects() const { return objects; }
 
-    // Cached Behaviour access for efficient per-frame updates
-    // Automatically rebuilds cache if dirty (lazy rebuild)
-    const std::vector<Behaviour*>& GetBehaviours();
+    // Every component of every active object, for the per-frame lifecycle.
+    // Rebuilt lazily when dirty.
+    const std::vector<Component*>& GetActiveComponents();
 
-    // Mark cache as needing rebuild (deferred until next GetBehaviours() call)
-    void InvalidateBehavioursCache() { m_BehavioursCacheDirty = true; }
+    // Mark cache as needing rebuild (deferred until next GetActiveComponents() call)
+    void InvalidateComponentsCache() { m_ComponentsCacheDirty = true; }
 
     // Object creation/destruction
     Object* CreateDekiObject(const std::string& name = "DekiObject");
@@ -210,16 +210,16 @@ public:
 private:
     std::string name;
     std::vector<Object*> objects;               // DekiObjects in the scene
-    std::vector<Behaviour*> m_BehavioursCache;  // Cached DekiBehaviours for efficient updates
-    bool m_BehavioursCacheDirty = true;             // Dirty flag for lazy rebuild
+    std::vector<Component*> m_ComponentsCache;  // components of active objects, for the lifecycle
+    bool m_ComponentsCacheDirty = true;           // Dirty flag for lazy rebuild
     uint32_t nextDekiObjectId;
     bool m_IsLoaded = false;
 
     // Stored data for re-instantiation
     std::vector<uint8_t> m_SceneData;
 
-    // Rebuild the behaviours cache (internal, called lazily)
-    void RebuildBehavioursCache();
+    // Rebuild the components cache (internal, called lazily)
+    void RebuildComponentsCache();
 
     // Scene loading helpers
     void ClearScene();

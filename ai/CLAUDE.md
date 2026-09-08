@@ -20,7 +20,7 @@ the submodule pointer in the editor.
 
 - `include/deki/`: the PUBLIC headers, `#include <deki/Object.h>` (file names are
   unprefixed like the types): `Engine.h` (frame loop), `Object.h`, `Component.h`/
-  `Behaviour.h`, `Scene.h`, `SceneSystem.h`, `SceneMessagePack.h`, `ICamera.h`,
+  `Scene.h`, `SceneSystem.h`, `SceneMessagePack.h`, `ICamera.h`,
   `IClipProvider.h`/`ISortableProvider.h`. `src/` is PRIVATE to the engine
   target; its headers (`LifecycleManager.h`, `MissingComponent.h`,
   `AuthoredFormat.h`, `providers/DekiProviderRegistry*.h`) are reachable only
@@ -48,7 +48,7 @@ the submodule pointer in the editor.
 
 ## Rules that are easy to break
 
-- **ABI.** Packages subclass `Deki::Component`, `Deki::Behaviour`, the
+- **ABI.** Packages subclass `Deki::Component`, the
   provider interfaces and the editor's extension classes. Adding, removing or
   reordering a virtual on any of them, or changing the layout of
   `Deki::Object`/`Component`/`PropertyInfo`, bumps `kDekiReflectionAbiVersion`
@@ -96,7 +96,7 @@ Rendering lives in the deki-rendering package (`Standard2DRenderer`,
 
 ## Adding things
 
-- New component: a class deriving PUBLICLY from `Deki::Component`/`Behaviour`
+- New component: a class deriving PUBLICLY from `Deki::Component` (no Behaviour since 0.13; Awake/Start/Update are optional on every component)
   with public `DEKI_EXPORT` fields, `.cpp` next to it; nothing inside the class
   declares it and no generated include. Optional `DEKI_CATEGORY`/`DEKI_DESCRIPTION`
   above the class. The build regenerates reflection at configure time. Declare

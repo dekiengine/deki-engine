@@ -1,6 +1,6 @@
 #pragma once
 
-#include <deki/Behaviour.h>
+#include <deki/Component.h>
 #include <deki/reflection/Property.h>
 #include <functional>
 
@@ -44,7 +44,7 @@ namespace Deki
 {
 
 DEKI_CATEGORY("System")
-class SetupComponent : public Behaviour
+class SetupComponent : public Component
 {
 public:
 

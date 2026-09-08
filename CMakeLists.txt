@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.12.3 LANGUAGES C CXX)
+project(deki-engine VERSION 0.13.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

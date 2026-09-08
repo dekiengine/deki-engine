@@ -64,7 +64,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_SetupComponent_TypeInfo = {
     ::Deki::TypeName<Deki::SetupComponent>(),
     ::Deki::TypeShortName<Deki::SetupComponent>(),
     ::Deki::TypeId<Deki::SetupComponent>(),
-    ::Deki::TypeId<Deki::Behaviour>(),
+    ::Deki::TypeId<Deki::Component>(),
     true,   // isAbstract
     false,   // declaresUpdate
     nullptr,
@@ -86,7 +86,7 @@ const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta = {
     "System",  // DEKI_CATEGORY
     "",      // description (none declared)
     ::Deki::TypeId<Deki::SetupComponent>(),
-    ::Deki::TypeId<Deki::Behaviour>(),
+    ::Deki::TypeId<Deki::Component>(),
     true,   // isAbstract
     false,   // isUnique
     false,   // bootSceneOnly
@@ -208,7 +208,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_PlatformSetupComponent_TypeInfo = {
     ::Deki::TypeName<Deki::PlatformSetupComponent>(),
     ::Deki::TypeShortName<Deki::PlatformSetupComponent>(),
     ::Deki::TypeId<Deki::PlatformSetupComponent>(),
-    ::Deki::TypeId<Deki::Behaviour>(),
+    ::Deki::TypeId<Deki::Component>(),
     false,   // isAbstract
     true,   // declaresUpdate
     []() -> ::Deki::Component* { auto* c = new Deki::PlatformSetupComponent(); c->SetTypeInfo(&DekiGen_Deki_PlatformSetupComponent_TypeInfo); return c; },
@@ -230,7 +230,7 @@ const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta = {
     "System",  // DEKI_CATEGORY
     "Runs each Setup Component in order at boot, then loads the startup scene.",  // DEKI_DESCRIPTION
     ::Deki::TypeId<Deki::PlatformSetupComponent>(),
-    ::Deki::TypeId<Deki::Behaviour>(),
+    ::Deki::TypeId<Deki::Component>(),
     false,   // isAbstract
     false,   // isUnique
     true,   // bootSceneOnly

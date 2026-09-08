@@ -10,7 +10,6 @@ namespace Deki
 
 // Forward declarations
 class Object;
-class Behaviour;
 class Component;
 class Scene;
 struct FieldRef;
@@ -36,7 +35,7 @@ struct ComponentTypeInfo
     const char* name;           // fully qualified C++ name: the on-disk key; HashString(name) == typeId
     const char* shortName;      // the identifier alone, for display and the scene file's "class" hint
     ComponentType typeId;       // TypeId<T>()
-    ComponentType baseTypeId;   // TypeId of the direct component base (Deki::Behaviour, Deki::Component, or a user base)
+    ComponentType baseTypeId;   // TypeId of the direct component base (Deki::Component or a user base)
     bool isAbstract;            // no create()
     bool declaresUpdate;        // the class (or a reflected base) declares Update(); see Component::DeclaresUpdate
 
@@ -52,27 +51,31 @@ struct ComponentTypeInfo
 };
 
 /**
- * @brief Base class for all components (data-only)
+ * @brief The base class of every component.
  *
- * A component is any class deriving publicly from Component (or Behaviour, for
- * lifecycle callbacks). Nothing else is declared: the reflection codegen finds
- * the class by its base, its identity is its qualified name (see TypeId.h) and
- * the per-class operations below run through the ComponentTypeInfo the engine
- * attaches when the instance is created (AddComponent<T>, the scene loader,
- * the factory).
+ * A component is any class deriving publicly from Component. Nothing else is
+ * declared: the reflection codegen finds the class by its base, its identity
+ * is its qualified name (see TypeId.h) and the per-class operations below run
+ * through the ComponentTypeInfo the engine attaches when the instance is
+ * created (AddComponent<T>, the scene loader, the factory).
  *
- * Component provides:
- * - Runtime type identification via GetType()/GetBaseType()
- * - Owner reference for accessing the parent Object
+ * A component with exported fields and no lifecycle methods is data. One that
+ * declares Awake(), Start() or Update() takes part in the lifecycle, and only
+ * a class that declares Update() is ticked: the codegen records that per
+ * class, so a data component costs nothing per frame.
  *
- * For components that need lifecycle methods (PreRender, Start, Update),
- * inherit from Behaviour instead.
+ * Lifecycle order:
+ * 1. InternalAwake (engine) - resolves AssetRefs and ObjectRefs
+ * 2. Awake()  - once, after the references are resolved
+ * 3. Start()  - once, before the first Update, after every Awake has run
+ * 4. Update() - every frame
+ * 5. Render (RendererComponent)
  */
 class Component
 {
 public:
     Component()
-        : m_Owner(nullptr), m_TypeInfo(nullptr), m_RefsResolved(false) {}
+        : m_Owner(nullptr), m_TypeInfo(nullptr), m_RefsResolved(false), m_HasAwoken(false), m_HasStarted(false) {}
     virtual ~Component() = default;
 
     // Prevent copying - components have unique identity and owner
@@ -101,21 +104,45 @@ public:
      */
     void SetTypeInfo(const ComponentTypeInfo* info) { m_TypeInfo = info; }
 
-    // Type casting without RTTI (for -fno-rtti builds)
-    virtual Behaviour* AsBehaviour() { return nullptr; }
-
     /**
      * @brief Does this class (or a reflected base) declare Update()?
      *
      * Answered by the reflection codegen from the class declaration.
-     * LifecycleManager only calls Update() on behaviours that answer true, so a
-     * behaviour with no Update costs nothing per frame.
+     * LifecycleManager only calls Update() on components that answer true, so
+     * a component with no Update costs nothing per frame.
      */
     bool DeclaresUpdate() const { return m_TypeInfo && m_TypeInfo->declaresUpdate; }
 
     // Owner access
     Object* GetOwner() const { return m_Owner; }
     void SetOwner(Object* owner) { m_Owner = owner; }
+
+    // ========== Lifecycle (declare the ones you need) ==========
+
+    /**
+     * @brief Called once after AssetRefs and ObjectRefs are resolved
+     *
+     * Use for self-initialisation. All asset references are available.
+     */
+    virtual void Awake() {}
+
+    /**
+     * @brief Called once before the first Update, after ALL Awake calls complete
+     *
+     * Use for cross-component setup: every component has been awakened.
+     */
+    virtual void Start() {}
+
+    /**
+     * @brief Called every frame, only on classes that declare it
+     */
+    virtual void Update() {}
+
+    // Lifecycle state checks
+    bool HasAwoken() const { return m_HasAwoken; }
+    bool HasStarted() const { return m_HasStarted; }
+    void MarkAwoken() { m_HasAwoken = true; }
+    void MarkStarted() { m_HasStarted = true; }
 
     // ========== Lifecycle methods for Play Mode ==========
     // Components override these to handle asset loading and runtime updates
@@ -142,8 +169,9 @@ public:
      * @brief Update this component (runtime only)
      * @param deltaTime Time since last frame in seconds
      *
-     * Components that need per-frame updates (physics, animation, etc.)
-     * override this. Different from Behaviour::Update() which is for scripts.
+     * Engine-driven per-frame work (physics, animation, etc.), distinct from
+     * the script-facing Update(): it runs in every mode, including the editor
+     * in edit mode, on components that answer NeedsRuntimeUpdate().
      */
     virtual void RuntimeUpdate(float deltaTime) {}
 
@@ -231,6 +259,8 @@ protected:
     Object* m_Owner;
     const ComponentTypeInfo* m_TypeInfo;
     bool m_RefsResolved;
+    bool m_HasAwoken;
+    bool m_HasStarted;
 };
 
 }  // namespace Deki

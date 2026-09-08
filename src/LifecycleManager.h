@@ -24,23 +24,22 @@ namespace Deki
 
 class Scene;
 class Component;
-class Behaviour;
 
 // Profiling callback types - set by editor, null on embedded devices
 typedef void (*LifecycleProfileBeginCallback)(const char* name);
 typedef void (*LifecycleProfileEndCallback)();
 
 /**
- * @brief Manages Behaviour lifecycle (InternalAwake, Awake, Start, Update)
+ * @brief Manages the component lifecycle (InternalAwake, Awake, Start, Update)
  *
  * Centralizes all lifecycle method invocation and reference resolution.
  * Called by Engine during the update phase, before rendering.
  *
  * Lifecycle order:
  * 1. ProcessInternalAwake() - Resolves AssetRefs and ObjectRefs
- * 2. ProcessAwake() - Calls Awake() on all behaviours
- * 3. ProcessStart() - Calls Start() on all behaviours
- * 4. ProcessUpdate() - Called every frame for started behaviours
+ * 2. ProcessAwake() - Calls Awake() on every component that has not awoken
+ * 3. ProcessStart() - Calls Start() on every component that has not started
+ * 4. ProcessUpdate() - Every frame, on started components whose class declares Update()
  * 5. Render (handled separately by render system)
  */
 class LIFECYCLE_MANAGER_API LifecycleManager
@@ -101,7 +100,7 @@ public:
      * This is the engine-runtime counterpart to the editor play-mode walk
      * (EditorApp::UpdatePlayMode -> updateComponentsRecursive). Components such
      * as RollerComponent / ScrollComponent put their per-frame physics in
-     * RuntimeUpdate(), which is distinct from the script Behaviour::Update()
+     * RuntimeUpdate(), which is distinct from the script-facing Component::Update()
      * driven by ProcessUpdate(). Without this call their momentum/snap state
      * machines never tick outside the editor.
      *
@@ -112,9 +111,9 @@ public:
 
 private:
     /**
-     * Scratch buffers for the per-phase behaviour snapshots.
+     * Scratch buffers for the per-phase component snapshots.
      *
-     * Each phase has to iterate a *copy* of the scene's behaviour list, because
+     * Each phase has to iterate a *copy* of the scene's component list, because
      * user code can instantiate or destroy objects and rebuild the live cache
      * mid-iteration. Building that copy as a fresh local vector allocated on
      * every phase of every frame: measured at 4 allocations/frame with a single
@@ -130,8 +129,8 @@ private:
      * if a phase is somehow entered from inside itself, so behaviour stays
      * correct even if that ever happens.
      */
-    std::vector<Behaviour*> m_SnapshotScratch;
-    std::vector<Behaviour*> m_UpdateScratch;
+    std::vector<Component*> m_SnapshotScratch;
+    std::vector<Component*> m_UpdateScratch;
     bool m_SnapshotScratchInUse = false;
     bool m_UpdateScratchInUse = false;
 

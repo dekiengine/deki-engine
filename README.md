@@ -33,7 +33,7 @@ in the editor's `tests/` tree.
 ```cpp
 DEKI_CATEGORY("Game")                                  // optional, above the class
 DEKI_DESCRIPTION("Moves the object along X at a constant speed.")
-class Mover : public Deki::Behaviour                   // deriving is the whole declaration
+class Mover : public Deki::Component                   // deriving is the whole declaration
 {
 public:
     DEKI_EXPORT DEKI_RANGE(0, 10)
@@ -53,7 +53,7 @@ scene files: renaming one is a file-format change, done with
 
 | Path | What it is |
 | --- | --- |
-| `include/deki/` | The public headers, included as `<deki/Object.h>`: `Deki::Engine` (frame loop), `Deki::Object`, `Deki::Component`/`Deki::Behaviour`, `Deki::Scene`, `Deki::SceneSystem`, `SceneMessagePack` (runtime scene format). Everything is in `namespace Deki`, unprefixed, and so are the file names |
+| `include/deki/` | The public headers, included as `<deki/Object.h>`: `Deki::Engine` (frame loop), `Deki::Object`, `Deki::Component` (data, and any of Awake/Start/Update a class declares), `Deki::Scene`, `Deki::SceneSystem`, `SceneMessagePack` (runtime scene format). Everything is in `namespace Deki`, unprefixed, and so are the file names |
 | `include/deki/reflection/` | `Property.h` (`DEKI_EXPORT`, the attributes, the markers above a class), `ComponentRegistry`, `ComponentFactory`, `SettingsRegistry`; `TypeId.h` (a component's identity is its qualified class name) |
 | `include/deki/assets/` | `AssetManager`, `AssetRef<T>`, asset packs |
 | `include/deki/providers/` | The provider interfaces packages implement |

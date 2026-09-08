@@ -1,7 +1,6 @@
 #include "LifecycleManager.h"
 
 #include <deki/Scene.h>
-#include <deki/Behaviour.h>
 #include <deki/Object.h>
 #include <deki/Engine.h>
 #include <deki/SceneSystem.h>
@@ -17,25 +16,17 @@
 #include <cstdio>
 #include <vector>
 
-// Helper to collect behaviours from Persistent objects
+// Helper to collect the components of Persistent objects
 
 namespace Deki
 {
 
-static void CollectPersistentBehaviours(std::vector<Behaviour*>& behaviours)
+static void CollectPersistentComponents(std::vector<Component*>& components)
 {
     const auto& persistentObjects = Engine::GetInstance().GetSceneSystem().GetPersistentObjects();
     for (Object* obj : persistentObjects)
-    {
         for (Component* comp : obj->GetComponents())
-        {
-            Behaviour* behaviour = comp->AsBehaviour();
-            if (behaviour)
-            {
-                behaviours.push_back(behaviour);
-            }
-        }
-    }
+            components.push_back(comp);
 }
 
 namespace
@@ -46,7 +37,7 @@ namespace
 class ScratchSnapshot
 {
 public:
-    ScratchSnapshot(std::vector<Behaviour*>& shared, bool& inUse)
+    ScratchSnapshot(std::vector<Component*>& shared, bool& inUse)
         : m_InUse(inUse), m_Owned(!inUse)
     {
         if (m_Owned)
@@ -65,13 +56,13 @@ public:
         if (m_Owned) m_InUse = false;
     }
 
-    std::vector<Behaviour*>& Get() { return *m_Target; }
+    std::vector<Component*>& Get() { return *m_Target; }
 
 private:
     bool& m_InUse;
     bool m_Owned;
-    std::vector<Behaviour*>* m_Target;
-    std::vector<Behaviour*> m_Fallback;
+    std::vector<Component*>* m_Target;
+    std::vector<Component*> m_Fallback;
 };
 }  // namespace
 
@@ -85,10 +76,10 @@ void LifecycleManager::SetProfilingCallbacks(LifecycleProfileBeginCallback begin
     s_ProfileEnd = end;
 }
 
-// Helper to get profile name for a behaviour method
-static void GetProfileName(char* buffer, size_t size, Behaviour* behaviour, const char* methodName)
+// Helper to get profile name for a component method
+static void GetProfileName(char* buffer, size_t size, Component* component, const char* methodName)
 {
-    const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(behaviour->GetType());
+    const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(component->GetType());
     if (meta && meta->name)
     {
         snprintf(buffer, size, "%s.%s", meta->name, methodName);
@@ -99,36 +90,6 @@ static void GetProfileName(char* buffer, size_t size, Behaviour* behaviour, cons
     }
 }
 
-// Resolve ObjectRefs on the non-behaviour components of `obj` and its subtree.
-//
-// A plain recursive function rather than the std::function recursive-lambda this
-// replaces: that constructed a std::function on every frame and turned each node
-// visit into an indirect call, for a walk that runs in ProcessInternalAwake
-// every frame.
-//
-// `obj` is required to be active in hierarchy. Children are tested with
-// IsActive() alone, which is equivalent here: IsActiveInHierarchy() is
-// `active && parent->IsActiveInHierarchy()`, and the parent has already
-// passed. The lambda called the full walk on every node, making the check
-// O(depth) per node instead of O(1).
-static void ResolveNonBehaviourRefs(Object* obj, Scene* scene)
-{
-    for (auto* comp : obj->GetComponents())
-    {
-        if (!comp->AsBehaviour() && !comp->HasRefsResolved())
-        {
-            comp->ResolveObjectRefs(scene);
-            comp->MarkRefsResolved();
-        }
-    }
-
-    for (auto* child : obj->GetChildren())
-    {
-        if (child && child->IsActive())
-            ResolveNonBehaviourRefs(child, scene);
-    }
-}
-
 void LifecycleManager::ProcessInternalAwake(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessInternalAwake");
@@ -136,45 +97,38 @@ void LifecycleManager::ProcessInternalAwake(Scene* scene)
 
     char profileName[128];
 
-    // Resolve all AssetRefs and ObjectRefs for behaviours that haven't resolved yet
+    // Resolve all AssetRefs and ObjectRefs for components that haven't resolved yet
     // This happens BEFORE any user code (Awake/Start) runs
     // m_RefsResolved prevents per-frame re-resolution in edit mode (where HasAwoken is never set)
-    // Snapshot the list: GetBehaviours() returns the live, lazily-rebuilt cache, and user
-    // code below can instantiate/destroy objects that rebuild it mid-iteration (dangling
-    // pointers / UB). Iterate a copy; new behaviours are handled on a later pass.
+    // Snapshot the list: GetActiveComponents() returns the live, lazily-rebuilt cache, and
+    // user code below can instantiate/destroy objects that rebuild it mid-iteration
+    // (dangling pointers / UB). Iterate a copy; new components are handled on a later pass.
     ScratchSnapshot scratch(m_SnapshotScratch, m_SnapshotScratchInUse);
-    std::vector<Behaviour*>& snapshot = scratch.Get();
-    snapshot.assign(scene->GetBehaviours().begin(), scene->GetBehaviours().end());
-    for (auto* behaviour : snapshot)
+    std::vector<Component*>& snapshot = scratch.Get();
+    snapshot.assign(scene->GetActiveComponents().begin(), scene->GetActiveComponents().end());
+    for (auto* component : snapshot)
     {
-        Object* owner = behaviour->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !behaviour->HasAwoken() && !behaviour->HasRefsResolved())
+        Object* owner = component->GetOwner();
+        if (owner && owner->IsActiveInHierarchy() && !component->HasAwoken() && !component->HasRefsResolved())
         {
             // Profile with component name: "TestComponent.InternalAwake"
             if (s_ProfileBegin)
             {
-                GetProfileName(profileName, sizeof(profileName), behaviour, "InternalAwake");
+                GetProfileName(profileName, sizeof(profileName), component, "InternalAwake");
                 s_ProfileBegin(profileName);
             }
 
             LogSystem::SetLogContext(owner->GetId());
-            ResolveAssetRefs(behaviour);
-            ResolveObjectRefs(behaviour, scene);
+            ResolveAssetRefs(component);
+            ResolveObjectRefs(component, scene);
             LogSystem::ClearLogContext();
-            behaviour->MarkRefsResolved();
+            component->MarkRefsResolved();
 
             if (s_ProfileEnd)
                 s_ProfileEnd();
         }
     }
 
-    // Resolve ObjectRefs for non-behaviour components (e.g., ScrollElement subclasses)
-    // These are never processed by the behaviour loop above
-    for (auto* obj : scene->GetObjects())
-    {
-        if (obj && obj->IsActiveInHierarchy())
-            ResolveNonBehaviourRefs(obj, scene);
-    }
 }
 
 void LifecycleManager::ProcessAwake(Scene* scene)
@@ -185,26 +139,26 @@ void LifecycleManager::ProcessAwake(Scene* scene)
     char profileName[128];
 
     // Snapshot (see ProcessInternalAwake): Awake() may instantiate/destroy objects and
-    // rebuild the live behaviours cache, which would invalidate a range-for over it.
+    // rebuild the live components cache, which would invalidate a range-for over it.
     ScratchSnapshot scratch(m_SnapshotScratch, m_SnapshotScratchInUse);
-    std::vector<Behaviour*>& snapshot = scratch.Get();
-    snapshot.assign(scene->GetBehaviours().begin(), scene->GetBehaviours().end());
-    for (auto* behaviour : snapshot)
+    std::vector<Component*>& snapshot = scratch.Get();
+    snapshot.assign(scene->GetActiveComponents().begin(), scene->GetActiveComponents().end());
+    for (auto* component : snapshot)
     {
-        Object* owner = behaviour->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !behaviour->HasAwoken())
+        Object* owner = component->GetOwner();
+        if (owner && owner->IsActiveInHierarchy() && !component->HasAwoken())
         {
             // Profile with component name: "TestComponent.Awake"
             if (s_ProfileBegin)
             {
-                GetProfileName(profileName, sizeof(profileName), behaviour, "Awake");
+                GetProfileName(profileName, sizeof(profileName), component, "Awake");
                 s_ProfileBegin(profileName);
             }
 
             LogSystem::SetLogContext(owner->GetId());
-            behaviour->Awake();
+            component->Awake();
             LogSystem::ClearLogContext();
-            behaviour->MarkAwoken();
+            component->MarkAwoken();
 
             if (s_ProfileEnd)
                 s_ProfileEnd();
@@ -220,26 +174,26 @@ void LifecycleManager::ProcessStart(Scene* scene)
     char profileName[128];
 
     // Snapshot (see ProcessInternalAwake): Start() may instantiate/destroy objects and
-    // rebuild the live behaviours cache, which would invalidate a range-for over it.
+    // rebuild the live components cache, which would invalidate a range-for over it.
     ScratchSnapshot scratch(m_SnapshotScratch, m_SnapshotScratchInUse);
-    std::vector<Behaviour*>& snapshot = scratch.Get();
-    snapshot.assign(scene->GetBehaviours().begin(), scene->GetBehaviours().end());
-    for (auto* behaviour : snapshot)
+    std::vector<Component*>& snapshot = scratch.Get();
+    snapshot.assign(scene->GetActiveComponents().begin(), scene->GetActiveComponents().end());
+    for (auto* component : snapshot)
     {
-        Object* owner = behaviour->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !behaviour->HasStarted())
+        Object* owner = component->GetOwner();
+        if (owner && owner->IsActiveInHierarchy() && !component->HasStarted())
         {
             // Profile with component name: "TestComponent.Start"
             if (s_ProfileBegin)
             {
-                GetProfileName(profileName, sizeof(profileName), behaviour, "Start");
+                GetProfileName(profileName, sizeof(profileName), component, "Start");
                 s_ProfileBegin(profileName);
             }
 
             LogSystem::SetLogContext(owner->GetId());
-            behaviour->Start();
+            component->Start();
             LogSystem::ClearLogContext();
-            behaviour->MarkStarted();
+            component->MarkStarted();
 
             if (s_ProfileEnd)
                 s_ProfileEnd();
@@ -254,34 +208,33 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
 
     char profileName[128];
 
-    // Collect all behaviours: scene + Persistent objects
+    // Collect all components: scene + Persistent objects
     ScratchSnapshot scratch(m_UpdateScratch, m_UpdateScratchInUse);
-    std::vector<Behaviour*>& allBehaviours = scratch.Get();
-    const auto& live = scene->GetBehaviours();
+    std::vector<Component*>& allComponents = scratch.Get();
+    const auto& live = scene->GetActiveComponents();
     // assign() rather than a push_back loop: the loop reallocated as it grew,
-    // which is why the allocation count climbed with behaviour count.
-    allBehaviours.assign(live.begin(), live.end());
-    CollectPersistentBehaviours(allBehaviours);
+    // which is why the allocation count climbed with component count.
+    allComponents.assign(live.begin(), live.end());
+    CollectPersistentComponents(allComponents);
 
-    for (auto* behaviour : allBehaviours)
+    for (auto* component : allComponents)
     {
         // DeclaresUpdate() comes from the class declaration: no Update member,
-        // no call. It used not to be consulted, so every started behaviour paid
-        // a virtual call per frame whether or not it had anything to run.
-        if (!behaviour->DeclaresUpdate())
+        // no call. A data component is skipped here at the cost of one load.
+        if (!component->DeclaresUpdate())
             continue;
-        Object* owner = behaviour->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && behaviour->HasStarted())
+        Object* owner = component->GetOwner();
+        if (owner && owner->IsActiveInHierarchy() && component->HasStarted())
         {
             // Profile with component name: "TestComponent.Update"
             if (s_ProfileBegin)
             {
-                GetProfileName(profileName, sizeof(profileName), behaviour, "Update");
+                GetProfileName(profileName, sizeof(profileName), component, "Update");
                 s_ProfileBegin(profileName);
             }
 
             LogSystem::SetLogContext(owner->GetId());
-            behaviour->Update();
+            component->Update();
             LogSystem::ClearLogContext();
 
             if (s_ProfileEnd)

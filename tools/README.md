@@ -30,8 +30,7 @@ reflection-generated `.gen.cpp`.
 
 ## Authoring components
 
-A component is any class deriving publicly from `Deki::Component` or
-`Deki::Behaviour`; the generator discovers it by reflecting its bases, and its
+A component is any class deriving publicly from `Deki::Component`; the generator discovers it by reflecting its bases, and its
 identity is its qualified class name (`Deki::TypeId<T>()`, see
 `include/deki/TypeId.h`). Optional markers above the class add editor metadata:
 

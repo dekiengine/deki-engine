@@ -279,17 +279,17 @@ consteval bool declares_update(m::info type)
 consteval bool is_component(m::info type)
 {
     if (!m::is_class_type(type) || !m::is_complete_type(type)) return false;
-    if (type == ^^Deki::Component || type == ^^Deki::Behaviour) return false;
+    if (type == ^^Deki::Component) return false;
     return m::is_base_of_type(^^Deki::Component, type);
 }
-// The direct base that carries the component identity: Deki::Component,
-// Deki::Behaviour, or another component. GetComponent<Base>() matches on it.
+// The direct base that carries the component identity: Deki::Component or
+// another component. GetComponent<Base>() matches on it.
 consteval m::info component_base(m::info cls)
 {
     for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
     {
         m::info bt = bare(m::type_of(b));
-        if (bt == ^^Deki::Component || bt == ^^Deki::Behaviour || is_component(bt)) return bt;
+        if (bt == ^^Deki::Component || is_component(bt)) return bt;
     }
     return ^^Deki::Component;
 }
@@ -298,7 +298,7 @@ consteval bool component_base_is_public(m::info cls)
     for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
     {
         m::info bt = bare(m::type_of(b));
-        if (bt == ^^Deki::Component || bt == ^^Deki::Behaviour || is_component(bt)) return m::is_public(b);
+        if (bt == ^^Deki::Component || is_component(bt)) return m::is_public(b);
     }
     return false;
 }
@@ -1056,7 +1056,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     if constexpr (!scope_is_reflectable(COMP))
         out << "#error \"" << QN << ": a component must be declared in a named namespace (or at global scope), not nested in a class or an anonymous namespace\"\n";
     if constexpr (!component_base_is_public(COMP))
-        out << "#error \"" << QN << ": a component must derive PUBLICLY from Deki::Component or Deki::Behaviour (write `class " << CLS << " : public ...`)\"\n";
+        out << "#error \"" << QN << ": a component must derive PUBLICLY from Deki::Component (write `class " << CLS << " : public ...`)\"\n";
     template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
     {
         if constexpr (!m::is_public(mem))

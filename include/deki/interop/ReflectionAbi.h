@@ -111,8 +111,12 @@ struct DekiReflectionAbi
  *    flag. Declaring Update() is the only thing that makes it run. A slot
  *    left the Behaviour vtable, so a v7 package would call the wrong function
  *    through every virtual after it.
+ *
+ * 9: engine 0.13 merged Deki::Behaviour into Deki::Component. Component gained
+ *    Awake/Start/Update and two state flags, lost AsBehaviour(), and
+ *    Behaviour is gone: every package rebuilds against the one base.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 8;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 9;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

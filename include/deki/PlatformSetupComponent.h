@@ -1,6 +1,6 @@
 #pragma once
 
-#include <deki/Behaviour.h>
+#include <deki/Component.h>
 #include <deki/SetupComponent.h>
 #include <deki/reflection/ObjectRef.h>
 #include <deki/reflection/Property.h>
@@ -30,7 +30,7 @@ namespace Deki
 
 DEKI_CATEGORY("System")
 DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the startup scene.")
-class PlatformSetupComponent : public Behaviour
+class PlatformSetupComponent : public Component
 {
 public:
 

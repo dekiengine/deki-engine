@@ -436,8 +436,8 @@ inline const T& GetNodePropertyRef(const void* base, const PropertyInfo& prop) {
 // ============================================================================
 // Component metadata markers (optional, ABOVE the class)
 // ============================================================================
-// A component is any class deriving publicly from Deki::Component or
-// Deki::Behaviour. The reflection codegen finds it by that alone: no macro in
+// A component is any class deriving publicly from Deki::Component. The
+// reflection codegen finds it by that alone: no macro in
 // the class, no generated include, and its identity is its qualified C++ name
 // (see TypeId.h). These markers add editor metadata. They sit on the lines right
 // above the class and attach to the next component declared in the same file:

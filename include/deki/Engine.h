@@ -13,7 +13,6 @@
 #include <deki/Export.h>  // DEKI_ENGINE_API
 #include <deki/Color.h>
 #include <deki/Component.h>
-#include <deki/Behaviour.h>
 #include <deki/Object.h>
 #include <deki/Scene.h>
 #include <deki/SceneSystem.h>
@@ -101,8 +100,8 @@ class Object;
 /**
  * @brief Engine singleton: owns the scene system, lifecycle and frame loop.
  *
- * Holds the active scene graph via SceneSystem, drives the Behaviour
- * lifecycle (PreRender, Start, Update) through LifecycleManager, and dispatches
+ * Holds the active scene graph via SceneSystem, drives the component
+ * lifecycle (Awake, Start, Update) through LifecycleManager, and dispatches
  * to whichever render, input and display providers a package has installed —
  * all four are optional, so a headless or editor-hosted engine is the same
  * class with null providers.
