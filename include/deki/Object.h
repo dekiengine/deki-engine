@@ -80,11 +80,11 @@ private:
     // when three editor-only members sat here instead, those offsets moved ~72
     // bytes between configurations and the accessors returned garbage with no
     // diagnostic. This byte lands in padding that existed anyway (see the
-    // static_asserts in DekiObject.cpp), so it costs the embedded build nothing.
+    // static_asserts in Object.cpp), so it costs the embedded build nothing.
     //
     // The instance PAYLOAD — the source-scene GUID and the overrides JSON — is
     // cold (touched only on expand/collapse, override collect/apply and
-    // serialization) and lives in a side table in DekiObject.cpp, so the runtime
+    // serialization) and lives in a side table in Object.cpp, so the runtime
     // build carries none of it, not even a pointer.
     static constexpr uint8_t EditorFlag_SceneInstance = 1u << 0;
     static constexpr uint8_t EditorFlag_PartOfInstance = 1u << 1;
@@ -108,7 +108,7 @@ public:
     Object& operator=(const Object&) = delete;
 
     /// Out of line ON PURPOSE. It erases this object's row from the editor-only
-    /// side table in DekiObject.cpp, which the runtime build must not need to
+    /// side table in Object.cpp, which the runtime build must not need to
     /// see. Defining it `= default` in this header would reintroduce exactly the
     /// layout dependency this design removes.
     ~Object();
@@ -139,7 +139,7 @@ public:
 
 #ifdef DEKI_EDITOR
     // Scene instance support. Declared editor-only, which is layout-neutral:
-    // Object has no virtual functions (asserted in DekiObject.cpp), so
+    // Object has no virtual functions (asserted in Object.cpp), so
     // conditionally declared non-virtual members change nothing about the object.
     //
     // The predicates stay inline — IsSceneInstance() is called per-object

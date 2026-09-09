@@ -8,7 +8,7 @@
 
 #include <deki/Object.h>
 #include <deki/Component.h>
-#include <deki/Export.h>  // DEKI_ENGINE_API — NOT DekiEngine.h, which includes us back
+#include <deki/Export.h>  // DEKI_ENGINE_API — NOT Engine.h, which includes us back
 
 #ifdef DEKI_EDITOR
 #include <nlohmann/json_fwd.hpp>

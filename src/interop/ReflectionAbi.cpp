@@ -1,12 +1,12 @@
 /**
- * @file DekiPackageAbi.cpp
+ * @file ReflectionAbi.cpp
  * @brief The reflection-layout handshake, compiled into EVERY package DLL.
  *
  * BuildFileGenerator appends this file to every package target and to the
  * game plugin, so each DLL reports the reflection struct layout it was
  * actually built against. PackageLoader and
  * PluginLoader compare that against the editor's and refuse a mismatch (see
- * DekiReflectionAbi.h for why a stale DLL is so destructive).
+ * ReflectionAbi.h for why a stale DLL is so destructive).
  *
  * Editor-only by design: on device everything is statically linked, there is no
  * loader and no ABI boundary to guard, so this compiles to nothing there (the

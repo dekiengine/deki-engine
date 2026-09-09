@@ -28,11 +28,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(DEKI_CORE_SOURCES
     # Core runtime classes
-    src/DekiObject.cpp
+    src/Object.cpp
     src/Component.cpp
     src/Color.cpp
     src/ComponentInterfaceAdapters.cpp
-    src/providers/DekiMemory.cpp
+    src/providers/Memory.cpp
 )
 
 # =============================================================================
@@ -48,16 +48,16 @@ set(DEKI_CORE_SOURCES
 
 # Full engine runtime sources (shared between editor and embedded)
 list(APPEND DEKI_CORE_SOURCES
-    src/DekiEngine.cpp
-    src/DekiStorage.cpp
+    src/Engine.cpp
+    src/Storage.cpp
     src/LifecycleManager.cpp
     src/Scene.cpp
     src/SceneSystem.cpp
     src/SceneMessagePack.cpp
     src/ProjectSettings.cpp
-    src/DekiFPSCounter.cpp
-    src/DekiLogSystem.cpp
-    src/DekiTime.cpp
+    src/FPSCounter.cpp
+    src/LogSystem.cpp
+    src/Time.cpp
     src/Guid.cpp
     src/reflection/ComponentRegistry.cpp
     src/reflection/ComponentFactory.cpp
@@ -65,7 +65,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/reflection/LegacyTypeNames.cpp
     src/reflection/SettingsRegistry.cpp
     src/providers/DekiProviderRegistryBase.cpp
-    src/providers/DekiPower.cpp
+    src/providers/Power.cpp
     src/settings/CoreProjectSettings.cpp
     src/settings/DisplayProjectSettings.cpp
     src/settings/UnitProjectSettings.cpp
@@ -112,7 +112,7 @@ endif()
 
 # Platform providers - shared between simulator and editor
 list(APPEND DEKI_CORE_SOURCES
-    src/providers/DekiFileSystem.cpp
+    src/providers/FileSystem.cpp
     src/platforms/desktop/DesktopFileSystem.cpp
 )
 
@@ -241,7 +241,7 @@ if(DEKI_EDITOR)
     target_link_libraries(deki-engine-core PRIVATE OpenGL::GL)
 
     # No SDL3 link. This used to be PUBLIC SDL3::SDL3-static "needed by
-    # EditorTimeProvider in DekiEngine.cpp" — there is no EditorTimeProvider in
+    # EditorTimeProvider in Engine.cpp" — there is no EditorTimeProvider in
     # this repo (it lives in the editor app) and src/ contains no SDL header or
     # symbol, only the word in a few comments. It was pushing a statically
     # linked SDL3 onto every consumer of deki-engine-core.

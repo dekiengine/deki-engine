@@ -166,7 +166,7 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 }
 #endif
 
-// Layout tripwire — see the longer note in DekiObject.cpp. Scene is milder than
+// Layout tripwire — see the longer note in Object.cpp. Scene is milder than
 // Object (packages hold Scene* and call out-of-line methods rather than
 // reading members inline), but deki-editor.dll constructs one by value in
 // AssetPipeline::CompileSceneFile, so the size must still agree across configs.
@@ -175,7 +175,7 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 static_assert(sizeof(Scene) == 120,
               "sizeof(Scene) changed. Verify the editor and a runtime config "
               "(-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree, and bump "
-              "kDekiReflectionAbiVersion in interop/DekiReflectionAbi.h.");
+              "kDekiReflectionAbiVersion in interop/ReflectionAbi.h.");
 #endif
 
 Scene::Scene()

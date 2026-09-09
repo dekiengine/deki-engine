@@ -25,7 +25,7 @@
  * offsets and ignores the rest. It does not protect an ARRAY, because the stride
  * changes. So arrays of these structs need a real handshake, which is this.
  *
- * Every package DLL exports its compiled values (DekiPackageAbi.cpp, linked into
+ * Every package DLL exports its compiled values (ReflectionAbi.cpp, linked into
  * each package by BuildFileGenerator) and the loader refuses a package that
  * disagrees, naming it and saying to rebuild. Loudly wrong beats silently
  * corrupt.
@@ -165,7 +165,7 @@ inline bool DekiReflectionAbiMatches(const DekiReflectionAbi& other, char* what,
     return true;
 }
 
-// The symbol every package DLL and the game plugin export (DekiPackageAbi.cpp).
+// The symbol every package DLL and the game plugin export (ReflectionAbi.cpp).
 //
 // A MISSING export only tells you the DLL predates this handshake, so the loaders
 // warn and continue: refusing on absence would reject every DLL built before the

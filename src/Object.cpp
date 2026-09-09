@@ -26,7 +26,7 @@
 // =============================================================================
 //
 // Package DLLs reach `parent`, `children` and the component vector through
-// inline accessors in DekiObject.h, so they bake these offsets into their own
+// inline accessors in Object.h, so they bake these offsets into their own
 // code. Two things must therefore hold, and neither is checked by the linker:
 //
 //   1. The layout must not depend on DEKI_EDITOR. Build the editor and a
@@ -36,14 +36,14 @@
 //   2. The layout must not change without the package ABI version changing.
 //      If one of these fires, that is not a licence to update the number — it
 //      means every prebuilt package is now wrong. Bump
-//      kDekiReflectionAbiVersion in interop/DekiReflectionAbi.h in the same
+//      kDekiReflectionAbiVersion in interop/ReflectionAbi.h in the same
 //      commit, so the loader rejects stale DLLs instead of miscomputing.
 
 namespace Deki
 {
 
 static_assert(!std::is_polymorphic<Object>::value,
-              "DekiObject gained a virtual function. That inserts a vptr, moves every "
+              "Deki::Object gained a virtual function. That inserts a vptr, moves every "
               "member, and silently breaks every package DLL compiled against the old "
               "layout. If this is intended, bump kDekiReflectionAbiVersion.");
 
@@ -58,10 +58,10 @@ static_assert(!std::is_polymorphic<Object>::value,
 // would just be a second thing to get wrong.
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
 static_assert(sizeof(Object) == 152,
-              "sizeof(DekiObject) changed. Every package DLL bakes this layout into its "
+              "sizeof(Deki::Object) changed. Every package DLL bakes this layout into its "
               "inline GetParent()/GetChildren()/GetComponent<T>() calls. Do NOT simply "
               "update this number: bump kDekiReflectionAbiVersion in "
-              "interop/DekiReflectionAbi.h in the same commit so the loader refuses "
+              "interop/ReflectionAbi.h in the same commit so the loader refuses "
               "DLLs built against the old layout. Then verify the editor and a runtime "
               "config (-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree.");
 #endif

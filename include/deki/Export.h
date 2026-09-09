@@ -3,8 +3,8 @@
 /**
  * @brief DLL export/import annotation for engine-core symbols.
  *
- * Split out of DekiEngine.h so that headers needing only the annotation —
- * Scene.h, for one — do not have to include DekiEngine.h, which includes
+ * Split out of Engine.h so that headers needing only the annotation —
+ * Scene.h, for one — do not have to include Engine.h, which includes
  * Scene.h right back. That cycle survived only on #pragma once and made the
  * two headers order-dependent.
  *
