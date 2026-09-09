@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.14.0
 
 ### Changed
 - The transform is a build switch. `DEKI_TRANSFORM_2D` gives every
