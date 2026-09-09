@@ -235,7 +235,11 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out)
 }
 static std::string s_RendererName = "standard2d";
 static int s_PassCount = 0;
-static std::string s_PassNames[MAX_PASSES];
+
+// Sized to what a project actually declares. A fixed array here used to cost a
+// single-pass 2D project seven unused strings and cap a richer target at
+// eight, which is the low end and the high end paying for each other.
+static std::vector<std::string> s_PassNames;
 
 int32_t GetTargetFPS()
 {
@@ -255,7 +259,7 @@ int GetPassCount()
 }
 const char* GetPassName(int index)
 {
-    if (index < 0 || index >= s_PassCount)
+    if (index < 0 || index >= static_cast<int>(s_PassNames.size()))
         return "";
     return s_PassNames[index].c_str();
 }
@@ -301,8 +305,7 @@ bool Load(const uint8_t* data, size_t size)
     s_StartupScene.clear();
     s_RendererName = "standard2d";
     s_PassCount = 0;
-    for (int i = 0; i < MAX_PASSES; i++)
-        s_PassNames[i].clear();
+    s_PassNames.clear();
     s_PackageChunkSize = 0;
 
     // Version 3+: read runtime settings (targetFPS + startup scene)
@@ -366,13 +369,21 @@ bool Load(const uint8_t* data, size_t size)
             memcpy(&passCount, data + offset, sizeof(uint8_t));
             offset += sizeof(uint8_t);
 
-            s_PassCount = (passCount > MAX_PASSES) ? MAX_PASSES : passCount;
+            s_PassCount = passCount;
+            s_PassNames.assign(static_cast<size_t>(passCount), std::string());
 
             // Read each pass name (uint16_t length + string)
             for (int i = 0; i < s_PassCount; i++)
             {
                 if (offset + sizeof(uint16_t) > size)
+                {
+                    // Truncated file: keep only what actually parsed, so a
+                    // caller iterating GetPassCount() cannot read a name that
+                    // was never there.
+                    s_PassNames.resize(static_cast<size_t>(i));
+                    s_PassCount = i;
                     break;
+                }
 
                 uint16_t passNameLen = 0;
                 memcpy(&passNameLen, data + offset, sizeof(uint16_t));
@@ -740,8 +751,20 @@ std::vector<uint8_t> Write(int32_t displayWidth, int32_t displayHeight, uint8_t 
         Append(buf, rName, rNameLen);
     }
 
-    // Pass count
-    uint8_t pc = static_cast<uint8_t>(passCount > MAX_PASSES ? MAX_PASSES : passCount);
+    // Pass count. The field is one byte, which is the only ceiling left, and
+    // it is far beyond anything a real pipeline declares.
+    if (passCount < 0)
+        passCount = 0;
+    if (passCount > 255)
+    {
+        // The caller writes whatever comes back without checking, so failing
+        // here would produce an empty settings file. Say so loudly and keep
+        // going instead.
+        DEKI_LOG_ERROR("Render pipeline declares %d passes; the format stores at most 255. "
+                       "Writing the first 255.", passCount);
+        passCount = 255;
+    }
+    uint8_t pc = static_cast<uint8_t>(passCount);
     Append(buf, &pc, sizeof(uint8_t));
 
     // Each pass name (uint16_t length + string)

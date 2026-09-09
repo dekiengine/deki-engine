@@ -69,18 +69,13 @@ struct RuntimeSettings
 /**
  * @brief Render pipeline configuration (version 4+)
  *
- * Baked from .rpipeline asset at export time.
- * Specifies which renderer and render passes to activate.
+ * Baked from the .rpipeline asset at export time: which renderer to activate
+ * and which passes to run, read back through GetRenderPipeline(),
+ * GetPassCount() and GetPassName(). Both the renderer name and each pass name
+ * are stored as a length followed by bytes, so neither the count nor the
+ * length of a name is capped by this format. The one ceiling is the pass
+ * count's own width, one byte.
  */
-static constexpr int MAX_PIPELINE_NAME = 32;
-static constexpr int MAX_PASSES = 8;
-
-struct PipelineConfig
-{
-    char rendererName[MAX_PIPELINE_NAME];  // e.g., "standard2d"
-    uint8_t passCount;
-    char passNames[MAX_PASSES][MAX_PIPELINE_NAME];
-};
 
 /**
  * @brief Load project settings from binary file
