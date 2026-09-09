@@ -547,6 +547,9 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     bool active = true;
     int sortOrder = 0;
     float x = 0, y = 0, rotation = 0, scaleX = 1, scaleY = 1;
+#ifdef DEKI_TRANSFORM_3D
+    float z = 0, rotationX = 0, rotationY = 0, scaleZ = 1;
+#endif
     bool hasTransform = false;
     std::vector<DeferredComponent> deferredComponents;
     std::vector<Object*> pendingChildren;
@@ -619,12 +622,24 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 {
                     if (!ReadFloat(y)) return false;
                 }
+#ifdef DEKI_TRANSFORM_3D
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_Z))
                 {
-                    // Deprecated. Engine is 2D-only; silently discard any Z
-                    // that an old or hand-edited file might still carry.
-                    if (!SkipValue()) return false;
+                    if (!ReadFloat(z)) return false;
                 }
+                else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_X))
+                {
+                    if (!ReadFloat(rotationX)) return false;
+                }
+                else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_Y))
+                {
+                    if (!ReadFloat(rotationY)) return false;
+                }
+                else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_Z))
+                {
+                    if (!ReadFloat(scaleZ)) return false;
+                }
+#endif
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION))
                 {
                     if (!ReadFloat(rotation)) return false;
@@ -740,6 +755,12 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         obj->SetLocalPosition(x, y);
         obj->SetRotation(rotation);
         obj->SetScale(scaleX, scaleY);
+#ifdef DEKI_TRANSFORM_3D
+        obj->SetZ(z);
+        obj->SetRotationX(rotationX);
+        obj->SetRotationY(rotationY);
+        obj->SetScaleZ(scaleZ);
+#endif
     }
 #else
     // No transform in this build. The map was consumed so the parse stays in
@@ -1066,7 +1087,16 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
     (void)obj;
     WriteMapSize(0);
 #else
+#ifdef DEKI_TRANSFORM_3D
+    // Depth keys only when set, so a 2D scene compiles to what it always did.
+    const bool hasZ = obj->GetZ() != 0.0f;
+    const bool hasRX = obj->GetRotationX() != 0.0f;
+    const bool hasRY = obj->GetRotationY() != 0.0f;
+    const bool hasSZ = obj->GetScaleZ() != 1.0f;
+    WriteMapSize(5 + (hasZ ? 1 : 0) + (hasRX ? 1 : 0) + (hasRY ? 1 : 0) + (hasSZ ? 1 : 0));
+#else
     WriteMapSize(5);
+#endif
 
     WriteString(Fields::TR_X);
     WriteFloat(obj->GetX());
@@ -1082,6 +1112,28 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
 
     WriteString(Fields::TR_SCALE_Y);
     WriteFloat(obj->GetScaleY());
+#ifdef DEKI_TRANSFORM_3D
+    if (hasZ)
+    {
+        WriteString(Fields::TR_Z);
+        WriteFloat(obj->GetZ());
+    }
+    if (hasRX)
+    {
+        WriteString(Fields::TR_ROTATION_X);
+        WriteFloat(obj->GetRotationX());
+    }
+    if (hasRY)
+    {
+        WriteString(Fields::TR_ROTATION_Y);
+        WriteFloat(obj->GetRotationY());
+    }
+    if (hasSZ)
+    {
+        WriteString(Fields::TR_SCALE_Z);
+        WriteFloat(obj->GetScaleZ());
+    }
+#endif
 #endif
 }
 

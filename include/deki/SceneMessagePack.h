@@ -174,8 +174,12 @@ constexpr const char* OBJ_INSTANCE = "instance";  // New: path to instanced scen
 // Transform fields
 constexpr const char* TR_X = "x";
 constexpr const char* TR_Y = "y";
-constexpr const char* TR_Z = "z";  // Deprecated. Reader skips silently; writer never emits.
-constexpr const char* TR_ROTATION = "rotation";
+// The third axis, present only when a 3D build set it. A 2D build skips them.
+constexpr const char* TR_Z = "z";
+constexpr const char* TR_ROTATION_X = "rotationX";
+constexpr const char* TR_ROTATION_Y = "rotationY";
+constexpr const char* TR_SCALE_Z = "scaleZ";
+constexpr const char* TR_ROTATION = "rotation";  // the Z angle, always
 // These were "m_ScaleX" and "scale_y": a rename of Object::scale_x to
 // m_ScaleX rewrote the string literal too, putting a C++ private-member prefix
 // into the compiled scene format and leaving the four transform keys using

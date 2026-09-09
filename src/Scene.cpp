@@ -785,6 +785,18 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         { "scaleX", obj->GetScaleX() },
         { "scaleY", obj->GetScaleY() }
     };
+#ifdef DEKI_TRANSFORM_3D
+    // Written only when set, so a 2D project's file is byte for byte what it
+    // was, and a 2D device skips the keys it does not know.
+    if (obj->GetZ() != 0.0f)
+        json["transform"]["z"] = obj->GetZ();
+    if (obj->GetRotationX() != 0.0f)
+        json["transform"]["rotationX"] = obj->GetRotationX();
+    if (obj->GetRotationY() != 0.0f)
+        json["transform"]["rotationY"] = obj->GetRotationY();
+    if (obj->GetScaleZ() != 1.0f)
+        json["transform"]["scaleZ"] = obj->GetScaleZ();
+#endif
 #endif
 
     // Scene instance: save only the link + collected overrides
@@ -1077,6 +1089,12 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         obj->SetLocalPosition(t.value("x", 0.0f), t.value("y", 0.0f));
         obj->SetRotation(t.value("rotation", 0.0f));
         obj->SetScale(t.value("scaleX", 1.0f), t.value("scaleY", 1.0f));
+#ifdef DEKI_TRANSFORM_3D
+        obj->SetZ(t.value("z", 0.0f));
+        obj->SetRotationX(t.value("rotationX", 0.0f));
+        obj->SetRotationY(t.value("rotationY", 0.0f));
+        obj->SetScaleZ(t.value("scaleZ", 1.0f));
+#endif
     }
 #endif
 

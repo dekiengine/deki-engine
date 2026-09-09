@@ -49,6 +49,14 @@ struct WorldTransform
     float rotation;  // radians
     float scaleX;
     float scaleY;
+#ifdef DEKI_TRANSFORM_3D
+    // Appended, so a reader of the five above sees the same offsets at
+    // either width. rotation above is the Z angle; these are X and Y.
+    float z;
+    float rotationX;
+    float rotationY;
+    float scaleZ;
+#endif
 };
 #endif
 
@@ -62,6 +70,11 @@ private:
     mutable float m_WorldRotation = 0.0f;
     mutable float m_WorldScaleX = 1.0f, m_WorldScaleY = 1.0f;
     mutable bool m_WorldTransformDirty = true;
+#ifdef DEKI_TRANSFORM_3D
+    mutable float m_WorldZ = 0.0f;
+    mutable float m_WorldRotationX = 0.0f, m_WorldRotationY = 0.0f;
+    mutable float m_WorldScaleZ = 1.0f;
+#endif
 
     /// Ensure world transform is valid (recomputes from parent chain if dirty).
     /// Inline on purpose: the clean case is a flag load in the caller instead
@@ -79,6 +92,13 @@ private:
     float x = 0.0f, y = 0.0f;
     float rotation = 0.0f;
     float m_ScaleX = 1.0f, m_ScaleY = 1.0f;
+#ifdef DEKI_TRANSFORM_3D
+    // The third axis. `rotation` stays the Z angle (COMPATIBILITY.md); these
+    // are rotation about X and Y, radians, applied X then Y then Z.
+    float z = 0.0f;
+    float rotationX = 0.0f, rotationY = 0.0f;
+    float m_ScaleZ = 1.0f;
+#endif
 #endif  // DEKI_TRANSFORM_2D
     static uint32_t s_NextId;
     uint32_t id;
@@ -212,7 +232,12 @@ public:
     WorldTransform GetWorldTransform() const
     {
         EnsureWorldTransformValid();
+#ifdef DEKI_TRANSFORM_3D
+        return { m_WorldX, m_WorldY, m_WorldRotation, m_WorldScaleX, m_WorldScaleY,
+                 m_WorldZ, m_WorldRotationX, m_WorldRotationY, m_WorldScaleZ };
+#else
         return { m_WorldX, m_WorldY, m_WorldRotation, m_WorldScaleX, m_WorldScaleY };
+#endif
     }
     float GetWorldX() const
     {
@@ -255,6 +280,39 @@ public:
     void SetY(float newY);
     void SetScaleX(float newScaleX);
     void SetScaleY(float newScaleY);
+
+#ifdef DEKI_TRANSFORM_3D
+    // The third axis. Absent at the 2D width, so code that uses these is
+    // code that declared transform_3d.
+    float GetZ() const { return z; }
+    float GetRotationX() const { return rotationX; }
+    float GetRotationY() const { return rotationY; }
+    float GetScaleZ() const { return m_ScaleZ; }
+    void SetZ(float newZ);
+    void SetRotationX(float radians);
+    void SetRotationY(float radians);
+    void SetScaleZ(float newScaleZ);
+    float GetWorldZ() const
+    {
+        EnsureWorldTransformValid();
+        return m_WorldZ;
+    }
+    float GetWorldRotationX() const
+    {
+        EnsureWorldTransformValid();
+        return m_WorldRotationX;
+    }
+    float GetWorldRotationY() const
+    {
+        EnsureWorldTransformValid();
+        return m_WorldRotationY;
+    }
+    float GetWorldScaleZ() const
+    {
+        EnsureWorldTransformValid();
+        return m_WorldScaleZ;
+    }
+#endif
 #else
     // No transform in this build. The hierarchy still calls this when a parent
     // changes, so it stays declared and costs nothing.

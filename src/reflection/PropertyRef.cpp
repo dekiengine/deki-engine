@@ -41,6 +41,12 @@ const FieldRef kTransformFields[] = {
     { HashString("scale"), (uint16_t)TransformField::Scale, (uint8_t)PropertyType::Vector2, 0 },
     { HashString("scaleX"), (uint16_t)TransformField::ScaleX, (uint8_t)PropertyType::Float, 0 },
     { HashString("scaleY"), (uint16_t)TransformField::ScaleY, (uint8_t)PropertyType::Float, 0 },
+#ifdef DEKI_TRANSFORM_3D
+    { HashString("z"), (uint16_t)TransformField::Z, (uint8_t)PropertyType::Float, 0 },
+    { HashString("rotationX"), (uint16_t)TransformField::RotationX, (uint8_t)PropertyType::Float, 0 },
+    { HashString("rotationY"), (uint16_t)TransformField::RotationY, (uint8_t)PropertyType::Float, 0 },
+    { HashString("scaleZ"), (uint16_t)TransformField::ScaleZ, (uint8_t)PropertyType::Float, 0 },
+#endif
 #endif
     { HashString("active"), (uint16_t)TransformField::Active, (uint8_t)PropertyType::Bool, 0 },
 };
@@ -54,6 +60,12 @@ const char* const kTransformFieldNames[] = {
     "scale",
     "scaleX",
     "scaleY",
+#ifdef DEKI_TRANSFORM_3D
+    "z",
+    "rotationX",
+    "rotationY",
+    "scaleZ",
+#endif
 #endif
     "active",
 };
@@ -219,6 +231,12 @@ double ReadNumeric(const PropertyBinding& b)
             case TransformField::ScaleX:
             case TransformField::Scale: return o->GetScaleX();
             case TransformField::ScaleY: return o->GetScaleY();
+#ifdef DEKI_TRANSFORM_3D
+            case TransformField::Z: return o->GetZ();
+            case TransformField::RotationX: return o->GetRotationX();
+            case TransformField::RotationY: return o->GetRotationY();
+            case TransformField::ScaleZ: return o->GetScaleZ();
+#endif
 #endif
             case TransformField::Active: return o->IsActive() ? 1.0 : 0.0;
             default: return 0.0;
@@ -379,6 +397,12 @@ void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
                 o->SetScale(static_cast<float>(v),
                             static_cast<float>(v2));
                 break;
+#ifdef DEKI_TRANSFORM_3D
+            case TransformField::Z: o->SetZ(static_cast<float>(v)); break;
+            case TransformField::RotationX: o->SetRotationX(static_cast<float>(v)); break;
+            case TransformField::RotationY: o->SetRotationY(static_cast<float>(v)); break;
+            case TransformField::ScaleZ: o->SetScaleZ(static_cast<float>(v)); break;
+#endif
 #else
             (void)v2;
 #endif

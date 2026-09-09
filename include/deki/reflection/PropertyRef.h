@@ -35,6 +35,11 @@ enum class TransformField : uint8_t
     ScaleY,
     Scale,
     Active,
+    // The third axis, appended so the values above keep their numbers.
+    Z,
+    RotationX,
+    RotationY,
+    ScaleZ,
 };
 
 /** @brief The component name a reference stores to mean "the object's transform". */

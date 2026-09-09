@@ -60,7 +60,9 @@ static_assert(!std::is_polymorphic<Object>::value,
 // One number per transform width: the build chooses the width, and the ABI
 // handshake carries it, so a 2D DLL is refused by a headless engine on the
 // width before it ever gets to compare sizes.
-#ifdef DEKI_TRANSFORM_2D
+#if defined(DEKI_TRANSFORM_3D)
+constexpr size_t kExpectedObjectSize = 184;
+#elif defined(DEKI_TRANSFORM_2D)
 constexpr size_t kExpectedObjectSize = 152;
 #else
 constexpr size_t kExpectedObjectSize = 112;
@@ -374,12 +376,103 @@ bool Object::IsActiveInHierarchy() const
 
 #ifdef DEKI_TRANSFORM_2D
 
+#ifdef DEKI_TRANSFORM_3D
+namespace
+{
+// The engine's angle convention: rotate about X, then Y, then Z, radians,
+// right-handed. R = Rz * Ry * Rx, row-major, m[row * 3 + col].
+void RotationFromAngles(float rx, float ry, float rz, float m[9])
+{
+    const float cx = std::cos(rx), sx = std::sin(rx);
+    const float cy = std::cos(ry), sy = std::sin(ry);
+    const float cz = std::cos(rz), sz = std::sin(rz);
+    m[0] = cz * cy;  m[1] = cz * sy * sx - sz * cx;  m[2] = cz * sy * cx + sz * sx;
+    m[3] = sz * cy;  m[4] = sz * sy * sx + cz * cx;  m[5] = sz * sy * cx - cz * sx;
+    m[6] = -sy;      m[7] = cy * sx;                 m[8] = cy * cx;
+}
+
+// The angles back out of a matrix RotationFromAngles built.
+void AnglesFromRotation(const float m[9], float& rx, float& ry, float& rz)
+{
+    const float sy = -m[6];
+    if (sy > 0.9999999f || sy < -0.9999999f)
+    {
+        // Looking straight along Y: X and Z rotation are not separable, so
+        // all of it is reported as Z.
+        ry = sy > 0.0f ? 1.5707963f : -1.5707963f;
+        rx = 0.0f;
+        rz = std::atan2(-m[1], m[4]);
+        return;
+    }
+    ry = std::asin(sy);
+    rx = std::atan2(m[7], m[8]);
+    rz = std::atan2(m[3], m[0]);
+}
+
+void Multiply(const float a[9], const float b[9], float out[9])
+{
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+            out[r * 3 + c] = a[r * 3 + 0] * b[0 * 3 + c] + a[r * 3 + 1] * b[1 * 3 + c] + a[r * 3 + 2] * b[2 * 3 + c];
+}
+
+void Apply(const float m[9], float x, float y, float z, float& ox, float& oy, float& oz)
+{
+    ox = m[0] * x + m[1] * y + m[2] * z;
+    oy = m[3] * x + m[4] * y + m[5] * z;
+    oz = m[6] * x + m[7] * y + m[8] * z;
+}
+
+// The transpose, which is the inverse of a rotation.
+void ApplyInverse(const float m[9], float x, float y, float z, float& ox, float& oy, float& oz)
+{
+    ox = m[0] * x + m[3] * y + m[6] * z;
+    oy = m[1] * x + m[4] * y + m[7] * z;
+    oz = m[2] * x + m[5] * y + m[8] * z;
+}
+}  // namespace
+#endif  // DEKI_TRANSFORM_3D
+
 void Object::RecomputeWorldTransform() const
 {
     if (parent)
     {
         // Ensure parent is valid first (recursive up the chain)
         parent->EnsureWorldTransformValid();
+
+#ifdef DEKI_TRANSFORM_3D
+        // Only when something in the chain rotates about X or Y does the
+        // composition need matrices. Everything else takes the path below,
+        // which is the 2D engine's exactly, so 2D content is bit-identical.
+        const bool needsMatrices = parent->m_WorldRotationX != 0.0f || parent->m_WorldRotationY != 0.0f ||
+                                   rotationX != 0.0f || rotationY != 0.0f;
+        if (needsMatrices)
+        {
+            m_WorldScaleX = m_ScaleX * parent->m_WorldScaleX;
+            m_WorldScaleY = m_ScaleY * parent->m_WorldScaleY;
+            m_WorldScaleZ = m_ScaleZ * parent->m_WorldScaleZ;
+
+            float rp[9], rl[9], rw[9];
+            RotationFromAngles(parent->m_WorldRotationX, parent->m_WorldRotationY, parent->m_WorldRotation, rp);
+            RotationFromAngles(rotationX, rotationY, rotation, rl);
+            Multiply(rp, rl, rw);
+            AnglesFromRotation(rw, m_WorldRotationX, m_WorldRotationY, m_WorldRotation);
+
+            float ox, oy, oz;
+            Apply(rp, x * parent->m_WorldScaleX, y * parent->m_WorldScaleY, z * parent->m_WorldScaleZ, ox, oy, oz);
+            m_WorldX = parent->m_WorldX + ox;
+            m_WorldY = parent->m_WorldY + oy;
+            m_WorldZ = parent->m_WorldZ + oz;
+
+            m_WorldTransformDirty = false;
+            return;
+        }
+        // Z-only rotation leaves the third axis alone.
+        m_WorldZ = parent->m_WorldZ + z * parent->m_WorldScaleZ;
+        m_WorldScaleZ = m_ScaleZ * parent->m_WorldScaleZ;
+        m_WorldRotationX = 0.0f;
+        m_WorldRotationY = 0.0f;
+#endif
 
         // Calculate world transform from parent
         m_WorldScaleX = m_ScaleX * parent->m_WorldScaleX;
@@ -413,6 +506,12 @@ void Object::RecomputeWorldTransform() const
         m_WorldRotation = rotation;
         m_WorldScaleX = m_ScaleX;
         m_WorldScaleY = m_ScaleY;
+#ifdef DEKI_TRANSFORM_3D
+        m_WorldZ = z;
+        m_WorldRotationX = rotationX;
+        m_WorldRotationY = rotationY;
+        m_WorldScaleZ = m_ScaleZ;
+#endif
     }
 
     m_WorldTransformDirty = false;
@@ -443,6 +542,25 @@ void Object::SetWorldPosition(float worldX, float worldY)
 {
     if (parent)
     {
+#ifdef DEKI_TRANSFORM_3D
+        // A parent turned about X or Y mixes all three axes, so the plane
+        // arithmetic below does not apply; undo its rotation properly, keeping
+        // this object's current depth.
+        if (parent->GetWorldRotationX() != 0.0f || parent->GetWorldRotationY() != 0.0f)
+        {
+            float rp[9];
+            RotationFromAngles(parent->GetWorldRotationX(), parent->GetWorldRotationY(),
+                               parent->GetWorldRotation(), rp);
+            float lx, ly, lz;
+            ApplyInverse(rp, worldX - parent->GetWorldX(), worldY - parent->GetWorldY(),
+                         GetWorldZ() - parent->GetWorldZ(), lx, ly, lz);
+            x = lx / parent->GetWorldScaleX();
+            y = ly / parent->GetWorldScaleY();
+            z = lz / parent->GetWorldScaleZ();
+            MarkWorldTransformDirty();
+            return;
+        }
+#endif
         // Calculate local position from world position
         // Use getters to ensure parent's world transform is valid
         float dx = worldX - parent->GetWorldX();
@@ -517,6 +635,32 @@ void Object::SetScaleY(float newScaleY)
     m_ScaleY = newScaleY;
     MarkWorldTransformDirty();
 }
+
+#ifdef DEKI_TRANSFORM_3D
+void Object::SetZ(float newZ)
+{
+    z = newZ;
+    MarkWorldTransformDirty();
+}
+
+void Object::SetRotationX(float radians)
+{
+    rotationX = radians;
+    MarkWorldTransformDirty();
+}
+
+void Object::SetRotationY(float radians)
+{
+    rotationY = radians;
+    MarkWorldTransformDirty();
+}
+
+void Object::SetScaleZ(float newScaleZ)
+{
+    m_ScaleZ = newScaleZ;
+    MarkWorldTransformDirty();
+}
+#endif  // DEKI_TRANSFORM_3D
 
 #endif  // DEKI_TRANSFORM_2D
 

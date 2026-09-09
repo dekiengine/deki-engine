@@ -17,6 +17,17 @@ and package DLLs has its own numbered history in
   DLL built at a different width is refused rather than reading the wrong
   offsets.
 
+### Added
+- `DEKI_TRANSFORM_3D`: `Deki::Object` gains `z`, rotation about X and Y, and
+  `scaleZ`, with their world cache and accessors; `rotation` stays the Z angle.
+  One composition serves both widths: when nothing in the chain rotates about
+  X or Y it takes the 2D path bit for bit and only adds z, so 2D content
+  composes at 2D cost and renders identically. The scene keys `z`,
+  `rotationX`, `rotationY` and `scaleZ` are additive and written only when set,
+  so a 2D project's files do not change; a 2D build skips them. The transform
+  pseudo-component the state machine addresses gains the four fields. A package
+  declares `transform_3d` to get the width.
+
 ## 0.13.0
 
 ### Breaking
