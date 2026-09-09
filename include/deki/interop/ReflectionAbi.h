@@ -52,6 +52,13 @@ struct DekiReflectionAbi
     // the engine's answer and agree unconditionally.
     uint32_t sizeofDekiObject;
     uint32_t sizeofDekiComponent;
+
+    // Which transform the build compiled into Deki::Object: bit 0 is
+    // DEKI_TRANSFORM_2D, bit 1 is DEKI_TRANSFORM_3D. A package built at a
+    // different width reads different offsets, and sizeof alone would not
+    // catch a headless build against a 2D one whose padding happened to land
+    // on the same number.
+    uint32_t transformConfig;
 };
 
 /**
@@ -115,8 +122,14 @@ struct DekiReflectionAbi
  * 9: engine 0.13 merged Deki::Behaviour into Deki::Component. Component gained
  *    Awake/Start/Update and two state flags, lost AsBehaviour(), and
  *    Behaviour is gone: every package rebuilds against the one base.
+ *
+ * 10: added transformConfig. The transform width became a build switch
+ *    (DEKI_TRANSFORM_2D / DEKI_TRANSFORM_3D), so Deki::Object's layout is
+ *    now a property of the project's configuration and the handshake has to
+ *    say which one a DLL was built for. Growing the struct is itself the
+ *    layout change that forces the bump.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 9;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 10;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()
@@ -128,6 +141,14 @@ inline DekiReflectionAbi DekiCurrentReflectionAbi()
     abi.sizeofFieldRef = static_cast<uint32_t>(sizeof(Deki::FieldRef));
     abi.sizeofDekiObject = static_cast<uint32_t>(sizeof(Deki::Object));
     abi.sizeofDekiComponent = static_cast<uint32_t>(sizeof(Deki::Component));
+    abi.transformConfig = 0u
+#ifdef DEKI_TRANSFORM_2D
+                          | 1u
+#endif
+#ifdef DEKI_TRANSFORM_3D
+                          | 2u
+#endif
+        ;
     return abi;
 }
 
@@ -152,6 +173,7 @@ inline bool DekiReflectionAbiMatches(const DekiReflectionAbi& other, char* what,
         { "sizeof(DekiFieldRef)", mine.sizeofFieldRef, other.sizeofFieldRef },
         { "sizeof(DekiObject)", mine.sizeofDekiObject, other.sizeofDekiObject },
         { "sizeof(DekiComponent)", mine.sizeofDekiComponent, other.sizeofDekiComponent },
+        { "transform configuration", mine.transformConfig, other.transformConfig },
     };
     for (const Field& f : fields)
     {

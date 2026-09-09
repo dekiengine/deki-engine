@@ -408,7 +408,12 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
     tempScene.RemoveObject(root);
 
     // Apply position offset to the root object's transform
+#ifdef DEKI_TRANSFORM_2D
     root->SetLocalPosition(root->GetX() + x, root->GetY() + y);
+#else
+    (void)x;
+    (void)y;
+#endif
 
     // Fix ownerScene on the entire spawned subtree — LoadObjectFromJson set
     // them to &tempScene, which is about to be destroyed. Do this before
@@ -656,7 +661,9 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
         // Recalculate all world transforms after hierarchy is fully loaded
         for (Object* obj : objects)
         {
+#ifdef DEKI_TRANSFORM_2D
             obj->SetLocalPosition(obj->GetX(), obj->GetY());
+#endif
         }
 
         m_IsLoaded = true;
@@ -770,6 +777,7 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     json["name"] = obj->GetName();
     json["active"] = obj->IsActive();
 
+#ifdef DEKI_TRANSFORM_2D
     json["transform"] = {
         { "x", obj->GetX() },
         { "y", obj->GetY() },
@@ -777,6 +785,7 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         { "scaleX", obj->GetScaleX() },
         { "scaleY", obj->GetScaleY() }
     };
+#endif
 
     // Scene instance: save only the link + collected overrides
     if (obj->IsSceneInstance())
@@ -1061,6 +1070,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
     obj->SetActive(json.value("active", true));
     // Note: sortingOrder is now loaded via RendererComponent properties
 
+#ifdef DEKI_TRANSFORM_2D
     if (json.contains("transform"))
     {
         auto& t = json["transform"];
@@ -1068,6 +1078,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         obj->SetRotation(t.value("rotation", 0.0f));
         obj->SetScale(t.value("scaleX", 1.0f), t.value("scaleY", 1.0f));
     }
+#endif
 
     // Scene instance: set source GUID and expand from source file
     if (json.contains("instance") && json["instance"].is_string())
@@ -1203,7 +1214,9 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                 child->SetOwnerScene(this);
                 obj->AddChild(child);
                 // Update world transform now that parent is set
+#ifdef DEKI_TRANSFORM_2D
                 child->SetLocalPosition(child->GetX(), child->GetY());
+#endif
             }
         }
     }
@@ -1599,7 +1612,9 @@ bool Scene::ExpandInstance(Object* instanceObj)
             RemoveObject(cloned);
             cloned->SetOwnerScene(this);
             instanceObj->AddChild(cloned);
+#ifdef DEKI_TRANSFORM_2D
             cloned->SetLocalPosition(cloned->GetX(), cloned->GetY());
+#endif
 
             // Mark all cloned objects as part of instance
             VisitSubtree(cloned, [](Object* o)

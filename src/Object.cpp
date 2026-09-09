@@ -57,7 +57,15 @@ static_assert(!std::is_polymorphic<Object>::value,
 // own consistent size, they load no DLLs, and hardcoding a second number here
 // would just be a second thing to get wrong.
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
-static_assert(sizeof(Object) == 152,
+// One number per transform width: the build chooses the width, and the ABI
+// handshake carries it, so a 2D DLL is refused by a headless engine on the
+// width before it ever gets to compare sizes.
+#ifdef DEKI_TRANSFORM_2D
+constexpr size_t kExpectedObjectSize = 152;
+#else
+constexpr size_t kExpectedObjectSize = 112;
+#endif
+static_assert(sizeof(Object) == kExpectedObjectSize,
               "sizeof(Deki::Object) changed. Every package DLL bakes this layout into its "
               "inline GetParent()/GetChildren()/GetComponent<T>() calls. Do NOT simply "
               "update this number: bump kDekiReflectionAbiVersion in "
@@ -364,6 +372,8 @@ bool Object::IsActiveInHierarchy() const
     return true;
 }
 
+#ifdef DEKI_TRANSFORM_2D
+
 void Object::RecomputeWorldTransform() const
 {
     if (parent)
@@ -507,6 +517,8 @@ void Object::SetScaleY(float newScaleY)
     m_ScaleY = newScaleY;
     MarkWorldTransformDirty();
 }
+
+#endif  // DEKI_TRANSFORM_2D
 
 void Internal::AttachComponent(Object& object, Component* component)
 {

@@ -33,6 +33,7 @@ void PropertyRef::Rehash()
 namespace
 {
 const FieldRef kTransformFields[] = {
+#ifdef DEKI_TRANSFORM_2D
     { HashString("position"), (uint16_t)TransformField::Position, (uint8_t)PropertyType::Vector2, 0 },
     { HashString("x"), (uint16_t)TransformField::X, (uint8_t)PropertyType::Float, 0 },
     { HashString("y"), (uint16_t)TransformField::Y, (uint8_t)PropertyType::Float, 0 },
@@ -40,10 +41,12 @@ const FieldRef kTransformFields[] = {
     { HashString("scale"), (uint16_t)TransformField::Scale, (uint8_t)PropertyType::Vector2, 0 },
     { HashString("scaleX"), (uint16_t)TransformField::ScaleX, (uint8_t)PropertyType::Float, 0 },
     { HashString("scaleY"), (uint16_t)TransformField::ScaleY, (uint8_t)PropertyType::Float, 0 },
+#endif
     { HashString("active"), (uint16_t)TransformField::Active, (uint8_t)PropertyType::Bool, 0 },
 };
 
 const char* const kTransformFieldNames[] = {
+#ifdef DEKI_TRANSFORM_2D
     "position",
     "x",
     "y",
@@ -51,6 +54,7 @@ const char* const kTransformFieldNames[] = {
     "scale",
     "scaleX",
     "scaleY",
+#endif
     "active",
 };
 
@@ -207,6 +211,7 @@ double ReadNumeric(const PropertyBinding& b)
         Object* o = b.object;
         switch (b.transform)
         {
+#ifdef DEKI_TRANSFORM_2D
             case TransformField::X:
             case TransformField::Position: return o->GetX();
             case TransformField::Y: return o->GetY();
@@ -214,6 +219,7 @@ double ReadNumeric(const PropertyBinding& b)
             case TransformField::ScaleX:
             case TransformField::Scale: return o->GetScaleX();
             case TransformField::ScaleY: return o->GetScaleY();
+#endif
             case TransformField::Active: return o->IsActive() ? 1.0 : 0.0;
             default: return 0.0;
         }
@@ -336,8 +342,10 @@ double ReadBoundProperty2(const PropertyBinding& b)
 
     if (b.IsTransform())
     {
+#ifdef DEKI_TRANSFORM_2D
         if (b.transform == TransformField::Position) return b.object->GetY();
         if (b.transform == TransformField::Scale) return b.object->GetScaleY();
+#endif
         return 0.0;
     }
     float v;
@@ -357,6 +365,7 @@ void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
         Object* o = b.object;
         switch (b.transform)
         {
+#ifdef DEKI_TRANSFORM_2D
             case TransformField::X: o->SetX(static_cast<float>(v)); break;
             case TransformField::Y: o->SetY(static_cast<float>(v)); break;
             case TransformField::Position:
@@ -370,6 +379,9 @@ void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
                 o->SetScale(static_cast<float>(v),
                             static_cast<float>(v2));
                 break;
+#else
+            (void)v2;
+#endif
             case TransformField::Active: o->SetActive(v != 0.0); break;
             default: break;
         }

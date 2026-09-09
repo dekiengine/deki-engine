@@ -4,6 +4,19 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Changed
+- The transform is a build switch. `DEKI_TRANSFORM_2D` gives every
+  `Deki::Object` its x, y, rotation and scale as before; without it the object
+  carries no transform at all, for a project with nothing to draw.
+  `DEKI_TRANSFORM_3D` is reserved, implies 2D, and is an error without it. Every
+  build defines 2D in this release, so nothing changes yet; the generated
+  project builds will set it from what the project's packages declare.
+- Reflection ABI 10: the handshake carries the transform width, so a package
+  DLL built at a different width is refused rather than reading the wrong
+  offsets.
+
 ## 0.13.0
 
 ### Breaking

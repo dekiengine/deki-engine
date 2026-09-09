@@ -734,12 +734,18 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     }
     obj->SetActive(active);
 
+#ifdef DEKI_TRANSFORM_2D
     if (hasTransform)
     {
         obj->SetLocalPosition(x, y);
         obj->SetRotation(rotation);
         obj->SetScale(scaleX, scaleY);
     }
+#else
+    // No transform in this build. The map was consumed so the parse stays in
+    // step with the file; the values are simply not kept.
+    (void)hasTransform; (void)x; (void)y; (void)rotation; (void)scaleX; (void)scaleY;
+#endif
 
     // Create components using factory and Deserialize
     for (const auto& deferred : deferredComponents)
@@ -1055,6 +1061,11 @@ void SceneMsgPackWriter::WriteObject(Object* obj)
 
 void SceneMsgPackWriter::WriteTransform(Object* obj)
 {
+#ifndef DEKI_TRANSFORM_2D
+    // Nothing to write. The value stays a map so the reader's structure holds.
+    (void)obj;
+    WriteMapSize(0);
+#else
     WriteMapSize(5);
 
     WriteString(Fields::TR_X);
@@ -1071,6 +1082,7 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
 
     WriteString(Fields::TR_SCALE_Y);
     WriteFloat(obj->GetScaleY());
+#endif
 }
 
 void SceneMsgPackWriter::WriteComponents(Object* obj)

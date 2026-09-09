@@ -15,6 +15,28 @@
 cmake_minimum_required(VERSION 3.16)
 project(deki-engine VERSION 0.13.0 LANGUAGES C CXX)
 
+# Transform width (include/deki/Object.h, deki-editor/COMPATIBILITY.md).
+# Whoever configures this tree says which: the editor forces both on so it can
+# open any project, and the generated project builds pass what the project's
+# packages declare. An unset value means 2D, so a plain configure of this tree
+# is the engine everyone had before the switch existed.
+if(NOT DEFINED DEKI_TRANSFORM_2D)
+    set(DEKI_TRANSFORM_2D ON)
+endif()
+if(NOT DEFINED DEKI_TRANSFORM_3D)
+    set(DEKI_TRANSFORM_3D OFF)
+endif()
+if(DEKI_TRANSFORM_3D)
+    set(DEKI_TRANSFORM_2D ON)  # 3D implies 2D; Object.h errors on the reverse
+endif()
+set(_DEKI_TRANSFORM_DEFINES)
+if(DEKI_TRANSFORM_2D)
+    list(APPEND _DEKI_TRANSFORM_DEFINES DEKI_TRANSFORM_2D)
+endif()
+if(DEKI_TRANSFORM_3D)
+    list(APPEND _DEKI_TRANSFORM_DEFINES DEKI_TRANSFORM_3D)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -137,6 +159,13 @@ endif()
 target_compile_definitions(deki-engine-core PUBLIC
     "DEKI_ENGINE_VERSION=\"${PROJECT_VERSION}\"")
 
+# The transform width, PUBLIC so everything compiled against this target sees
+# the same Deki::Object layout the engine itself was built with.
+if(_DEKI_TRANSFORM_DEFINES)
+    target_compile_definitions(deki-engine-core PUBLIC ${_DEKI_TRANSFORM_DEFINES})
+endif()
+message(STATUS "deki-engine-core transform: 2D=${DEKI_TRANSFORM_2D} 3D=${DEKI_TRANSFORM_3D}")
+
 # The public headers: include/deki/ is what packages and projects compile
 # against (`#include <deki/Object.h>`), the contract COMPATIBILITY.md
 # describes. src/ holds the implementation and a few engine-internal headers
@@ -193,7 +222,7 @@ if(DEKI_EDITOR)
         PACKAGE_OUTDIRS "${GENERATED_DIR}"
         GENERATOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
         INCLUDE_DIRS ${_RC_INCS}
-        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN
+        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN ${_DEKI_TRANSFORM_DEFINES}
                 "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240" "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
     add_custom_target(generate_properties)  # reflection function registered its own build-time target

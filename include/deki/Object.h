@@ -13,6 +13,16 @@
 /**
  * @brief Entity class - a container for components
  */
+// The transform width is chosen by the build. DEKI_TRANSFORM_2D gives every
+// object x, y, rotation and scale; DEKI_TRANSFORM_3D adds the third axis and
+// implies 2D; neither means the object carries no transform at all, which is
+// what a project with nothing to draw gets. The generated build sets them from
+// what the project's packages declare (deki-editor/COMPATIBILITY.md), and the
+// reflection ABI handshake refuses a package DLL built at a different width.
+#if defined(DEKI_TRANSFORM_3D) && !defined(DEKI_TRANSFORM_2D)
+#error "DEKI_TRANSFORM_3D requires DEKI_TRANSFORM_2D"
+#endif
+
 /// A Object's world-space transform, read in one go (see Object::GetWorldTransform).
 
 namespace Deki
@@ -31,6 +41,7 @@ Component* AddComponentByName(Object& object, const std::string& typeName, const
 #endif
 }  // namespace Internal
 
+#ifdef DEKI_TRANSFORM_2D
 struct WorldTransform
 {
     float x;
@@ -39,10 +50,12 @@ struct WorldTransform
     float scaleX;
     float scaleY;
 };
+#endif
 
 class Object
 {
 private:
+#ifdef DEKI_TRANSFORM_2D
     // World transform cache (computed on demand via dirty flag pattern).
     // Mutable because they're lazily computed in const getters.
     mutable float m_WorldX = 0.0f, m_WorldY = 0.0f;
@@ -66,6 +79,7 @@ private:
     float x = 0.0f, y = 0.0f;
     float rotation = 0.0f;
     float m_ScaleX = 1.0f, m_ScaleY = 1.0f;
+#endif  // DEKI_TRANSFORM_2D
     static uint32_t s_NextId;
     uint32_t id;
     std::string name;
@@ -178,6 +192,7 @@ public:
     // Transform hierarchy helpers
     bool IsActiveInHierarchy() const;
 
+#ifdef DEKI_TRANSFORM_2D
     void SetLocalPosition(float newX, float newY);
     void SetWorldPosition(float worldX, float worldY);
 
@@ -240,6 +255,11 @@ public:
     void SetY(float newY);
     void SetScaleX(float newScaleX);
     void SetScaleY(float newScaleY);
+#else
+    // No transform in this build. The hierarchy still calls this when a parent
+    // changes, so it stays declared and costs nothing.
+    void MarkWorldTransformDirty() {}
+#endif  // DEKI_TRANSFORM_2D
 
     template <typename T, typename... Args>
     T* AddComponent(Args&&... args)
