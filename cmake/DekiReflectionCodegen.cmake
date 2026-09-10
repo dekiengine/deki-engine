@@ -52,7 +52,7 @@
 
 function(deki_reflection_codegen)
   cmake_parse_arguments(ARG "CORE_BUILD;PLUGIN" "UNIT_PREFIX;GENERATOR_SRC;GXX;UNIT_TARGET_HEADERS;SHARD_MIN_HEADERS"
-                            "PACKAGE_DIRS;PACKAGE_TAGS;PACKAGE_PREFIXES;PACKAGE_OUTDIRS;INCLUDE_DIRS;DEFINES" ${ARGN})
+                            "PACKAGE_DIRS;PACKAGE_TAGS;PACKAGE_PREFIXES;PACKAGE_OUTDIRS;INCLUDE_DIRS;DEFINES;EXCLUDE_REGEX" ${ARGN})
   # CORE_BUILD and PLUGIN both glob recursively + use source-relative includes; CORE_BUILD
   # also emits CoreRegistration + aggregation, PLUGIN emits components only (no registration).
   if(ARG_CORE_BUILD OR ARG_PLUGIN)
@@ -115,6 +115,14 @@ function(deki_reflection_codegen)
     else()
       file(GLOB _hdrs CONFIGURE_DEPENDS "${_dir}/*.h")
     endif()
+    # EXCLUDE_REGEX: files a stripped build must not reflect, because their
+    # components are not compiled and a table naming them would not link. The
+    # same list filters the adapter scan below: an adapter registration
+    # function lives in the component's own .cpp, and that .cpp is out too.
+    # Each regex names its package directory, so one list serves every package.
+    foreach(_x ${ARG_EXCLUDE_REGEX})
+      list(FILTER _hdrs EXCLUDE REGEX "${_x}")
+    endforeach()
     list(SORT _hdrs)
     set(_PKG_HDRS_${_i} "${_hdrs}")
     list(LENGTH _hdrs _nh)
@@ -125,6 +133,9 @@ function(deki_reflection_codegen)
     # Convention: void {Prefix}_Register{Name}Adapters().
     list(GET ARG_PACKAGE_PREFIXES ${_i} _pfx)
     file(GLOB _cpps CONFIGURE_DEPENDS "${_dir}/*.cpp")
+    foreach(_x ${ARG_EXCLUDE_REGEX})
+      list(FILTER _cpps EXCLUDE REGEX "${_x}")
+    endforeach()
     list(SORT _cpps)
     set(_adapters "")
     foreach(_c ${_cpps})
