@@ -228,6 +228,39 @@ function(deki_reflection_codegen)
   # its include closure changes: the compile emits a depfile (-MD), the configure-
   # time gate checks every path recorded in it, and under Ninja a build-time rule
   # with DEPFILE regenerates the .gch before any build-time codegen consumes it.
+  # The host compiler's directory must come FIRST on PATH for every call below.
+  #
+  # g++ is only a driver: cc1plus lives in lib/gcc/... rather than beside it, so
+  # Windows resolves cc1plus's DLLs through PATH — and so does the generator
+  # this function builds and then runs. A firmware build runs inside ESP-IDF's
+  # environment, whose PATH starts with the cross toolchains, and those ship
+  # their own libstdc++-6.dll and libgcc_s_seh-1.dll from an older GCC. cc1plus
+  # loads those instead of its own and dies before it can print anything, so the
+  # failure surfaces as "generator compile failed" with no diagnostics at all.
+  # Merely having the compiler's directory somewhere on PATH is not enough: the
+  # shadowing copies are what has to be outranked.
+  #
+  # Scoped to these calls only, via a launcher, so the surrounding build keeps
+  # its own cmake, ninja and python.
+  get_filename_component(_gxx_dir "${ARG_GXX}" DIRECTORY)
+  if(_gxx_dir AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.25)
+    set(_host_env "${CMAKE_COMMAND}" -E env
+        "--modify" "PATH=path_list_prepend:${_gxx_dir}")
+  elseif(_gxx_dir)
+    # Older CMake has no --modify, so compose the PATH here instead. ESP-IDF
+    # ships 3.30, so this is the fallback for a bare 3.16 host build.
+    if(WIN32)
+      set(_deki_path_sep ";")
+    else()
+      set(_deki_path_sep ":")
+    endif()
+    string(REPLACE ";" "\\;" _deki_path_escaped
+           "${_gxx_dir}${_deki_path_sep}$ENV{PATH}")
+    set(_host_env "${CMAKE_COMMAND}" -E env "PATH=${_deki_path_escaped}")
+  else()
+    set(_host_env "")
+  endif()
+
   set(_flags_common -std=c++26 -freflection -DDEKI_REFLECT)
   foreach(d ${ARG_INCLUDE_DIRS})
     list(APPEND _flags_common "-I${d}")
@@ -276,7 +309,7 @@ function(deki_reflection_codegen)
 
     if(_pch_stale)
       message(STATUS "Reflection codegen: building shared PCH")
-      execute_process(COMMAND "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
+      execute_process(COMMAND ${_host_env} "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
                               -x c++-header "${_pch_hdr}" -o "${_pch_gch}"
                       RESULT_VARIABLE _pch_rc)
       if(NOT _pch_rc EQUAL 0)
@@ -301,7 +334,7 @@ function(deki_reflection_codegen)
           set_property(GLOBAL PROPERTY _DEKI_REFLCODEGEN_PCH_RULE TRUE)
           add_custom_command(
             OUTPUT "${_pch_gch}"
-            COMMAND "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
+            COMMAND ${_host_env} "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
                     -x c++-header "${_pch_hdr}" -o "${_pch_gch}"
             DEPENDS "${_pch_hdr}" "${_pch_src}" "${ARG_GENERATOR_SRC}"
             DEPFILE "${_pch_dep}"
@@ -474,12 +507,12 @@ function(deki_reflection_codegen)
       # "generator compile failed", and the diagnostics that would explain it —
       # a missing define, a header that needs the target's SDK — are lost, which
       # leaves the reader guessing at the one thing the compiler already knew.
-      execute_process(COMMAND "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
+      execute_process(COMMAND ${_host_env} "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
                       RESULT_VARIABLE _rc
                       OUTPUT_VARIABLE _compile_out
                       ERROR_VARIABLE _compile_err)
       if(_rc EQUAL 0)
-        execute_process(COMMAND "${_tool}" RESULT_VARIABLE _rc2)
+        execute_process(COMMAND ${_host_env} "${_tool}" RESULT_VARIABLE _rc2)
         if(NOT _rc2 EQUAL 0)
           message(FATAL_ERROR "deki_reflection_codegen: generator run failed for ${_unitid}. "
                               "Reflection metadata would be stale or missing and the build would fail later with unrelated-looking link errors; the generator's output is above.")
@@ -508,8 +541,8 @@ function(deki_reflection_codegen)
     endif()
     add_custom_command(
       OUTPUT "${_stamp}"
-      COMMAND "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
-      COMMAND "${_tool}"
+      COMMAND ${_host_env} "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
+      COMMAND ${_host_env} "${_tool}"
       COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
       DEPENDS "${ARG_GENERATOR_SRC}" ${_unit_hdrs} "${_gendir}/deki_codegen_includes.inc" ${_stamp_pch_dep}
       COMMENT "Reflection codegen (C++26) for ${_unitid}"
