@@ -470,8 +470,14 @@ function(deki_reflection_codegen)
 
     if(_stale)
       message(STATUS "Reflection codegen: regenerating ${_unitid}")
+      # Capture what the compiler said. Without this a failure here reports only
+      # "generator compile failed", and the diagnostics that would explain it —
+      # a missing define, a header that needs the target's SDK — are lost, which
+      # leaves the reader guessing at the one thing the compiler already knew.
       execute_process(COMMAND "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
-                      RESULT_VARIABLE _rc)
+                      RESULT_VARIABLE _rc
+                      OUTPUT_VARIABLE _compile_out
+                      ERROR_VARIABLE _compile_err)
       if(_rc EQUAL 0)
         execute_process(COMMAND "${_tool}" RESULT_VARIABLE _rc2)
         if(NOT _rc2 EQUAL 0)
@@ -483,10 +489,13 @@ function(deki_reflection_codegen)
           file(TOUCH "${_stamp}")
         endif()
       else()
-        message(FATAL_ERROR "deki_reflection_codegen: generator compile failed for ${_unitid}. "
+        string(REPLACE ";" " " _flags_shown "${_flags}")
+        message(FATAL_ERROR "deki_reflection_codegen: generator compile failed for ${_unitid}.\n"
                             "The C++26 reflection generator needs GCC 16.1+ (${ARG_GXX} was used); "
                             "install it (MSYS2: pacman -S mingw-w64-x86_64-gcc; Ubuntu: ppa:ubuntu-toolchain-r/test g++-16) "
-                            "and pass -DDEKI_GXX16=<path to g++>.")
+                            "and pass -DDEKI_GXX16=<path to g++>.\n\n"
+                            "Command:\n  ${ARG_GXX} ${_flags_shown} ${ARG_GENERATOR_SRC} -o ${_tool}\n\n"
+                            "Compiler said:\n${_compile_err}${_compile_out}")
       endif()
     endif()
 
