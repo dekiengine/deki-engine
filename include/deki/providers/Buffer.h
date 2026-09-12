@@ -27,6 +27,7 @@
 
 #include <stddef.h>
 #include <utility>
+#include <type_traits>
 
 namespace Deki
 {
@@ -54,6 +55,17 @@ void BufferFree(void* ptr);
 template <typename T>
 class Buffer
 {
+    // Enforced, not merely documented: nothing here constructs or destroys
+    // elements, so a T with a destructor would have it silently never run.
+    // These are the raw pixel, glyph and sample buffers the engine hands to
+    // blitters and drivers, and Memory zeroes what it returns.
+    static_assert(std::is_trivially_copyable<T>::value,
+                  "Deki::Buffer<T> is for trivially copyable T; it does not "
+                  "construct or copy elements");
+    static_assert(std::is_trivially_destructible<T>::value,
+                  "Deki::Buffer<T> does not destroy elements; a T with a "
+                  "destructor would leak whatever that destructor releases");
+
 public:
     Buffer() = default;
 
