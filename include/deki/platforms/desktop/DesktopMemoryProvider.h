@@ -2,6 +2,14 @@
 
 #include <deki/providers/IMemoryProvider.h>
 
+// For GetRawBlockSize: the usable size of a malloc block, which has no
+// portable spelling.
+#if defined(_WIN32)
+#include <malloc.h>
+#elif defined(__GLIBC__) || defined(__linux__)
+#include <malloc.h>
+#endif
+
 /**
  * @file DesktopMemoryProvider.h
  * @brief Desktop memory provider using malloc/free
@@ -43,6 +51,24 @@ public:
     {
         (void)ptr;
         return false;
+    }
+
+    // AllocateRaw/FreeRaw keep the base malloc/free. The size query has no
+    // portable spelling, so it is per-platform: _msize on the Windows CRT,
+    // malloc_usable_size on glibc and musl. It only feeds the reported byte
+    // total, so a platform without one simply reports nothing rather than
+    // guessing.
+    size_t GetRawBlockSize(void* ptr) const override
+    {
+        if (!ptr)
+            return 0;
+#if defined(_WIN32)
+        return _msize(ptr);
+#elif defined(__GLIBC__) || defined(__linux__)
+        return malloc_usable_size(ptr);
+#else
+        return 0;
+#endif
     }
 };
 

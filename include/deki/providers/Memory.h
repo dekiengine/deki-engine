@@ -11,6 +11,18 @@ namespace Deki
 
 class IMemoryProvider;
 
+namespace detail
+{
+// The raw allocation path, used by the global operator new on builds with
+// exceptions off (src/providers/OperatorNew.cpp). Deliberately not on Memory
+// itself: a component or a package reaching for these is a mistake — they
+// carry no MemoryUse, so the engine cannot place what they hand back, and
+// they have no header, so they have no double-free guard. Use Deki::Buffer<T>
+// or Memory::Allocate.
+void* RawAllocate(size_t size);
+void RawFree(void* ptr);
+}  // namespace detail
+
 /**
  * @brief Memory subsystem types - simplified (kept for compatibility)
  */
@@ -77,6 +89,12 @@ struct MemoryStats
  */
 class Memory
 {
+    // The raw path needs the backend, which is private and should stay that
+    // way. Friending the two functions is narrower than exposing a second
+    // allocation API on Memory that components would find and misuse.
+    friend void* detail::RawAllocate(size_t size);
+    friend void detail::RawFree(void* ptr);
+
 private:
     // Platform-specific memory provider
     static std::unique_ptr<IMemoryProvider> s_CurrentBackend;
@@ -231,6 +249,25 @@ public:
      * was reachable only through a provider a caller does not have.
      */
     static size_t GetAvailableInternal();
+
+    /**
+     * @brief Bytes currently held by the raw (operator new) path
+     * @return Live bytes in std::vector, std::string and scalar `new`
+     *         allocations, or 0 when the build does not count them
+     *
+     * **Requires DEKI_MEMORY_TRACK_RAW**, and returns 0 without it. Counting
+     * needs the block size on free, and with no header the only source is the
+     * heap: measured at +35% per allocation (63-71 ns against 47-52 for
+     * malloc+free), because on Windows that is _msize calling HeapSize and
+     * taking a lock. Routing itself is free, so every build routes and only a
+     * build that asks counts. Turn it on while hunting where memory went.
+     *
+     * Approximate even then: allocations made before the memory backend
+     * exists (static initialisers) are freed through it afterwards, so the
+     * total is clamped at zero rather than allowed to underflow into a
+     * nonsense figure. It is a diagnostic, not an invariant.
+     */
+    static size_t GetRawAllocated();
 
     /**
      * @brief Log what is allocated and what is left, in one line

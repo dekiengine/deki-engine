@@ -38,6 +38,11 @@ public:
     void FreeInternal(void* ptr) override;
     size_t GetAvailableInternalRAM() const override;
 
+    // AllocateRaw/FreeRaw keep the base malloc/free, which on ESP-IDF is
+    // heap_caps under the hood with the same alignment operator new had
+    // before it was routed here. Only the size query needs the platform.
+    size_t GetRawBlockSize(void* ptr) const override;
+
 private:
     bool m_HasPSRAM = false;
 };

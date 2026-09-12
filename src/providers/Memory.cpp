@@ -128,6 +128,90 @@ size_t Memory::GetAvailableInternal()
     return s_CurrentBackend ? s_CurrentBackend->GetAvailableInternalRAM() : 0;
 }
 
+// ---------------------------------------------------------------------------
+// The raw path: operator new, and nothing else
+// ---------------------------------------------------------------------------
+//
+// No header. The pointer handed out is the one the heap returned, so these
+// allocations cost exactly what malloc costs — which is the point, since a
+// std::string that outgrows its small-string buffer must not start paying 16
+// bytes of engine bookkeeping. The size needed to keep the total honest on
+// free comes from the heap instead (IMemoryProvider::GetRawBlockSize).
+//
+// What is given up with the header is the magic value, so a double free here
+// is as undiagnosable as it was when this path was plain malloc. Anything the
+// engine can describe goes through Allocate, which keeps its guard.
+//
+// BYTE ACCOUNTING IS OPT-IN, AND BOTH HALVES WERE MEASURED
+//
+// 1.6M paired 48-byte allocations, each variant in its own process so the
+// first measured does not pay the heap warm-up for the rest, engine compiled
+// at -O2 like the firmware:
+//
+//   malloc + free                      47-52 ns/op
+//   routed, accounting off             46-51 ns/op   (indistinguishable)
+//   routed + DEKI_MEMORY_TRACK_RAW     63-71 ns/op   (+35%)
+//
+// So the routing itself is free: the provider call disappears into the noise,
+// and separate controls confirmed a cross-TU call and a virtual call through
+// a base pointer each cost nothing measurable. What is not free is counting
+// the bytes, because with no header the block size has to come from the heap,
+// and on Windows that is _msize calling HeapSize and taking a lock.
+//
+// Hence the split: every build routes, and only a build that asks counts.
+// Turn DEKI_MEMORY_TRACK_RAW on while hunting where memory went, and accept a
+// third more time per allocation while you look.
+//
+// (An earlier run of this benchmark said the routing cost 2x. It was linking
+// the engine's Debug objects, which are -O0, against an -O2 caller. Measure
+// the configuration you ship.)
+static size_t s_RawAllocated = 0;
+
+namespace detail
+{
+
+void* RawAllocate(size_t size)
+{
+    // Before Initialize() there is no backend, and static initialisers do
+    // allocate. malloc is what the default provider would have used anyway.
+    if (!Memory::s_CurrentBackend)
+        return malloc(size);
+
+    void* ptr = Memory::s_CurrentBackend->AllocateRaw(size);
+#if defined(DEKI_MEMORY_TRACK_RAW)
+    if (ptr)
+        s_RawAllocated += Memory::s_CurrentBackend->GetRawBlockSize(ptr);
+#endif
+    return ptr;
+}
+
+void RawFree(void* ptr)
+{
+    if (!ptr)
+        return;
+    if (!Memory::s_CurrentBackend)
+    {
+        free(ptr);
+        return;
+    }
+
+#if defined(DEKI_MEMORY_TRACK_RAW)
+    // Clamped, not wrapped: a block allocated before the backend existed is
+    // freed through it afterwards, and a total that underflowed would read as
+    // several gigabytes and look like a catastrophic leak.
+    const size_t block = Memory::s_CurrentBackend->GetRawBlockSize(ptr);
+    s_RawAllocated = (block < s_RawAllocated) ? (s_RawAllocated - block) : 0;
+#endif
+    Memory::s_CurrentBackend->FreeRaw(ptr);
+}
+
+}  // namespace detail
+
+size_t Memory::GetRawAllocated()
+{
+    return s_RawAllocated;
+}
+
 void Memory::LogStats(const char* label)
 {
     // One call, because the question "how much memory am I using?" needed
@@ -147,6 +231,24 @@ void Memory::LogStats(const char* label)
         DEKI_LOG_INFO("Memory%s%s: %u bytes allocated; %zu free internal",
                       label ? " at " : "", label ? label : "",
                       s.totalAllocated, freeInternal);
+
+    // Reported separately because it is a different kind of number: the line
+    // above is memory the engine placed and can account for exactly, this one
+    // is what std::vector, std::string and scalar `new` are holding, measured
+    // by asking the heap. Without it the figures above read as the whole
+    // picture, which for a project with a few containers they are not.
+    //
+    // Said explicitly when it is off, rather than reporting a 0 that would
+    // read as "no container memory" when it means "not counted".
+#if defined(DEKI_MEMORY_TRACK_RAW)
+    DEKI_LOG_INFO("Memory%s%s: %zu bytes in containers and scalar new",
+                  label ? " at " : "", label ? label : "", s_RawAllocated);
+#else
+    DEKI_LOG_INFO("Memory%s%s: container and scalar-new bytes not counted "
+                  "(build with DEKI_MEMORY_TRACK_RAW; it costs an allocator "
+                  "size query per alloc and free)",
+                  label ? " at " : "", label ? label : "");
+#endif
 
 #ifdef DEBUG
     DEKI_LOG_INFO("Memory%s%s: %u live allocations, peak %u",

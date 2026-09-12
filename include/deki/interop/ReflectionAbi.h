@@ -137,8 +137,17 @@ struct DekiReflectionAbi
  *    provider DLL built at ABI 10 would call the wrong one. No struct grew,
  *    which is exactly the case the size fingerprint cannot see and this
  *    number exists for.
+ *
+ * 12: Deki::IMemoryProvider gained AllocateRaw, FreeRaw and GetRawBlockSize,
+ *    the plain natural-alignment allocator the global operator new routes
+ *    through, so every allocation on a device goes through the provider
+ *    without paying for a bookkeeping header. Appended, so ABI 11's slots
+ *    keep their indices — but 11 was published to master for a few hours and
+ *    package DLLs were built against it, and those would call into the
+ *    provider past the end of the vtable they know. Two numbers inside one
+ *    unreleased cycle is cheaper than one silent miscall.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 11;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 12;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

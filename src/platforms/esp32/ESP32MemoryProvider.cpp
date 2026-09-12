@@ -130,6 +130,14 @@ size_t ESP32MemoryProvider::GetAvailableInternalRAM() const
     return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 }
 
+size_t ESP32MemoryProvider::GetRawBlockSize(void* ptr) const
+{
+    // Reads the block header the heap already keeps, so the raw path can
+    // account for itself without carrying a header of its own. Usable size
+    // rather than requested size, which is the truer footprint anyway.
+    return ptr ? heap_caps_get_allocated_size(ptr) : 0;
+}
+
 #endif  // ESP32
 
 }  // namespace Deki

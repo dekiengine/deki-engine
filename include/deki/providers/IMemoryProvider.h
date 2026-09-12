@@ -112,6 +112,47 @@ public:
      * @return Available internal RAM size, 0 if not supported
      */
     virtual size_t GetAvailableInternalRAM() const { return 0; }
+
+    // ========================================================================
+    // Raw Allocation (the operator new path)
+    // ========================================================================
+    //
+    // The plain, natural-alignment allocator, for allocations the engine does
+    // not get to describe: std::vector's storage, std::string's buffer, a
+    // scalar `new`. The global operator new routes here, so that every
+    // allocation on a device really does go through the provider and a board
+    // can substitute its own heap for all of them.
+    //
+    // Separate from AllocateInternal on purpose. That one over-aligns to 16
+    // bytes so the blit kernels can use SIMD, and ESP-IDF implements aligned
+    // allocation by over-allocating — which would waste more per std::string
+    // than the bookkeeping header this path exists to avoid. These carry no
+    // header at all: the pointer handed out is the pointer the heap returned.
+
+    /**
+     * @brief Allocate with natural alignment and no engine bookkeeping
+     * @param size Number of bytes
+     * @return Pointer, or nullptr
+     *
+     * Must be at least as aligned as malloc, since operator new has to
+     * satisfy alignof(std::max_align_t). The default IS malloc.
+     */
+    virtual void* AllocateRaw(size_t size) { return malloc(size); }
+
+    /// Frees a block from AllocateRaw. Override both or neither.
+    virtual void FreeRaw(void* ptr) { free(ptr); }
+
+    /**
+     * @brief Usable size of a block from AllocateRaw
+     * @param ptr A pointer from AllocateRaw
+     * @return Its size in bytes, or 0 where the platform cannot say
+     *
+     * There is no header to read it from, so the heap is asked instead
+     * (heap_caps_get_allocated_size on ESP-IDF, _msize on Windows). Used only
+     * to keep the byte total honest on free; returning 0 costs accuracy in
+     * Memory::LogStats and nothing else.
+     */
+    virtual size_t GetRawBlockSize(void* ptr) const { (void)ptr; return 0; }
 };
 
 }  // namespace Deki

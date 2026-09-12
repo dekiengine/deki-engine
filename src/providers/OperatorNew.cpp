@@ -23,30 +23,37 @@
 // they call operator new internally, so until now their growth failures were
 // the one remaining silent reboot.
 //
-// WHY IT STILL USES malloc, AND DOES NOT ROUTE THROUGH Deki::Memory
+// HOW IT GOES THROUGH THE ENGINE WITHOUT COSTING ANYTHING
 //
-// Deliberate, and the docs say so too. Routing these through
-// Memory::Allocate would cost real memory and real time on every std
-// container operation:
+// Through Deki::detail::RawAllocate, which is the provider's AllocateRaw —
+// so a board really does see every allocation on the device and can
+// substitute its own heap for all of them, and the engine can report what
+// containers are holding.
 //
-//   * Memory::Allocate adds a header before the user pointer. Sixteen bytes
-//     on every std::string that outgrows its small-string buffer, on a part
-//     with a few hundred KB of heap;
+// It is NOT Memory::Allocate, and that distinction is the whole design:
+//
+//   * Memory::Allocate puts a 16-byte header before the user pointer. On
+//     every std::string that outgrows its small-string buffer, on a part with
+//     a few hundred KB of heap;
 //   * it zeroes what it returns, so every allocation would pay a memset that
 //     a vector is about to overwrite;
-//   * the ESP32 provider's AllocateInternal aligns to 16 bytes to let the
-//     blit kernels use SIMD, which wastes up to 15 bytes per small block
-//     against malloc's 8.
+//   * its internal path over-aligns to 16 bytes on ESP32 so the blit kernels
+//     can use SIMD, and ESP-IDF implements aligned allocation by
+//     over-allocating — more waste than the header.
 //
-// And routing by size the way MemoryUse::Auto does would silently move a
-// large std::vector into PSRAM, turning a hot loop slow for reasons nobody
-// could see in the code. A caller that knows how memory will be used says so
-// with a MemoryUse and gets Deki::Buffer; operator new has no way to know, so
-// it does not guess.
+// AllocateRaw has none of that: natural alignment, no header, the pointer the
+// heap returned. The bytes are accounted anyway by asking the heap for the
+// block size (GetRawBlockSize), which is what the header would have been for.
 //
-// So this is instrumentation, not a re-route: same allocator, same alignment,
-// same bytes, plus a diagnostic and a working nothrow. The success path is a
-// malloc and a branch that libstdc++ already had.
+// What is given up is the header's magic value, so a double free here is as
+// undiagnosable as it was when this was plain malloc. Anything the engine can
+// describe goes through Allocate and keeps the guard.
+//
+// Placement is deliberately NOT decided here. Routing by size the way
+// MemoryUse::Auto does would silently move a large std::vector into PSRAM and
+// make a hot loop slow for reasons invisible in the code. A caller that knows
+// how memory will be used says so with a MemoryUse and gets Deki::Buffer;
+// operator new cannot know, so it does not guess.
 //
 // WHAT IS NOT REPLACED
 //
@@ -57,6 +64,7 @@
 // line.
 
 #include <deki/LogSystem.h>
+#include <deki/providers/Memory.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -78,13 +86,15 @@ void ReportOutOfMemory(std::size_t bytes, const char* what)
         return;
     s_Reporting = true;
 
-    // Not through Deki::Memory's stats: this path has to work before the
-    // memory backend is initialised and after it is gone.
-    DEKI_LOG_ERROR("%s: out of memory asking for %zu bytes. Nothing is left to "
-                   "allocate from; a buffer whose size comes from a file, a scene "
-                   "or the screen should use Deki::Buffer<T>, which returns empty "
-                   "instead of aborting",
-                   what, bytes);
+    // Both numbers, for the same reason Memory::Allocate reports them: the
+    // size alone cannot tell you whether the request was unreasonable or the
+    // heap was already gone. Reads only, safe on a path this far down.
+    DEKI_LOG_ERROR("%s: out of memory asking for %zu bytes (%zu free internal, "
+                   "%zu held by containers). A buffer whose size comes from a "
+                   "file, a scene or the screen should use Deki::Buffer<T>, "
+                   "which returns empty instead of aborting",
+                   what, bytes, Deki::Memory::GetAvailableInternal(),
+                   Deki::Memory::GetRawAllocated());
 
     s_Reporting = false;
 }
@@ -97,7 +107,7 @@ void* operator new(std::size_t size)
 {
     // Zero-size still has to return a unique pointer, which malloc(0) may
     // not. One byte is what libstdc++ does too.
-    void* p = std::malloc(size ? size : 1);
+    void* p = Deki::detail::RawAllocate(size ? size : 1);
     if (!p)
     {
         ReportOutOfMemory(size, "operator new");
@@ -115,7 +125,7 @@ void* operator new[](std::size_t size)
 
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
-    void* p = std::malloc(size ? size : 1);
+    void* p = Deki::detail::RawAllocate(size ? size : 1);
     if (!p)
         ReportOutOfMemory(size, "operator new(nothrow)");
     return p;  // nullptr, as the caller asked for
@@ -134,32 +144,32 @@ void* operator new[](std::size_t size, const std::nothrow_t& tag) noexcept
 
 void operator delete(void* ptr) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 void operator delete(void* ptr, std::size_t) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr, std::size_t) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 void operator delete(void* ptr, const std::nothrow_t&) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr, const std::nothrow_t&) noexcept
 {
-    std::free(ptr);
+    Deki::detail::RawFree(ptr);
 }
 
 #endif  // !__cpp_exceptions

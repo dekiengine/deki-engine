@@ -7,6 +7,22 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Added
+- `Deki::Vector<T>`: a growable array whose growth can fail. `std::vector`
+  cannot — `push_back` calls `operator new`, which with exceptions off has no
+  way to report exhaustion and aborts. Everything here that can allocate
+  returns bool: `Reserve` once up front makes the pushes that follow
+  infallible, a failed growth leaves everything already stored intact, and
+  `RemoveUnordered` is the O(1) swap-with-last a list of live entities wants.
+  Growth doubles from a first block of 4, not 16, because a device project
+  has many short lists. Same trivially-copyable `T` as `Buffer`.
+- `IMemoryProvider::AllocateRaw`, `FreeRaw` and `GetRawBlockSize`: the plain
+  natural-alignment allocator the global `operator new` routes through, so
+  every allocation on a device really does reach the provider and a board can
+  substitute its heap for `std::vector` and scalar `new` too. Measured at
+  46-51 ns/op against 47-52 for malloc+free — free, within noise. Counting
+  the bytes is separate and opt-in behind `DEKI_MEMORY_TRACK_RAW` (63-71
+  ns/op, +35%), because with no header the block size has to come from the
+  heap and on Windows that is `_msize` taking a lock.
 - Global `operator new`/`delete` on builds with exceptions off
   (`src/providers/OperatorNew.cpp`), which is the half `Deki::Buffer` cannot
   reach: `std::vector` and `std::string` call `operator new` internally, so
@@ -62,9 +78,11 @@ and package DLLs has its own numbered history in
   account for, and moving a `Buffer` the other way exhausts the internal heap
   the next `Hot` allocation needed. A failed allocation returns null, which
   every caller already has to handle, and says so in the log.
-- Reflection ABI 11: `IMemoryProvider` gained a virtual, which moves every
-  slot after it. No struct grew, so the size fingerprint cannot see this one —
-  it is the case the version number exists for.
+- Reflection ABI 12. `IMemoryProvider` gained `AllocateDma` at 11 and the raw
+  allocation trio at 12; neither grew a struct, so the size fingerprint
+  cannot see either, which is the case this number exists for. Two bumps in
+  one unreleased cycle because 11 was on master for a few hours and package
+  DLLs were built against it.
 
 ## 0.14.0
 
