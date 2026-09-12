@@ -157,8 +157,29 @@ void Memory::SetBackend(IMemoryProvider* backend)
     s_CurrentBackend.reset(backend);
 }
 
+// Where a use should live, given this board and what is left.
+//
+// This is the whole point of taking a MemoryUse rather than a placement: the
+// caller knows how the memory will be used, and only the engine knows whether
+// there is PSRAM, how much internal RAM is free, and how slow external access
+// is on this part.
+static bool PreferExternalFor(Deki::MemoryUse use, size_t size, bool psramUsable)
+{
+    if (!psramUsable)
+        return false;  // nothing to prefer
+    switch (use)
+    {
+        case Deki::MemoryUse::Dma:    return false;  // a peripheral must reach it
+        case Deki::MemoryUse::Hot:    return false;  // touched every frame
+        case Deki::MemoryUse::Buffer: return true;
+        case Deki::MemoryUse::Auto:
+        default:
+            return size >= Deki::Memory::kLargeAllocation;
+    }
+}
+
 void* Memory::Allocate(size_t size,
-                           bool prefer_psram,
+                           MemoryUse use,
                            const char* context)
 {
     if (size == 0)
@@ -179,8 +200,11 @@ void* Memory::Allocate(size_t size,
     size_t header_size = kInternalHeaderSize;
     size_t total_size = size + header_size;
 
-    // Try PSRAM allocation if preferred and available
-    if (prefer_psram && s_PsramAvailable && s_PsramEnabled)
+    // The engine decides, from the use and what this board has.
+    const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
+    const bool prefer_psram = PreferExternalFor(use, size, psramUsable);
+
+    if (prefer_psram)
     {
         const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
         raw_ptr = AllocatePSRAM(aligned_size + CACHE_LINE_SIZE);
@@ -192,11 +216,28 @@ void* Memory::Allocate(size_t size,
         }
     }
 
-    // Fallback to standard allocation if PSRAM failed or not preferred
+    // Internal, when external was not preferred or could not satisfy it.
     if (!raw_ptr)
     {
         raw_ptr = malloc(total_size);
         used_psram = false;
+    }
+
+    // And external as a last resort for a use that did not ask for it. A Hot
+    // buffer in slow memory still beats not having it; a Dma one does not,
+    // because a peripheral could not read it.
+    if (!raw_ptr && psramUsable && !prefer_psram && use != MemoryUse::Dma)
+    {
+        const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
+        raw_ptr = AllocatePSRAM(aligned_size + CACHE_LINE_SIZE);
+        if (raw_ptr)
+        {
+            used_psram = true;
+            header_size = CACHE_LINE_SIZE;
+            total_size = aligned_size + CACHE_LINE_SIZE;
+            DEKI_LOG_WARNING("Memory: %zu bytes for '%s' went to PSRAM; internal RAM is full",
+                             size, context ? context : "?");
+        }
     }
 
     if (raw_ptr)

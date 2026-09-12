@@ -126,7 +126,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
     }
 
     // Read entire pack into PSRAM
-    uint8_t* data = static_cast<uint8_t*>(Memory::Allocate(fileSize, true, "AssetPack"));
+    uint8_t* data = static_cast<uint8_t*>(Memory::Allocate(fileSize, MemoryUse::Buffer, "AssetPack"));
     if (!data)
     {
         fs->CloseFile(file);

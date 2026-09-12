@@ -20,6 +20,34 @@ enum class MemorySubsystem : uint8_t
 };
 
 /**
+ * @brief What an allocation is FOR, so the engine can decide where it goes
+ *
+ * Callers say how memory will be used; Memory decides whether that means
+ * internal RAM or external PSRAM, and falls back when the first choice is
+ * exhausted. A caller passing a placement directly cannot know how much
+ * internal RAM is left, whether PSRAM exists on this board, or what else has
+ * been allocated this frame — the engine can.
+ */
+enum class MemoryUse : uint8_t
+{
+    /// No opinion. The engine chooses by size: large buffers go external where
+    /// PSRAM exists, small ones stay internal.
+    Auto = 0,
+
+    /// Read or written every frame. Internal RAM first; external only if
+    /// internal is exhausted, since PSRAM access is markedly slower.
+    Hot,
+
+    /// Large and read-mostly — a gradient bake, a decoded image, an asset
+    /// blob. External first, internal as a fallback.
+    Buffer,
+
+    /// Must be reachable by DMA. Internal only; never silently placed
+    /// somewhere a peripheral cannot read.
+    Dma,
+};
+
+/**
  * @brief Memory statistics structure
  */
 struct MemoryStats
@@ -99,15 +127,31 @@ public:
     static bool IsInitialized();
 
     /**
-     * @brief Allocate memory
-     * @param size Size in bytes to allocate
-     * @param prefer_psram Whether to prefer PSRAM for this allocation
+     * @brief Allocate memory, the engine choosing where it lives
+     * @param size Size in bytes
+     * @param use What the memory is for (see MemoryUse); the engine maps that
+     *            to internal or external and falls back if the first is full
      * @param context Optional context string for debugging
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
-                          bool prefer_psram = false,
+                          MemoryUse use = MemoryUse::Auto,
                           const char* context = nullptr);
+
+    /**
+     * @brief Deprecated: pass a MemoryUse instead of choosing PSRAM yourself
+     *
+     * Kept so packages built against an older engine still compile. true maps
+     * to MemoryUse::Buffer and false to MemoryUse::Auto, and the engine may
+     * still place the block elsewhere if that is the only way to satisfy it.
+     */
+    static void* Allocate(size_t size, bool prefer_psram, const char* context = nullptr)
+    {
+        return Allocate(size, prefer_psram ? MemoryUse::Buffer : MemoryUse::Auto, context);
+    }
+
+    /// Size at or above which MemoryUse::Auto is treated as a Buffer.
+    static constexpr size_t kLargeAllocation = 16 * 1024;
 
     /**
      * @brief Allocate memory from internal RAM only (never external/PSRAM)
@@ -124,6 +168,38 @@ public:
     static void FreeInternal(void* ptr);
 
     static void Free(void* ptr, const char* context = nullptr);
+
+    /**
+     * @brief Allocate an array of `count` T, or return nullptr
+     *
+     * Use this instead of `new T[count]` for anything whose size comes from a
+     * file, a scene, or the screen.
+     *
+     * `new[]` cannot fail gracefully on a device: ESP-IDF builds with
+     * exceptions off, so the bad_alloc reaches __cxa_allocate_exception and
+     * calls abort(), rebooting the board. `std::nothrow` does not help either,
+     * because libstdc++ implements it by calling the throwing form inside a
+     * try/catch that -fno-exceptions has removed. A caller that checks the
+     * result can carry on without the thing it wanted, which is nearly always
+     * better than a reboot.
+     *
+     * The multiplication is checked too. A count read from a file is attacker-
+     * or corruption-controlled, and `count * sizeof(T)` is computed in a 32-bit
+     * size_t on the device, so a large count silently wraps to a small one.
+     *
+     * Trivially copyable only: this does not construct anything, matching the
+     * raw buffers it replaces.
+     */
+    template <typename T>
+    static T* AllocateArray(size_t count, MemoryUse use = MemoryUse::Auto,
+                            const char* context = nullptr)
+    {
+        if (count == 0)
+            return nullptr;
+        if (count > (SIZE_MAX / sizeof(T)))
+            return nullptr;  // would wrap; no allocation could satisfy it anyway
+        return static_cast<T*>(Allocate(count * sizeof(T), use, context));
+    }
 
     /**
      * @brief Get current memory statistics
