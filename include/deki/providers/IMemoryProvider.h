@@ -90,6 +90,19 @@ public:
      * @return Pointer to allocated memory, nullptr if allocation failed
      */
     virtual void* AllocateInternal(size_t size) { return malloc(size); }
+
+    /**
+     * @brief Allocate memory a DMA engine can read
+     * @param size Number of bytes
+     * @return Pointer, or nullptr
+     *
+     * Not the same as internal RAM: on the ESP32 some internal regions are not
+     * DMA-reachable, so a framebuffer handed to a display peripheral needs the
+     * explicit capability rather than "internal and probably fine". Freed
+     * through FreeInternal. The default is AllocateInternal, which is right
+     * for hosts where every allocation is equally reachable.
+     */
+    virtual void* AllocateDma(size_t size) { return AllocateInternal(size); }
     /// Frees a block from AllocateInternal. Must match that allocator: the
     /// default pair is malloc/free; a backend that overrides one overrides both.
     virtual void FreeInternal(void* ptr) { free(ptr); }

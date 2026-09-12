@@ -218,10 +218,15 @@ void* Memory::Allocate(size_t size,
     }
     else if (s_CurrentBackend)
     {
-        // Through the backend, not malloc: on the ESP32 that is heap_caps_malloc
-        // with the internal-RAM capability, and it is what FreeInternal pairs
-        // with. Plain malloc here was only correct by luck of the backend.
-        raw_ptr = s_CurrentBackend->AllocateInternal(total_size);
+        // Through the backend, not malloc: on the ESP32 that is heap_caps with
+        // the right capability, and it is what FreeInternal pairs with. Plain
+        // malloc here was only correct by luck of the backend.
+        //
+        // Dma asks for the capability explicitly. Internal RAM is mostly
+        // DMA-reachable on that part but not all of it, and a peripheral
+        // reading memory that is not gets silent corruption.
+        raw_ptr = (use == MemoryUse::Dma) ? s_CurrentBackend->AllocateDma(total_size)
+                                          : s_CurrentBackend->AllocateInternal(total_size);
     }
     else
     {
