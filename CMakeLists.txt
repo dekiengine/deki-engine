@@ -55,6 +55,7 @@ set(DEKI_CORE_SOURCES
     src/Color.cpp
     src/ComponentInterfaceAdapters.cpp
     src/providers/Memory.cpp
+    src/providers/Buffer.cpp
 )
 
 # =============================================================================
