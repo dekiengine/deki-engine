@@ -4,6 +4,47 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- `Deki::Buffer<T>`: an owning array that allocates through `Deki::Memory` and
+  frees itself. This is what component and package code reaches for instead of
+  an allocator call plus a matching `Free`. Every memory bug this engine has
+  actually had was an ownership bug rather than a churn bug — a `delete[]`
+  paired with a `Deki::Memory` allocation, a buffer nothing freed, a cleanup
+  path that released something a borrowing function did not own, a null pointer
+  that reached a `memcpy` because one error branch forgot to return — and a
+  destructor cannot make any of those mistakes. Move-only; `T` must be
+  trivially copyable and trivially destructible, both enforced by
+  `static_assert` because nothing here constructs or destroys elements.
+- `Deki::MemoryUse`: what an allocation is FOR — `Hot` (read or written every
+  frame), `Buffer` (large and read-mostly), `Dma` (a peripheral has to reach
+  it), or `Auto`. Callers say how the memory will be used and the engine
+  decides where it lives, because a caller cannot know whether this board has
+  external RAM or how slow it is. The old `bool prefer_psram` overload remains
+  as a header inline mapping to `Buffer`/`Auto`.
+- `Deki::Memory::AllocateArray<T>`: a checked replacement for `new T[n]` for
+  any count that comes from a file, a scene, or the screen. `new[]` cannot fail
+  gracefully on the device — ESP-IDF builds with exceptions off, so the
+  `bad_alloc` reaches `__cxa_allocate_exception` and aborts, rebooting the
+  board, and `std::nothrow` aborts identically because libstdc++ implements it
+  by calling the throwing form inside a `try`/`catch` that `-fno-exceptions`
+  has removed. The multiplication is checked too: `count * sizeof(T)` is a
+  32-bit `size_t` on the device, so a corrupt count silently wraps small.
+- `IMemoryProvider::AllocateDma`, and `MALLOC_CAP_DMA` behind it on the ESP32.
+  `MemoryUse::Dma` had documented a promise the allocator was not keeping.
+
+### Changed
+- Memory placement resolves once and is not revisited: there is no fallback to
+  the other region when the chosen one is full. Quietly moving a `Hot` buffer
+  into external RAM turns a placement mistake into frame drops nobody can
+  account for, and moving a `Buffer` the other way exhausts the internal heap
+  the next `Hot` allocation needed. A failed allocation returns null, which
+  every caller already has to handle, and says so in the log.
+- Reflection ABI 11: `IMemoryProvider` gained a virtual, which moves every
+  slot after it. No struct grew, so the size fingerprint cannot see this one —
+  it is the case the version number exists for.
+
 ## 0.14.0
 
 ### Changed

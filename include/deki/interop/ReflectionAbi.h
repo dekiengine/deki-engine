@@ -128,8 +128,17 @@ struct DekiReflectionAbi
  *    now a property of the project's configuration and the handshake has to
  *    say which one a DLL was built for. Growing the struct is itself the
  *    layout change that forces the bump.
+ *
+ * 11: Deki::IMemoryProvider gained AllocateDma. MemoryUse::Dma promised a
+ *    buffer a peripheral could read, and only the platform knows how to get
+ *    one — on the ESP32 some internal RAM is not DMA-reachable, so
+ *    "internal and probably fine" was silent corruption waiting for a
+ *    display driver. Adding the virtual moves every slot after it, so a
+ *    provider DLL built at ABI 10 would call the wrong one. No struct grew,
+ *    which is exactly the case the size fingerprint cannot see and this
+ *    number exists for.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 10;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 11;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()
