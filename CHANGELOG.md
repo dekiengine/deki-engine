@@ -7,6 +7,27 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Added
+- Global `operator new`/`delete` on builds with exceptions off
+  (`src/providers/OperatorNew.cpp`), which is the half `Deki::Buffer` cannot
+  reach: `std::vector` and `std::string` call `operator new` internally, so
+  their growth failures were the last silent reboot. A failure now says how
+  many bytes it wanted before it aborts, and `std::nothrow` works —
+  `new (std::nothrow) T[n]` returns null instead of aborting inside a
+  try/catch that `-fno-exceptions` deleted. Instrumentation, not a re-route:
+  still `malloc`, same alignment, no header, because routing these through
+  `Memory::Allocate` would add 16 bytes to every `std::string` that outgrows
+  its SSO buffer and memset memory a vector is about to overwrite. Compiled
+  only where `__cpp_exceptions` is undefined, so host builds are untouched;
+  the unused overloads are garbage-collected, and the firmware is the same
+  size as before.
+- `Deki::Memory::LogStats(label)`: allocated and free, both regions, in one
+  line, plus live and peak counts in a debug build. Answering "how much
+  memory am I using?" needed `GetStats` for one half and a provider the
+  caller does not have for the other. `GetAvailableInternal()` fills in the
+  companion `GetAvailablePSRAM` had been missing.
+- `Memory::Initialize` logs the free internal and external RAM once, and the
+  size at which `Auto` goes external, so a project can be sized against real
+  numbers instead of against its first out-of-memory line.
 - `Deki::Buffer<T>`: an owning array that allocates through `Deki::Memory` and
   frees itself. This is what component and package code reaches for instead of
   an allocator call plus a matching `Free`. Every memory bug this engine has

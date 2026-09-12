@@ -103,7 +103,56 @@ bool Memory::Initialize()
 #endif
 
     initialized = true;
+
+    // What the board actually has, once, at startup. A project is sized
+    // against these two numbers — whether a full-screen bake fits, whether a
+    // particle pool has room — and without them the first out-of-memory line
+    // arrives with nothing to compare against. ESP-IDF prints its heap
+    // regions, but not which of them Deki will treat as external.
+    const size_t freeInternal = s_CurrentBackend->GetAvailableInternalRAM();
+    if (s_PsramAvailable)
+        DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
+                      "(MemoryUse::Buffer, and Auto over %zu bytes, go external)",
+                      freeInternal, s_CurrentBackend->GetAvailableExternalRAM(),
+                      kLargeAllocation);
+    else
+        DEKI_LOG_INFO("Memory: %zu bytes free internal, no external RAM "
+                      "(every MemoryUse resolves to internal)",
+                      freeInternal);
+
     return true;
+}
+
+size_t Memory::GetAvailableInternal()
+{
+    return s_CurrentBackend ? s_CurrentBackend->GetAvailableInternalRAM() : 0;
+}
+
+void Memory::LogStats(const char* label)
+{
+    // One call, because the question "how much memory am I using?" needed
+    // GetStats for the allocated side and a provider the caller does not have
+    // for the free side. Answering it should not be a research task.
+    const MemoryStats s = GetStats();
+    const size_t freeInternal = GetAvailableInternal();
+    const size_t freeExternal = GetAvailablePSRAM();
+
+    if (s_PsramAvailable)
+        DEKI_LOG_INFO("Memory%s%s: %u bytes allocated (%u internal, %u external); "
+                      "%zu free internal, %zu free external",
+                      label ? " at " : "", label ? label : "",
+                      s.totalAllocated, s.internalRamAllocated, s.psramAllocated,
+                      freeInternal, freeExternal);
+    else
+        DEKI_LOG_INFO("Memory%s%s: %u bytes allocated; %zu free internal",
+                      label ? " at " : "", label ? label : "",
+                      s.totalAllocated, freeInternal);
+
+#ifdef DEBUG
+    DEKI_LOG_INFO("Memory%s%s: %u live allocations, peak %u",
+                  label ? " at " : "", label ? label : "",
+                  s.activeAllocations, s.peakAllocations);
+#endif
 }
 
 void Memory::Shutdown()
@@ -252,10 +301,31 @@ void* Memory::Allocate(size_t size,
     }
     else
     {
-        DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s'; "
-                       "no fallback is attempted",
-                       size, used_psram ? "external" : "internal",
-                       context ? context : "?");
+        // How much was free is the number that makes this actionable: it is
+        // the difference between "this asset is too big for this board" and
+        // "something else is holding memory it should have released". Only
+        // computed on the failure path, so it costs nothing when allocating
+        // succeeds — and the region it reports is the one that was tried,
+        // since there is no fallback to the other.
+        //
+        // GetAvailableInternalRAM returns 0 when a provider does not
+        // implement it (the desktop one does not — the number is meaningless
+        // where the OS pages), so a zero is reported as unknown rather than
+        // as an empty heap, which would send someone hunting a leak that is
+        // not there.
+        const size_t freeHere = s_CurrentBackend
+            ? (used_psram ? s_CurrentBackend->GetAvailableExternalRAM()
+                          : s_CurrentBackend->GetAvailableInternalRAM())
+            : 0;
+        const char* region = used_psram ? "external" : "internal";
+        if (freeHere > 0)
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' "
+                           "(%zu bytes free there); no fallback is attempted",
+                           size, region, context ? context : "?", freeHere);
+        else
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s'; "
+                           "no fallback is attempted",
+                           size, region, context ? context : "?");
     }
 
     return nullptr;

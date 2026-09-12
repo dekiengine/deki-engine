@@ -56,6 +56,7 @@ set(DEKI_CORE_SOURCES
     src/ComponentInterfaceAdapters.cpp
     src/providers/Memory.cpp
     src/providers/Buffer.cpp
+    src/providers/OperatorNew.cpp
 )
 
 # =============================================================================

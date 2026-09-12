@@ -7,6 +7,7 @@
 #include <deki/settings/UnitProjectSettings.h>
 #include <deki/providers/FileSystem.h>
 #include <deki/providers/IFileSystem.h>
+#include <deki/providers/Buffer.h>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -145,24 +146,34 @@ static std::string s_StartupScene;
 // for its own settings on device (ReadPackageSetting*), where the settings
 // registry that hydrates instances in the editor does not exist. One heap
 // block, reused across loads.
-static uint8_t* s_PackageChunk = nullptr;
+//
+// Through Deki::Memory like everything else that runs on a board: this was a
+// bare realloc, which skipped the placement decision, the accounting and the
+// double-free guard. Buffer, not Hot — it is read when a package asks for a
+// setting, not per frame.
+static Deki::Buffer<uint8_t> s_PackageChunk;
 static size_t s_PackageChunkSize = 0;
-static size_t s_PackageChunkCapacity = 0;
 
 static void RetainPackageChunk(const uint8_t* data, size_t size)
 {
-    if (size > s_PackageChunkCapacity)
+    // Grow-only: Count() is the capacity, so a smaller settings chunk on the
+    // next Load() reuses the block rather than reallocating it.
+    if (size > s_PackageChunk.Count())
     {
-        uint8_t* grown = static_cast<uint8_t*>(realloc(s_PackageChunk, size));
-        if (!grown)
+        // Allocate releases the old block before taking the new one, which
+        // is right here (the memcpy below overwrites it anyway) but means a
+        // failed grow loses the previously retained chunk. Size 0 already
+        // marked it unreadable in that case, so the effect is the same:
+        // ReadPackageSetting* reports the setting as absent and the package
+        // takes its default.
+        if (!s_PackageChunk.Allocate(size, Deki::MemoryUse::Buffer,
+                                     "ProjectSettings::packageSettings"))
         {
             s_PackageChunkSize = 0;
             return;
         }
-        s_PackageChunk = grown;
-        s_PackageChunkCapacity = size;
     }
-    memcpy(s_PackageChunk, data, size);
+    memcpy(s_PackageChunk.Data(), data, size);
     s_PackageChunkSize = size;
 }
 
@@ -176,7 +187,7 @@ static bool FindPackageSetting(const char* section, const char* key, uint8_t typ
 {
     if (!section || !key || !out || !s_PackageChunk || s_PackageChunkSize < sizeof(uint16_t))
         return false;
-    const uint8_t* d = s_PackageChunk;
+    const uint8_t* d = s_PackageChunk.Data();
     const size_t n = s_PackageChunkSize;
     const size_t sectionLen = strlen(section);
     const uint32_t keyHash = HashStringLen(key, static_cast<uint16_t>(strlen(key)));

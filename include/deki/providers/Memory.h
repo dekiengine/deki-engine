@@ -221,6 +221,29 @@ public:
     static size_t GetAvailablePSRAM();
 
     /**
+     * @brief Get available internal RAM
+     * @return Free internal RAM in bytes, or 0 where the platform does not
+     *         report it (the desktop provider does not — the number is
+     *         meaningless where the OS pages)
+     *
+     * The companion to GetAvailablePSRAM, which existed alone: the free
+     * internal figure is the one a project is actually sized against, and it
+     * was reachable only through a provider a caller does not have.
+     */
+    static size_t GetAvailableInternal();
+
+    /**
+     * @brief Log what is allocated and what is left, in one line
+     * @param label Optional tag for the line ("after level load")
+     *
+     * For answering "how much memory am I using?" from game code without
+     * assembling it from GetStats and a provider. Costs nothing unless
+     * called; in debug builds it also reports the live and peak allocation
+     * counts.
+     */
+    static void LogStats(const char* label = nullptr);
+
+    /**
      * @brief Check if PSRAM is available
      * @return true if PSRAM available
      */
