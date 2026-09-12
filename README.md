@@ -1,6 +1,6 @@
 # Deki Engine
 
-The core of [Deki](https://github.com/dekiengine), a C++17 2D engine for
+The core of [Deki](https://github.com/dekiengine), a C++23 2D engine for
 ESP32-S3 devices and desktop: a software rasterizer (RGB565 by default), a
 component model driven by C++26 static-reflection codegen, an asset system,
 and the provider interfaces that packages implement (display, input, render

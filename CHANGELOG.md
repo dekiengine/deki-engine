@@ -72,6 +72,13 @@ and package DLLs has its own numbered history in
   `MemoryUse::Dma` had documented a promise the allocator was not keeping.
 
 ### Changed
+- C++23 (`CMAKE_CXX_STANDARD 23`) instead of 17. ESP-IDF forces
+  `-std=gnu++2b` for chip targets unconditionally, so firmware had been
+  compiling at C++23 while the engine, the editor and the generated project
+  builds were pinned at 17 — the same package source built at two standards
+  depending on target, so a C++20 feature would compile for the board and
+  fail on the desktop. Two identifiers named `requires` had to be renamed
+  (it is a keyword since C++20) and nothing else broke.
 - Memory placement resolves once and is not revisited: there is no fallback to
   the other region when the chosen one is full. Quietly moving a `Hot` buffer
   into external RAM turns a placement mistake into frame drops nobody can

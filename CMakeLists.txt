@@ -37,7 +37,7 @@ if(DEKI_TRANSFORM_3D)
     list(APPEND _DEKI_TRANSFORM_DEFINES DEKI_TRANSFORM_3D)
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # =============================================================================
