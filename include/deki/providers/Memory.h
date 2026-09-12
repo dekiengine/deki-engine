@@ -23,10 +23,18 @@ enum class MemorySubsystem : uint8_t
  * @brief What an allocation is FOR, so the engine can decide where it goes
  *
  * Callers say how memory will be used; Memory decides whether that means
- * internal RAM or external PSRAM, and falls back when the first choice is
- * exhausted. A caller passing a placement directly cannot know how much
- * internal RAM is left, whether PSRAM exists on this board, or what else has
- * been allocated this frame — the engine can.
+ * internal RAM or external PSRAM. A caller passing a placement directly cannot
+ * know whether this board has external RAM or how slow it is — the engine can.
+ *
+ * The placement is resolved once and NOT revisited. There is no fallback to
+ * the other region when the chosen one is full: quietly moving a Hot buffer
+ * into external RAM turns a placement mistake into frame drops nobody can
+ * account for, and moving a Buffer the other way exhausts the internal heap
+ * the next Hot allocation needed. A failed allocation returns nullptr, which
+ * every caller already has to handle.
+ *
+ * A board with no external RAM resolves everything to internal. That is not a
+ * fallback, it is the only region there is.
  */
 enum class MemoryUse : uint8_t
 {
@@ -34,12 +42,12 @@ enum class MemoryUse : uint8_t
     /// PSRAM exists, small ones stay internal.
     Auto = 0,
 
-    /// Read or written every frame. Internal RAM first; external only if
-    /// internal is exhausted, since PSRAM access is markedly slower.
+    /// Read or written every frame. Internal RAM; external access is markedly
+    /// slower, so this never silently ends up there.
     Hot,
 
     /// Large and read-mostly — a gradient bake, a decoded image, an asset
-    /// blob. External first, internal as a fallback.
+    /// blob. External where the board has it, internal where it does not.
     Buffer,
 
     /// Must be reachable by DMA. Internal only; never silently placed
@@ -142,8 +150,7 @@ public:
      * @brief Deprecated: pass a MemoryUse instead of choosing PSRAM yourself
      *
      * Kept so packages built against an older engine still compile. true maps
-     * to MemoryUse::Buffer and false to MemoryUse::Auto, and the engine may
-     * still place the block elsewhere if that is the only way to satisfy it.
+     * to MemoryUse::Buffer and false to MemoryUse::Auto.
      */
     static void* Allocate(size_t size, bool prefer_psram, const char* context = nullptr)
     {

@@ -157,16 +157,18 @@ void Memory::SetBackend(IMemoryProvider* backend)
     s_CurrentBackend.reset(backend);
 }
 
-// Where a use should live, given this board and what is left.
+// Where a use lives on THIS board. Resolved once, and not revisited.
 //
-// This is the whole point of taking a MemoryUse rather than a placement: the
-// caller knows how the memory will be used, and only the engine knows whether
-// there is PSRAM, how much internal RAM is free, and how slow external access
-// is on this part.
-static bool PreferExternalFor(Deki::MemoryUse use, size_t size, bool psramUsable)
+// This is the point of taking a MemoryUse rather than a placement: the caller
+// knows how the memory will be used, and only the engine knows whether the
+// board has external RAM and how slow it is.
+//
+// A board with no external RAM resolves everything to internal. That is not a
+// fallback, it is the only region there is.
+static bool ResolveExternal(Deki::MemoryUse use, size_t size, bool psramUsable)
 {
     if (!psramUsable)
-        return false;  // nothing to prefer
+        return false;
     switch (use)
     {
         case Deki::MemoryUse::Dma:    return false;  // a peripheral must reach it
@@ -196,48 +198,34 @@ void* Memory::Allocate(size_t size,
     // i.e. a minimum of 128 bytes for a 16-byte request, on a part with a few
     // hundred KB of RAM.
     void* raw_ptr = nullptr;
-    bool used_psram = false;
     size_t header_size = kInternalHeaderSize;
     size_t total_size = size + header_size;
 
-    // The engine decides, from the use and what this board has.
     const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
-    const bool prefer_psram = PreferExternalFor(use, size, psramUsable);
+    const bool used_psram = ResolveExternal(use, size, psramUsable);
 
-    if (prefer_psram)
+    // One region, no second attempt. Quietly moving a Hot buffer into external
+    // RAM because internal was full turns a placement mistake into frame drops
+    // nobody can account for, and moving a Buffer the other way exhausts the
+    // internal heap that the next Hot allocation needed. Failing here is
+    // visible, and the caller already has to handle null.
+    if (used_psram)
     {
         const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
-        raw_ptr = AllocatePSRAM(aligned_size + CACHE_LINE_SIZE);
-        if (raw_ptr)
-        {
-            used_psram = true;
-            header_size = CACHE_LINE_SIZE;
-            total_size = aligned_size + CACHE_LINE_SIZE;
-        }
+        header_size = CACHE_LINE_SIZE;
+        total_size = aligned_size + CACHE_LINE_SIZE;
+        raw_ptr = AllocatePSRAM(total_size);
     }
-
-    // Internal, when external was not preferred or could not satisfy it.
-    if (!raw_ptr)
+    else if (s_CurrentBackend)
     {
-        raw_ptr = malloc(total_size);
-        used_psram = false;
+        // Through the backend, not malloc: on the ESP32 that is heap_caps_malloc
+        // with the internal-RAM capability, and it is what FreeInternal pairs
+        // with. Plain malloc here was only correct by luck of the backend.
+        raw_ptr = s_CurrentBackend->AllocateInternal(total_size);
     }
-
-    // And external as a last resort for a use that did not ask for it. A Hot
-    // buffer in slow memory still beats not having it; a Dma one does not,
-    // because a peripheral could not read it.
-    if (!raw_ptr && psramUsable && !prefer_psram && use != MemoryUse::Dma)
+    else
     {
-        const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
-        raw_ptr = AllocatePSRAM(aligned_size + CACHE_LINE_SIZE);
-        if (raw_ptr)
-        {
-            used_psram = true;
-            header_size = CACHE_LINE_SIZE;
-            total_size = aligned_size + CACHE_LINE_SIZE;
-            DEKI_LOG_WARNING("Memory: %zu bytes for '%s' went to PSRAM; internal RAM is full",
-                             size, context ? context : "?");
-        }
+        raw_ptr = malloc(total_size);  // host builds, before a backend is set
     }
 
     if (raw_ptr)
@@ -259,7 +247,10 @@ void* Memory::Allocate(size_t size,
     }
     else
     {
-        DEKI_LOG_ERROR("Failed to allocate %zu bytes", size);
+        DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s'; "
+                       "no fallback is attempted",
+                       size, used_psram ? "external" : "internal",
+                       context ? context : "?");
     }
 
     return nullptr;
