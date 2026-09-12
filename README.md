@@ -73,6 +73,36 @@ obj->RemoveComponent<Health>();
 That is the whole runtime API for components. Creating one from a name or
 an id is what scene files and the editor do, through engine-internal paths.
 
+## Allocating
+
+```cpp
+#include <deki/providers/Buffer.h>
+
+Deki::Buffer<uint8_t> pixels;                                  // owns, frees itself
+if (!pixels.Allocate(w * h * 2, Deki::MemoryUse::Buffer, "Thing::bake"))
+    return false;                                              // out of memory returns, never aborts
+```
+
+**Every allocation in code that runs on a device goes through `Deki::Memory`**,
+and in practice through `Deki::Buffer<T>`. No `new[]`, no `malloc`, no
+`heap_caps_*`, in the engine or in a package.
+
+`new[]` cannot fail gracefully here: ESP-IDF builds with exceptions off, so a
+failed allocation reaches `__cxa_allocate_exception` and calls `abort()`, which
+reboots the board. `std::nothrow` aborts identically, because libstdc++
+implements it by calling the throwing form inside a `try`/`catch` that
+`-fno-exceptions` has removed.
+
+A caller says what the memory is *for* — `MemoryUse::Hot` (touched every
+frame), `Buffer` (large and read-mostly), `Dma` (a peripheral reads it), or
+`Auto` — and the engine picks the region, because only it knows whether this
+board has external RAM and how slow it is. **That placement resolves once and
+is never retried elsewhere**: a full region returns null, which the caller
+handles. `Deki::IMemoryProvider` is the per-platform half.
+
+Full reference, including the lint that enforces this:
+[docs/memory.md](https://github.com/dekiengine/deki-editor/blob/master/docs/memory.md).
+
 ## Contributing and license
 
 See the editor repository's [CONTRIBUTING.md](https://github.com/dekiengine/deki-editor/blob/master/CONTRIBUTING.md)
