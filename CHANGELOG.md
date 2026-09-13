@@ -41,9 +41,9 @@ and package DLLs has its own numbered history in
   memory am I using?" needed `GetStats` for one half and a provider the
   caller does not have for the other. `GetAvailableInternal()` fills in the
   companion `GetAvailablePSRAM` had been missing.
-- `Memory::Initialize` logs the free internal and external RAM once, and the
-  size at which `Auto` goes external, so a project can be sized against real
-  numbers instead of against its first out-of-memory line.
+- `Memory::Initialize` logs the free internal and external RAM once, so a
+  project can be sized against real numbers instead of against its first
+  out-of-memory line.
 - `Deki::Buffer<T>`: an owning array that allocates through `Deki::Memory` and
   frees itself. This is what component and package code reaches for instead of
   an allocator call plus a matching `Free`. Every memory bug this engine has
@@ -54,12 +54,11 @@ and package DLLs has its own numbered history in
   destructor cannot make any of those mistakes. Move-only; `T` must be
   trivially copyable and trivially destructible, both enforced by
   `static_assert` because nothing here constructs or destroys elements.
-- `Deki::MemoryUse`: what an allocation is FOR — `Hot` (read or written every
-  frame), `Buffer` (large and read-mostly), `Dma` (a peripheral has to reach
-  it), or `Auto`. Callers say how the memory will be used and the engine
-  decides where it lives, because a caller cannot know whether this board has
-  external RAM or how slow it is. The old `bool prefer_psram` overload remains
-  as a header inline mapping to `Buffer`/`Auto`.
+- `Deki::MemoryUse`: where an allocation lives — `Internal`, `Hot` (internal,
+  and touched every frame), `Buffer` (external where the board has it) or
+  `Dma`. Required on every allocating call; see Changed below for why nothing
+  is inferred. The old `bool prefer_psram` overload remains as a header inline
+  mapping to `Buffer`/`Internal`.
 - `Deki::Memory::AllocateArray<T>`: a checked replacement for `new T[n]` for
   any count that comes from a file, a scene, or the screen. `new[]` cannot fail
   gracefully on the device — ESP-IDF builds with exceptions off, so the
