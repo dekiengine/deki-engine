@@ -38,14 +38,6 @@ void RawFree(void* ptr);
 }  // namespace detail
 
 /**
- * @brief Memory subsystem types - simplified (kept for compatibility)
- */
-enum class MemorySubsystem : uint8_t
-{
-    GENERAL = 0  // Single subsystem - no tracking overhead
-};
-
-/**
  * @brief Who asked for an allocation. Filled in by the compiler.
  *
  * Nobody writes one. Every allocating call takes an AllocContext whose default
