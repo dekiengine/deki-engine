@@ -49,11 +49,11 @@ void* ESP32MemoryProvider::AllocateExternalBytes(size_t size)
     return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
 }
 
-bool ESP32MemoryProvider::Serves(MemoryRegion region) const
+bool ESP32MemoryProvider::Serves(Memory::Region region) const
 {
-    if (region == Deki::Internal)
+    if (region == Deki::Memory::Internal)
         return true;
-    if (region == Deki::External)
+    if (region == Deki::Memory::External)
         return m_HasPSRAM;
     // Anything else — a region some package defined — this board does not
     // have. Saying so is what lets the allocation fail by name instead of
@@ -61,16 +61,16 @@ bool ESP32MemoryProvider::Serves(MemoryRegion region) const
     return false;
 }
 
-void* ESP32MemoryProvider::Allocate(MemoryRegion region, size_t bytes, bool needsDma)
+void* ESP32MemoryProvider::Allocate(Memory::Region region, size_t bytes, bool needsDma)
 {
-    if (region == Deki::External)
+    if (region == Deki::Memory::External)
     {
         if (!m_HasPSRAM)
             return nullptr;
         return AllocateExternalBytes(bytes);
     }
 
-    if (region != Deki::Internal)
+    if (region != Deki::Memory::Internal)
         return nullptr;  // a region this board does not serve
 
     // 16-byte alignment lets the QuadBlit dispatcher engage S3 PIE SIMD
@@ -86,7 +86,7 @@ void* ESP32MemoryProvider::Allocate(MemoryRegion region, size_t bytes, bool need
     return heap_caps_aligned_alloc(16, bytes, caps);
 }
 
-void ESP32MemoryProvider::Free(MemoryRegion region, void* ptr)
+void ESP32MemoryProvider::Free(Memory::Region region, void* ptr)
 {
     if (!ptr)
         return;
@@ -97,11 +97,11 @@ void ESP32MemoryProvider::Free(MemoryRegion region, void* ptr)
     heap_caps_free(ptr);
 }
 
-size_t ESP32MemoryProvider::GetAvailable(MemoryRegion region) const
+size_t ESP32MemoryProvider::GetAvailable(Memory::Region region) const
 {
-    if (region == Deki::Internal)
+    if (region == Deki::Memory::Internal)
         return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (region == Deki::External)
+    if (region == Deki::Memory::External)
         return m_HasPSRAM ? heap_caps_get_free_size(MALLOC_CAP_SPIRAM) : 0;
     return 0;
 }

@@ -24,10 +24,10 @@ public:
     bool Initialize() override;
     void Shutdown() override;
 
-    bool Serves(MemoryRegion region) const override;
-    void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) override;
-    void Free(MemoryRegion region, void* ptr) override;
-    size_t GetAvailable(MemoryRegion region) const override;
+    bool Serves(Memory::Region region) const override;
+    void* Allocate(Memory::Region region, size_t bytes, bool needsDma) override;
+    void Free(Memory::Region region, void* ptr) override;
+    size_t GetAvailable(Memory::Region region) const override;
 
     // AllocateRaw/FreeRaw keep the base malloc/free, which on ESP-IDF is
     // heap_caps under the hood with the same alignment operator new had

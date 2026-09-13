@@ -52,7 +52,7 @@ enum class MemorySubsystem : uint8_t
  * argument captures the call site, so an allocation is identified by where it
  * was written:
  *
- *     Deki::Memory::Allocate(n, Deki::Internal);
+ *     Deki::Memory::Allocate(n, Deki::Memory::Internal);
  *     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
  *
  * There is no name to pass and no way to pass one. A hand-written tag is a
@@ -116,52 +116,6 @@ constexpr uint32_t HashName(const char* s)
     return h;
 }
 
-/**
- * @brief Where an allocation lives. The caller says; the engine never guesses.
- *
- * A region is a name, not an enumerator, so the set of them is open: a package
- * defines one and the engine needs no change to carry it.
- *
- *     namespace Deki
- *     {
- *     inline constexpr MemoryRegion Rtc = Region("esp32.rtc");
- *     }
- *
- * Deki is an ordinary namespace, so a package extends it the way it would
- * extend any other — and a package is free to keep its regions in its own
- * namespace instead; the identity is the hashed name, not where the constant
- * lives. What a package cannot do is SERVE a region: only the
- * board's IMemoryProvider can, and one that has not heard of "rtc" returns
- * nullptr and says so by name. Extension is two-sided on purpose — a package
- * names what it needs, a board decides whether it has it.
- *
- * The name is also the capability name, so a package that declares
- * platformRequires: ["rtc"] and one that writes Region("rtc") agree by
- * construction, and the build refuses the target before the allocation can
- * fail on it.
- *
- * The pointer is kept, never copied: Region() is only ever called on a string
- * literal, which has static storage duration.
- */
-struct MemoryRegion
-{
-    uint32_t id;       ///< HashName(name); what the provider dispatches on
-    const char* name;  ///< what a failure prints
-
-    constexpr bool operator==(const MemoryRegion& other) const { return id == other.id; }
-    constexpr bool operator!=(const MemoryRegion& other) const { return id != other.id; }
-};
-
-constexpr MemoryRegion Region(const char* name) { return MemoryRegion{HashName(name), name}; }
-
-/// Internal RAM. Fast, and the scarce one — a few hundred KB on an ESP32-S3.
-inline constexpr MemoryRegion Internal = Region("internal");
-
-/// External RAM (PSRAM) where the board has it. Megabytes, and markedly
-/// slower: it is reached over SPI, so a buffer read every frame does not
-/// belong here. Asking for it is a claim that this buffer's latency does not
-/// matter.
-inline constexpr MemoryRegion External = Region("external");
 
 /**
  * @brief Memory statistics structure
@@ -227,6 +181,71 @@ private:
 
 public:
     /**
+     * @brief Where an allocation lives. The caller says; the engine never guesses.
+     *
+     * A region is a name, not an enumerator, so the set of them is open: a
+     * package defines one and the engine needs no change to carry it.
+     *
+     *     namespace DekiEsp32
+     *     {
+     *     inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
+     *     }
+     *
+     * A package keeps its regions in its OWN namespace rather than reopening
+     * Deki::Memory — which it could not do anyway, a class being closed, and
+     * which is the point: two board packages that both want an "Rtc" constant
+     * cannot collide, because the language keeps them apart. Where the constant
+     * lives is never load-bearing; a region's identity is its hashed name, so
+     * moving one between namespaces changes nothing at all.
+     *
+     * What a package cannot do is SERVE a region: only the board's
+     * IMemoryProvider can, and one that has not heard of "esp32.rtc" returns
+     * nullptr and says so by name. Extension is two-sided on purpose — a
+     * package names what it needs, a board decides whether it has it.
+     *
+     * The name is also the capability name, prefixed: a package that allocates
+     * from Region("esp32.rtc") declares platformRequires ["memory:esp32.rtc"],
+     * so the build refuses a target without it before anything runs.
+     *
+     * The pointer is kept, never copied: a Region is only ever built from a
+     * string literal, which has static storage duration.
+     */
+    struct Region
+    {
+        uint32_t id;       ///< HashName(name); what the provider dispatches on
+        const char* name;  ///< what a failure prints
+
+        constexpr explicit Region(const char* region_name)
+            : id(HashName(region_name)), name(region_name)
+        {
+        }
+
+        constexpr bool operator==(const Region& other) const { return id == other.id; }
+        constexpr bool operator!=(const Region& other) const { return id != other.id; }
+
+    private:
+        /// Rebuilds a region from the id in an allocation header, where the
+        /// name was never stored. Private, and Memory is the only caller: a
+        /// public form would let anyone make a Region whose id and name
+        /// disagree, and the id is what every provider dispatches on.
+        constexpr Region(uint32_t stored_id, const char* placeholder_name)
+            : id(stored_id), name(placeholder_name)
+        {
+        }
+
+        friend class Memory;
+    };
+
+    /// Internal RAM. Fast, and the scarce one — a few hundred KB on an ESP32-S3.
+    static const Region Internal;
+
+    /// External RAM (PSRAM) where the board has it. Megabytes, and markedly
+    /// slower: it is reached over SPI, so a buffer read every frame does not
+    /// belong here. Asking for it is a claim that this buffer's latency does
+    /// not matter.
+    static const Region External;
+
+    /**
      * @brief Initialize memory backend
      * @return true if initialization successful
      */
@@ -259,7 +278,7 @@ public:
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
-                          MemoryRegion region,
+                          Memory::Region region,
                           AllocContext ctx = {});
 
     /**
@@ -272,21 +291,21 @@ public:
      * reachable this is the same as Allocate, and the provider says so.
      */
     static void* AllocateDma(size_t size,
-                             MemoryRegion region,
+                             Memory::Region region,
                              AllocContext ctx = {});
 
     /**
      * @brief Deprecated: name the region instead of choosing PSRAM yourself
      *
-     * true maps to Deki::External and false to Deki::Internal.
+     * true maps to Deki::Memory::External and false to Deki::Memory::Internal.
      */
     static void* Allocate(size_t size, bool prefer_psram, AllocContext ctx = {})
     {
-        return Allocate(size, prefer_psram ? Deki::External : Deki::Internal, ctx);
+        return Allocate(size, prefer_psram ? Deki::Memory::External : Deki::Memory::Internal, ctx);
     }
 
     // kLargeAllocation is gone with the size heuristic it served. Nothing
-    // decides placement by size any more: a caller names Deki::External or
+    // decides placement by size any more: a caller names Deki::Memory::External or
     // gets internal RAM.
 
     /**
@@ -327,7 +346,7 @@ public:
      * raw buffers it replaces.
      */
     template <typename T>
-    static T* AllocateArray(size_t count, MemoryRegion region, AllocContext ctx = {})
+    static T* AllocateArray(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         if (count == 0)
             return nullptr;
@@ -400,7 +419,7 @@ public:
 
 private:
     // Both public entry points land here; needsDma is what separates them.
-    static void* AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocContext ctx);
+    static void* AllocateIn(size_t size, Memory::Region region, bool needsDma, AllocContext ctx);
 
     /**
      * @brief Detect if PSRAM is available
@@ -449,5 +468,13 @@ private:
     static void CheckForLeaks();
 #endif
 };
+
+// Memory is not a complete type until its closing brace above, so these are
+// defined here rather than inside it — the same reason a member function can be
+// defined out of line. inline gives them one definition across every
+// translation unit; constexpr belongs on the definition of a variable, not on
+// the declaration ([dcl.constexpr]).
+inline constexpr Memory::Region Memory::Internal{"internal"};
+inline constexpr Memory::Region Memory::External{"external"};
 
 }  // namespace Deki

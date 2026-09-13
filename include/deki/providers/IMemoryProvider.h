@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-// For MemoryRegion. Memory.h only forward-declares IMemoryProvider, so this
+// For Memory::Region. Memory.h only forward-declares IMemoryProvider, so this
 // direction of the dependency is the safe one.
 #include <deki/providers/Memory.h>
 
@@ -56,7 +56,7 @@ public:
      *
      * Memory asks this once at startup to report what the board has.
      */
-    virtual bool Serves(MemoryRegion region) const = 0;
+    virtual bool Serves(Memory::Region region) const = 0;
 
     /**
      * @brief Allocate `bytes` from `region`
@@ -72,7 +72,7 @@ public:
      * dispatches on `region.id`, which is a compile-time constant, and returns
      * nullptr for anything it does not recognise.
      */
-    virtual void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) = 0;
+    virtual void* Allocate(Memory::Region region, size_t bytes, bool needsDma) = 0;
 
     /**
      * @brief Release a block obtained from `region`
@@ -80,7 +80,7 @@ public:
      * The region comes from the allocation's own header, so a caller never has
      * to remember it and cannot get it wrong.
      */
-    virtual void Free(MemoryRegion region, void* ptr) = 0;
+    virtual void Free(Memory::Region region, void* ptr) = 0;
 
     /**
      * @brief Bytes still available in `region`, or 0 where the platform cannot
@@ -90,7 +90,7 @@ public:
      * is why a provider that cannot measure should say so in a comment rather
      * than let 0 read as "exhausted".
      */
-    virtual size_t GetAvailable(MemoryRegion region) const = 0;
+    virtual size_t GetAvailable(Memory::Region region) const = 0;
 
     // header at all: the pointer handed out is the pointer the heap returned.
 

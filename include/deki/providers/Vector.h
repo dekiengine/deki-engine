@@ -11,7 +11,7 @@
 // So this is std::vector's shape with the one thing changed that matters
 // here: everything that can allocate returns bool.
 //
-//     Deki::Vector<Enemy> enemies(Deki::Internal);
+//     Deki::Vector<Enemy> enemies(Deki::Memory::Internal);
 //     if (!enemies.Reserve(32))
 //         return;                      // out of memory, said once
 //     if (!enemies.PushBack(spawned))  // and again per growth, if it grows
@@ -63,7 +63,7 @@ public:
      * once here rather than on every Reserve, so the declaration is where a
      * reader learns what memory this list occupies.
      */
-    explicit Vector(MemoryRegion region, AllocContext ctx = {})
+    explicit Vector(Memory::Region region, AllocContext ctx = {})
         : m_Region(region), m_Context(ctx)
     {
     }
@@ -219,7 +219,7 @@ private:
     // named, and reports the line the vector was declared on rather than the
     // Reserve inside PushBack that happened to trip it. No member default,
     // because that would be the engine choosing.
-    MemoryRegion m_Region;
+    Memory::Region m_Region;
     AllocContext m_Context;
 };
 

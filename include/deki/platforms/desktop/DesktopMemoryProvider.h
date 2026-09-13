@@ -40,12 +40,12 @@ public:
     // build would write: on a platform where all memory is equally fast and
     // equally reachable, "internal" and "external" are names for the same
     // place, and saying so explicitly is the honest answer.
-    bool Serves(MemoryRegion region) const override
+    bool Serves(Memory::Region region) const override
     {
-        return region == Deki::Internal || region == Deki::External;
+        return region == Deki::Memory::Internal || region == Deki::Memory::External;
     }
 
-    void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) override
+    void* Allocate(Memory::Region region, size_t bytes, bool needsDma) override
     {
         // needsDma is satisfied by construction: nothing here is behind a bus
         // a DMA engine cannot cross.
@@ -53,7 +53,7 @@ public:
         return Serves(region) ? malloc(bytes) : nullptr;
     }
 
-    void Free(MemoryRegion region, void* ptr) override
+    void Free(Memory::Region region, void* ptr) override
     {
         (void)region;
         free(ptr);
@@ -63,7 +63,7 @@ public:
     // this platform". A desktop's free memory is a question about the OS
     // rather than the process, and the number would be meaningless next to a
     // board's "280 KB of internal SRAM left".
-    size_t GetAvailable(MemoryRegion region) const override
+    size_t GetAvailable(Memory::Region region) const override
     {
         (void)region;
         return 0;

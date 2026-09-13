@@ -129,7 +129,7 @@ struct DekiReflectionAbi
  *    say which one a DLL was built for. Growing the struct is itself the
  *    layout change that forces the bump.
  *
- * 11: Deki::IMemoryProvider gained AllocateDMA. MemoryRegion::DMA promised a
+ * 11: Deki::IMemoryProvider gained AllocateDMA. Memory::Region::DMA promised a
  *    buffer a peripheral could read, and only the platform knows how to get
  *    one — on the ESP32 some internal RAM is not DMA-reachable, so
  *    "internal and probably fine" was silent corruption waiting for a
@@ -174,8 +174,10 @@ struct DekiReflectionAbi
  * 14: Memory regions replace the MemoryUse enum and IMemoryProvider serves
  *    them through Allocate/Free/GetAvailable/Serves instead of a virtual per
  *    region, so a package can define a region the engine has never heard of.
+ *
+ * 15: MemoryRegion is Memory::Region, nested where it belongs.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 14;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 15;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

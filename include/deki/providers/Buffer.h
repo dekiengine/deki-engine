@@ -38,7 +38,7 @@ namespace detail
 // allocate and free logic per element type, and this engine is built for parts
 // where code size is a budget. What the template generates is a cast and a
 // multiply.
-void* BufferAllocate(size_t bytes, MemoryRegion region, AllocContext ctx);
+void* BufferAllocate(size_t bytes, Memory::Region region, AllocContext ctx);
 void BufferFree(void* ptr);
 }  // namespace detail
 
@@ -70,7 +70,7 @@ public:
     Buffer() = default;
 
     /// Allocates `count` elements. Check the result with `if (!buffer)`.
-    Buffer(size_t count, MemoryRegion region, AllocContext ctx = {})
+    Buffer(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         Allocate(count, region, ctx);
     }
@@ -109,7 +109,7 @@ public:
      * part cannot spare. A count that has not changed is left alone, which is
      * what makes this safe to call from a render path every frame.
      */
-    bool Allocate(size_t count, MemoryRegion region, AllocContext ctx = {})
+    bool Allocate(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         if (count == m_Count && m_Data)
             return true;
