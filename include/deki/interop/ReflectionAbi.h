@@ -170,8 +170,12 @@ struct DekiReflectionAbi
  *    defined. Mixing a debug engine with release packages was already
  *    unsupported (MemoryStats has done this for longer), and this makes the
  *    consequence sharper rather than introducing it.
+ *
+ * 14: Memory regions replace the MemoryUse enum and IMemoryProvider serves
+ *    them through Allocate/Free/GetAvailable/Serves instead of a virtual per
+ *    region, so a package can define a region the engine has never heard of.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 13;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 14;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

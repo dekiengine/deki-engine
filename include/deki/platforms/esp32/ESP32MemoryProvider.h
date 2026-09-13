@@ -24,24 +24,19 @@ public:
     bool Initialize() override;
     void Shutdown() override;
 
-    bool HasExternalRAM() const override;
-    size_t GetTotalExternalRAM() const override;
-    size_t GetAvailableExternalRAM() const override;
-
-    void* AllocateExternal(size_t size) override;
-    void FreeExternal(void* ptr) override;
-    bool IsExternalPointer(void* ptr) const override;
-
-    void* AllocateInternal(size_t size) override;
-    void* AllocateDMA(size_t size) override;
-
-    void FreeInternal(void* ptr) override;
-    size_t GetAvailableInternalRAM() const override;
+    bool Serves(MemoryRegion region) const override;
+    void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) override;
+    void Free(MemoryRegion region, void* ptr) override;
+    size_t GetAvailable(MemoryRegion region) const override;
 
     // AllocateRaw/FreeRaw keep the base malloc/free, which on ESP-IDF is
     // heap_caps under the hood with the same alignment operator new had
     // before it was routed here. Only the size query needs the platform.
     size_t GetRawBlockSize(void* ptr) const override;
+
+private:
+    /// PSRAM, cache-line aligned so a DMA engine and the CPU agree about it.
+    void* AllocateExternalBytes(size_t size);
 
 private:
     bool m_HasPSRAM = false;

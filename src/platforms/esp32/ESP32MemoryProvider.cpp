@@ -31,103 +31,79 @@ void ESP32MemoryProvider::Shutdown()
     // Nothing to clean up
 }
 
-bool ESP32MemoryProvider::HasExternalRAM() const
+// PSRAM on the ESP32-S3 is cached, so a buffer a DMA engine will also read has
+// to sit on a cache line or the two disagree. esp_dma_malloc gives both the DMA
+// capability and that alignment; heap_caps_malloc with MALLOC_CAP_DMA gives
+// only the capability, which is why it is the second choice rather than the
+// first.
+void* ESP32MemoryProvider::AllocateExternalBytes(size_t size)
 {
-    return m_HasPSRAM;
-}
-
-size_t ESP32MemoryProvider::GetTotalExternalRAM() const
-{
-    return heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
-}
-
-size_t ESP32MemoryProvider::GetAvailableExternalRAM() const
-{
-    return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-}
-
-void* ESP32MemoryProvider::AllocateExternal(size_t size)
-{
-    if (!m_HasPSRAM)
-        return nullptr;
-
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-    // Use esp_dma_malloc for proper DMA capability AND cache-line alignment in PSRAM
-    // This is critical for ESP32-S3 where PSRAM is cached:
-    // - heap_caps_malloc with MALLOC_CAP_DMA only guarantees DMA-capable memory region
-    // - esp_dma_malloc ensures both DMA capability AND cache-line alignment (32/64 bytes)
-    // - Proper alignment prevents cache coherency issues when CPU and DMA access same memory
     void* ptr = nullptr;
     esp_err_t result = esp_dma_malloc(size, ESP_DMA_MALLOC_FLAG_PSRAM, &ptr, NULL);
     if (result == ESP_OK && ptr)
-    {
         return ptr;
-    }
-    // Fall through to heap_caps_malloc if esp_dma_malloc fails
+    // esp_dma_malloc could not place it; the line below still aligns to a
+    // cache line boundary, which is the part that matters for correctness.
 #endif
-
-    // Fallback: Use MALLOC_CAP_DMA for basic cache alignment on ESP32-S3
-    // This ensures alignment to cache line boundaries (32-64 bytes)
     return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
 }
 
-void ESP32MemoryProvider::FreeExternal(void* ptr)
+bool ESP32MemoryProvider::Serves(MemoryRegion region) const
 {
-    if (ptr)
-    {
-        heap_caps_free(ptr);
-    }
-}
-
-bool ESP32MemoryProvider::IsExternalPointer(void* ptr) const
-{
-    if (!ptr)
-        return false;
-
-    // ESP32-S3 PSRAM address range: 0x3C000000 - 0x3E000000 (external RAM/SPIRAM)
-    // ESP32 PSRAM address range: 0x3F800000 - 0x3FC00000
-    // This check covers both variants
-    intptr_t addr = reinterpret_cast<intptr_t>(ptr);
-
-    // ESP32-S3 range
-    if (addr >= 0x3C000000 && addr < 0x3E000000)
+    if (region == Mem::Internal)
         return true;
-
-    // ESP32 (original) range
-    if (addr >= 0x3F800000 && addr < 0x3FC00000)
-        return true;
-
+    if (region == Mem::External)
+        return m_HasPSRAM;
+    // Anything else — a region some package defined — this board does not
+    // have. Saying so is what lets the allocation fail by name instead of
+    // quietly landing somewhere it does not belong.
     return false;
 }
 
-void* ESP32MemoryProvider::AllocateInternal(size_t size)
+void* ESP32MemoryProvider::Allocate(MemoryRegion region, size_t bytes, bool needsDma)
 {
+    if (region == Mem::External)
+    {
+        if (!m_HasPSRAM)
+            return nullptr;
+        return AllocateExternalBytes(bytes);
+    }
+
+    if (region != Mem::Internal)
+        return nullptr;  // a region this board does not serve
+
     // 16-byte alignment lets the QuadBlit dispatcher engage S3 PIE SIMD
-    // kernels (and is also a multiple of every smaller alignment, so any
-    // existing caller is unaffected). heap_caps_aligned_alloc'd memory is
-    // freed with the standard heap_caps_free / free path, same as
-    // heap_caps_malloc, so Memory::FreeInternal needs no change.
-    return heap_caps_aligned_alloc(16, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    // kernels. heap_caps_aligned_alloc pairs with heap_caps_free, which is
+    // what Free() below uses for either capability.
+    //
+    // MALLOC_CAP_DMA when the caller asked for reachability: internal RAM is
+    // mostly DMA-reachable on this part but not all of it, and a display
+    // peripheral reading a framebuffer that is not gets silent corruption
+    // rather than an error.
+    const uint32_t caps = needsDma ? (MALLOC_CAP_DMA | MALLOC_CAP_8BIT)
+                                   : (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return heap_caps_aligned_alloc(16, bytes, caps);
 }
 
-void* ESP32MemoryProvider::AllocateDMA(size_t size)
+void ESP32MemoryProvider::Free(MemoryRegion region, void* ptr)
 {
-    // MALLOC_CAP_DMA, explicitly. Internal RAM is mostly DMA-reachable on this
-    // part but not all of it, and a display peripheral reading a framebuffer
-    // that is not gets silent corruption rather than an error. Same 16-byte
-    // alignment and the same heap_caps_free pairing as AllocateInternal.
-    return heap_caps_aligned_alloc(16, size, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
+    if (!ptr)
+        return;
+    // Every capability this provider hands out comes from the heap_caps
+    // allocator, and heap_caps_free takes any of them, so the region does not
+    // change what has to happen here — it is checked rather than used.
+    (void)region;
+    heap_caps_free(ptr);
 }
 
-void ESP32MemoryProvider::FreeInternal(void* ptr)
+size_t ESP32MemoryProvider::GetAvailable(MemoryRegion region) const
 {
-    // heap_caps_aligned_alloc pairs with heap_caps_free.
-    if (ptr) heap_caps_free(ptr);
-}
-
-size_t ESP32MemoryProvider::GetAvailableInternalRAM() const
-{
-    return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (region == Mem::Internal)
+        return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (region == Mem::External)
+        return m_HasPSRAM ? heap_caps_get_free_size(MALLOC_CAP_SPIRAM) : 0;
+    return 0;
 }
 
 size_t ESP32MemoryProvider::GetRawBlockSize(void* ptr) const

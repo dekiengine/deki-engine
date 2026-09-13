@@ -35,40 +35,39 @@ public:
     bool Initialize() override { return true; }
     void Shutdown() override {}
 
-    // No external RAM on desktop platforms
-    bool HasExternalRAM() const override { return false; }
-    size_t GetTotalExternalRAM() const override { return 0; }
-    size_t GetAvailableExternalRAM() const override { return 0; }
-
-    // External allocation always fails - use standard malloc instead
-    void* AllocateExternal(size_t size) override
+    // A desktop has one heap and it answers every request, so this is the
+    // whole provider. The same four lines are what a Switch or an Android
+    // build would write: on a platform where all memory is equally fast and
+    // equally reachable, "internal" and "external" are names for the same
+    // place, and saying so explicitly is the honest answer.
+    bool Serves(MemoryRegion region) const override
     {
-        (void)size;
-        return nullptr;
-    }
-    void FreeExternal(void* ptr) override { (void)ptr; }
-    bool IsExternalPointer(void* ptr) const override
-    {
-        (void)ptr;
-        return false;
+        return region == Mem::Internal || region == Mem::External;
     }
 
-    // The three regions, spelled out. On a desktop they are all the C heap:
-    // there is no separate internal pool and no DMA reachability to respect,
-    // so saying malloc three times is the honest answer rather than a
-    // shortcut.
-    void* AllocateInternal(size_t size) override { return malloc(size); }
-    void FreeInternal(void* ptr) override { free(ptr); }
+    void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) override
+    {
+        // needsDma is satisfied by construction: nothing here is behind a bus
+        // a DMA engine cannot cross.
+        (void)needsDma;
+        return Serves(region) ? malloc(bytes) : nullptr;
+    }
 
-    // No DMA engine is involved on a desktop, so every pointer is equally
-    // reachable and plain malloc satisfies the contract.
-    void* AllocateDMA(size_t size) override { return malloc(size); }
+    void Free(MemoryRegion region, void* ptr) override
+    {
+        (void)region;
+        free(ptr);
+    }
 
     // Deliberately unmeasured: zero here means "not a meaningful question on
     // this platform". A desktop's free memory is a question about the OS
     // rather than the process, and the number would be meaningless next to a
     // board's "280 KB of internal SRAM left".
-    size_t GetAvailableInternalRAM() const override { return 0; }
+    size_t GetAvailable(MemoryRegion region) const override
+    {
+        (void)region;
+        return 0;
+    }
 
     // AllocateRaw/FreeRaw keep the base malloc/free. The size query has no
     // portable spelling, so it is per-platform: _msize on the Windows CRT,

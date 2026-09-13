@@ -13,20 +13,32 @@ namespace Deki
 static constexpr size_t CACHE_LINE_SIZE = 64;
 
 // Bookkeeping stored in the 16 bytes right before every user pointer handed
-// out by Allocate(). headerSize says how far back the raw allocation starts
-// (16 for internal RAM, a cache line for PSRAM), trackSlot is the debug
-// tracking record so Free() can release it in O(1).
+// out by Allocate(). It carries which region the block came from, so Free()
+// can hand it back to the right one without the caller remembering.
+//
+// Still 16 bytes, because the region id is paid for out of two fields that
+// were barely using theirs: headerSize is only ever 16 or a cache line, and
+// trackSlot indexes at most a thousand debug records. Both fit in one word
+// between them, which frees a whole word for the id. Every allocation on the
+// device carries this header, so a 17th byte would be real memory.
 struct AllocHeader
 {
     uint32_t size;
-    uint32_t headerSize;
-    uint32_t trackSlot;
+    uint32_t packed;    ///< headerSize in the low 8 bits, trackSlot in the top 24
+    uint32_t regionId;  ///< MemoryRegion::id — where Free() returns it to
     uint32_t magic;
+
+    uint32_t HeaderSize() const { return packed & 0xFFu; }
+    uint32_t TrackSlot() const { return packed >> 8; }
+    void SetPacked(uint32_t headerSize, uint32_t trackSlot)
+    {
+        packed = (headerSize & 0xFFu) | (trackSlot << 8);
+    }
 };
 static_assert(sizeof(AllocHeader) == 16, "AllocHeader must be exactly 16 bytes");
 static constexpr size_t kInternalHeaderSize = sizeof(AllocHeader);
 static constexpr uint32_t kAllocMagic = 0xDEC1A11Cu;
-static constexpr uint32_t kNoTrackSlot = 0xFFFFFFFFu;
+static constexpr uint32_t kNoTrackSlot = 0xFFFFFFu;  // 24 bits, not 32
 
 // __FILE__ is whatever path the build system fed the compiler, which here is
 // absolute and long. The log wants the last component; this runs only on a
@@ -98,7 +110,7 @@ bool Memory::Initialize()
     }
 
     // Detect external RAM availability via backend
-    s_PsramAvailable = s_CurrentBackend->HasExternalRAM();
+    s_PsramAvailable = s_CurrentBackend->Serves(Mem::External);
     s_PsramEnabled = s_PsramAvailable;
 
     // Reset all counters
@@ -125,12 +137,12 @@ bool Memory::Initialize()
     // particle pool has room — and without them the first out-of-memory line
     // arrives with nothing to compare against. ESP-IDF prints its heap
     // regions, but not which of them Deki will treat as external.
-    const size_t freeInternal = s_CurrentBackend->GetAvailableInternalRAM();
+    const size_t freeInternal = s_CurrentBackend->GetAvailable(Mem::Internal);
     if (s_PsramAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
                       "(only Mem::External goes external; everything else "
                       "stays internal)",
-                      freeInternal, s_CurrentBackend->GetAvailableExternalRAM());
+                      freeInternal, s_CurrentBackend->GetAvailable(Mem::External));
     else
         DEKI_LOG_INFO("Memory: %zu bytes free internal, no external RAM "
                       "(every region resolves to internal)",
@@ -141,7 +153,7 @@ bool Memory::Initialize()
 
 size_t Memory::GetAvailableInternal()
 {
-    return s_CurrentBackend ? s_CurrentBackend->GetAvailableInternalRAM() : 0;
+    return s_CurrentBackend ? s_CurrentBackend->GetAvailable(Mem::Internal) : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -344,12 +356,43 @@ void Memory::SetBackend(IMemoryProvider* backend)
 //
 // A board with no external RAM resolves everything to internal. That is not a
 // fallback, it is the only region there is.
-static bool ResolveExternal(Deki::MemoryRegion region, bool psramUsable)
+#ifdef DEBUG
+// Two regions with the same id and different names would be indistinguishable:
+// a buffer allocated from one would be freed to the other, because the header
+// carries only the id. Two packages choosing the SAME name is fine and
+// intended — that is how they agree on a vocabulary without coordinating — but
+// two different names landing on one hash is a bug nobody would ever guess at.
+//
+// So the first time each id is seen, its name is remembered, and a later
+// mismatch says so. Sixteen slots and a pointer compare first: region names are
+// literals, so the usual case is one comparison and no strcmp at all.
+static void CheckRegionIdentity(Deki::MemoryRegion region)
 {
-    if (!psramUsable)
-        return false;
-    return region == Deki::Mem::External;
+    struct Seen
+    {
+        uint32_t id;
+        const char* name;
+    };
+    static Seen s_Seen[16];
+    static int s_Count = 0;
+
+    for (int i = 0; i < s_Count; ++i)
+    {
+        if (s_Seen[i].id != region.id)
+            continue;
+        if (s_Seen[i].name == region.name || strcmp(s_Seen[i].name, region.name) == 0)
+            return;  // same region, same name: nothing to say
+        DEKI_LOG_ERROR("Memory: regions '%s' and '%s' hash to the same id (%u). "
+                       "One of them must be renamed — the allocation header "
+                       "stores only the id, so blocks from one would be freed "
+                       "to the other",
+                       s_Seen[i].name, region.name, region.id);
+        return;
+    }
+    if (s_Count < static_cast<int>(sizeof(s_Seen) / sizeof(s_Seen[0])))
+        s_Seen[s_Count++] = Seen{region.id, region.name};
 }
+#endif
 
 void* Memory::Allocate(size_t size, MemoryRegion region, AllocContext ctx)
 {
@@ -367,6 +410,9 @@ void* Memory::AllocateDma(size_t size, MemoryRegion region, AllocContext ctx)
 // silently drop the requirement.
 void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocContext ctx)
 {
+#ifdef DEBUG
+    CheckRegionIdentity(region);
+#endif
 
     if (size == 0)
     {
@@ -385,44 +431,40 @@ void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocC
     size_t header_size = kInternalHeaderSize;
     size_t total_size = size + header_size;
 
+    // A board with no external RAM has exactly one region, so an External
+    // request resolves to Internal there. That is not a fallback — there is no
+    // second region to fall back to.
     const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
-    const bool used_psram = ResolveExternal(region, psramUsable);
+    const MemoryRegion placed =
+        (region == Mem::External && !psramUsable) ? Mem::Internal : region;
+    const bool used_psram = (placed == Mem::External);
 
-    // One region, no second attempt. Quietly moving an Internal buffer into
-    // external RAM because internal was full turns a placement mistake into
-    // frame drops nobody can account for, and moving an External one the other
-    // way exhausts the internal heap the next allocation needed. Failing here
-    // is visible, and the caller already has to handle null.
+    // External buffers are DMA targets on the ESP32-S3, where cache operations
+    // work on 64-byte lines, so they take a cache-line-sized header and a
+    // cache-line-rounded payload.
     if (used_psram)
     {
         const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
         header_size = CACHE_LINE_SIZE;
         total_size = aligned_size + CACHE_LINE_SIZE;
-        raw_ptr = AllocatePSRAM(total_size);
     }
-    else if (s_CurrentBackend)
-    {
-        // Through the backend, not malloc: on the ESP32 that is heap_caps with
-        // the right capability, and it is what FreeInternal pairs with. Plain
-        // malloc here was only correct by luck of the backend.
-        //
-        // DMA asks for the capability explicitly. Internal RAM is mostly
-        // DMA-reachable on that part but not all of it, and a peripheral
-        // reading memory that is not gets silent corruption.
-        raw_ptr = needsDma ? s_CurrentBackend->AllocateDMA(total_size)
-                           : s_CurrentBackend->AllocateInternal(total_size);
-    }
+
+    // One region, one attempt. Substituting another when the chosen one is
+    // full turns a placement mistake into frame drops nobody can account for,
+    // or exhausts the heap the next allocation needed. A region this board does
+    // not serve returns nullptr the same way a full one does, and the failure
+    // below names it.
+    if (s_CurrentBackend)
+        raw_ptr = s_CurrentBackend->Allocate(placed, total_size, needsDma);
     else
-    {
         raw_ptr = malloc(total_size);  // host builds, before a backend is set
-    }
 
     if (raw_ptr)
     {
         void* user_ptr = static_cast<uint8_t*>(raw_ptr) + header_size;
         AllocHeader* header = HeaderOf(user_ptr);
         header->size = static_cast<uint32_t>(size);
-        header->headerSize = static_cast<uint32_t>(header_size);
+        header->regionId = placed.id;
         header->magic = kAllocMagic;
 
         // Zero initialize only the user portion
@@ -430,8 +472,9 @@ void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocC
 
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
-        header->trackSlot = UpdateTracking(static_cast<int32_t>(size), used_psram, user_ptr,
-                                           ctx.Name(), ctx.Line());
+        header->SetPacked(static_cast<uint32_t>(header_size),
+                          UpdateTracking(static_cast<int32_t>(size), used_psram, user_ptr,
+                                         ctx.Name(), ctx.Line()));
 
         return user_ptr;
     }
@@ -444,28 +487,31 @@ void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocC
         // succeeds — and the region it reports is the one that was tried,
         // since there is no fallback to the other.
         //
-        // GetAvailableInternalRAM returns 0 when a provider does not
+        // GetAvailable returns 0 when a provider does not
         // implement it (the desktop one does not — the number is meaningless
         // where the OS pages), so a zero is reported as unknown rather than
         // as an empty heap, which would send someone hunting a leak that is
         // not there.
         const size_t freeHere = s_CurrentBackend
-            ? (used_psram ? s_CurrentBackend->GetAvailableExternalRAM()
-                          : s_CurrentBackend->GetAvailableInternalRAM())
+            ? s_CurrentBackend->GetAvailable(region)
             : 0;
-        const char* region = used_psram ? "external" : "internal";
+        // The region's own name, not a guess from a bool: a board that does
+        // not serve "rtc" has to say "rtc", or the message sends a reader
+        // looking at the wrong memory entirely.
+        const char* region_name = placed.name;
 
         // Every word here is one a reader needs: what, how big, which
         // region, how much was left in it, and who asked. The placement rule
         // is printed once at startup rather than restated on every failure.
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
         if (freeHere > 0)
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' at %s:%u "
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u "
                            "(%zu bytes free there)",
-                           size, region, ctx.Name(), BaseName(ctx.File()), ctx.Line(), freeHere);
+                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line(),
+                           freeHere);
         else
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' at %s:%u",
-                           size, region, ctx.Name(), BaseName(ctx.File()), ctx.Line());
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u",
+                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line());
 #else
         // No call site was captured, so none is claimed — and the line says how
         // to get one instead of spending its width on the no-fallback rule,
@@ -474,13 +520,13 @@ void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocC
         // the caller passed no label at all ('?') that is the only lead there
         // is.
         if (freeHere > 0)
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' "
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' "
                            "(%zu bytes free there); build with DEBUG for the call site",
-                           size, region, ctx.Name(), freeHere);
+                           size, region_name, ctx.Name(), freeHere);
         else
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s'; "
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s'; "
                            "build with DEBUG for the call site",
-                           size, region, ctx.Name());
+                           size, region_name, ctx.Name());
 #endif
     }
 
@@ -494,7 +540,7 @@ void* Memory::AllocateInternal(size_t size, AllocContext ctx)
     void* ptr = nullptr;
     if (s_CurrentBackend)
     {
-        ptr = s_CurrentBackend->AllocateInternal(size);
+        ptr = s_CurrentBackend->Allocate(Mem::Internal, size, /*needsDma=*/false);
     }
     else
     {
@@ -527,7 +573,7 @@ void Memory::FreeInternal(void* ptr)
     // frees it (heap_caps_free on the ESP32); plain free() was only correct
     // by luck of the backend's implementation.
     if (s_CurrentBackend)
-        s_CurrentBackend->FreeInternal(ptr);
+        s_CurrentBackend->Free(Mem::Internal, ptr);
     else
         free(ptr);
 }
@@ -548,24 +594,28 @@ void Memory::Free(void* ptr, AllocContext ctx)
         return;
     }
     header->magic = 0;  // double free shows up as the error above, not as heap corruption
-    void* raw_ptr = static_cast<uint8_t*>(ptr) - header->headerSize;
+    void* raw_ptr = static_cast<uint8_t*>(ptr) - header->HeaderSize();
     const size_t freed_size = header->size;
 
 #ifdef DEBUG
-    UntrackAllocation(ptr, header->trackSlot);
+    UntrackAllocation(ptr, header->TrackSlot());
 #endif
 
-    // Use backend to check if pointer is in external RAM (check raw_ptr, not user ptr)
-    bool was_psram = false;
-    if (s_CurrentBackend && s_CurrentBackend->IsExternalPointer(raw_ptr))
-    {
-        s_CurrentBackend->FreeExternal(raw_ptr);
-        was_psram = true;
-    }
+    // The block says which region it came from, so this no longer has to ask
+    // the provider to recognise its own pointer — and an internal block goes
+    // back through the provider that allocated it rather than through plain
+    // free(), which was only correct because heap_caps and free happen to share
+    // a heap on ESP-IDF.
+    //
+    // The name is not stored (it would cost a pointer per allocation); a
+    // provider dispatches on the id, and only a failure would want the name.
+    const MemoryRegion region{header->regionId, "?"};
+    const bool was_psram = (header->regionId == Mem::External.id);
+
+    if (s_CurrentBackend)
+        s_CurrentBackend->Free(region, raw_ptr);
     else
-    {
         free(raw_ptr);
-    }
 
     // Always update tracking (both DEBUG and RELEASE builds)
     UpdateTracking(-static_cast<int32_t>(freed_size), was_psram, ptr, ctx.Name(), ctx.Line());
@@ -586,19 +636,19 @@ MemoryStats Memory::GetStats()
 
 bool Memory::DetectPSRAM()
 {
-    return s_CurrentBackend ? s_CurrentBackend->HasExternalRAM() : false;
+    return s_CurrentBackend ? s_CurrentBackend->Serves(Mem::External) : false;
 }
 
 void* Memory::AllocatePSRAM(size_t size)
 {
-    return s_CurrentBackend ? s_CurrentBackend->AllocateExternal(size) : nullptr;
+    return s_CurrentBackend ? s_CurrentBackend->Allocate(Mem::External, size, false) : nullptr;
 }
 
 void Memory::FreePSRAM(void* ptr)
 {
     if (s_CurrentBackend)
     {
-        s_CurrentBackend->FreeExternal(ptr);
+        s_CurrentBackend->Free(Mem::External, ptr);
     }
 }
 
@@ -630,7 +680,7 @@ uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const cha
 
 size_t Memory::GetAvailablePSRAM()
 {
-    return s_CurrentBackend ? s_CurrentBackend->GetAvailableExternalRAM() : 0;
+    return s_CurrentBackend ? s_CurrentBackend->GetAvailable(Mem::External) : 0;
 }
 
 bool Memory::IsInitialized()
