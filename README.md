@@ -79,7 +79,7 @@ an id is what scene files and the editor do, through engine-internal paths.
 #include <deki/providers/Buffer.h>
 
 Deki::Buffer<uint8_t> pixels;                                  // owns, frees itself
-if (!pixels.Allocate(w * h * 2, Deki::MemoryUse::Buffer, "Thing::bake"))
+if (!pixels.Allocate(w * h * 2, Deki::Mem::External))
     return false;                                              // out of memory returns, never aborts
 ```
 
@@ -93,15 +93,18 @@ reboots the board. `std::nothrow` aborts identically, because libstdc++
 implements it by calling the throwing form inside a `try`/`catch` that
 `-fno-exceptions` has removed.
 
-A caller says *where* the memory goes — `MemoryUse::Internal`, `External`
-(PSRAM where the board has it) or `DMA` (a peripheral has to reach it) — on
-every allocating call, because there is no default and nothing is inferred.
-Size is not a hint: the framebuffer is the largest allocation on the part and
-belongs in internal RAM. **Placement resolves once and is never retried
-elsewhere**: a full region returns null, which the caller handles.
-`Deki::IMemoryProvider` is the per-platform half, and every region it offers is
-a pure virtual — a provider for a new board cannot inherit a placement it never
-thought about.
+A caller says *where* the memory goes — `Deki::Mem::Internal` or
+`Deki::Mem::External` — on every allocating call, because there is no default
+and nothing is inferred. Size is not a hint: the framebuffer is the largest
+allocation on the part and belongs in internal RAM. `Memory::AllocateDma` adds
+the constraint that a peripheral must be able to read the block, which is
+orthogonal to where it lives.
+
+**A region is a name, not an enumerator**, so the set is open: a board-support
+package writes `Deki::Region("esp32.rtc")` and the engine carries it with no
+change. Only that board's `Deki::IMemoryProvider` can serve it, and one that
+cannot returns null and says which region — **placement resolves once and is
+never substituted**.
 
 Full reference, including the lint that enforces this:
 [docs/memory.md](https://github.com/dekiengine/deki-editor/blob/master/docs/memory.md).
