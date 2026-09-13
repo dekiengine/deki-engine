@@ -129,7 +129,7 @@ struct DekiReflectionAbi
  *    say which one a DLL was built for. Growing the struct is itself the
  *    layout change that forces the bump.
  *
- * 11: Deki::IMemoryProvider gained AllocateDMA. MemoryUse::DMA promised a
+ * 11: Deki::IMemoryProvider gained AllocateDMA. MemoryRegion::DMA promised a
  *    buffer a peripheral could read, and only the platform knows how to get
  *    one — on the ESP32 some internal RAM is not DMA-reachable, so
  *    "internal and probably fine" was silent corruption waiting for a

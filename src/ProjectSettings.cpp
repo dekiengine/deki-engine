@@ -166,7 +166,7 @@ static void RetainPackageChunk(const uint8_t* data, size_t size)
         // marked it unreadable in that case, so the effect is the same:
         // ReadPackageSetting* reports the setting as absent and the package
         // takes its default.
-        if (!s_PackageChunk.Allocate(size, Deki::MemoryUse::External))
+        if (!s_PackageChunk.Allocate(size, Deki::Mem::External))
         {
             s_PackageChunkSize = 0;
             return;

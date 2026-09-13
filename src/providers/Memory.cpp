@@ -128,12 +128,12 @@ bool Memory::Initialize()
     const size_t freeInternal = s_CurrentBackend->GetAvailableInternalRAM();
     if (s_PsramAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
-                      "(only MemoryUse::External goes external; everything else "
+                      "(only Mem::External goes external; everything else "
                       "stays internal)",
                       freeInternal, s_CurrentBackend->GetAvailableExternalRAM());
     else
         DEKI_LOG_INFO("Memory: %zu bytes free internal, no external RAM "
-                      "(every MemoryUse resolves to internal)",
+                      "(every region resolves to internal)",
                       freeInternal);
 
     return true;
@@ -298,7 +298,7 @@ void Memory::Shutdown()
 
     // And forget that the board had external RAM. These outlived the backend
     // that reported them, so after a shutdown the engine still believed PSRAM
-    // was there: a later MemoryUse::External took the external path, found no
+    // was there: a later Mem::External took the external path, found no
     // provider, and failed with "Failed to allocate N bytes in external RAM"
     // on a machine with gigabytes free. Harmless while shutdown only ever ran
     // at exit; not harmless once anything restarts the memory system.
@@ -335,7 +335,7 @@ void Memory::SetBackend(IMemoryProvider* backend)
 
 // Where a use lives on THIS board. Resolved once, and not revisited.
 //
-// Nothing reaches external RAM unless the caller named MemoryUse::External.
+// Nothing reaches external RAM unless the caller named Mem::External.
 // There is no size rule and no other way in: size does not predict placement,
 // since the largest allocation on the part is usually the framebuffer and it
 // belongs in internal RAM. A buffer that lands somewhere slow for reasons
@@ -344,17 +344,30 @@ void Memory::SetBackend(IMemoryProvider* backend)
 //
 // A board with no external RAM resolves everything to internal. That is not a
 // fallback, it is the only region there is.
-static bool ResolveExternal(Deki::MemoryUse use, bool psramUsable)
+static bool ResolveExternal(Deki::MemoryRegion region, bool psramUsable)
 {
     if (!psramUsable)
         return false;
-    return use == Deki::MemoryUse::External;
+    return region == Deki::Mem::External;
 }
 
-void* Memory::Allocate(size_t size,
-                           MemoryUse use,
-                           AllocContext ctx)
+void* Memory::Allocate(size_t size, MemoryRegion region, AllocContext ctx)
 {
+    return AllocateIn(size, region, /*needsDma=*/false, ctx);
+}
+
+void* Memory::AllocateDma(size_t size, MemoryRegion region, AllocContext ctx)
+{
+    return AllocateIn(size, region, /*needsDma=*/true, ctx);
+}
+
+// The one allocation path. `needsDma` is the constraint the public AllocateDma
+// carries, and it is orthogonal to the region: a framebuffer must be reachable
+// whether the board keeps it internally or in PSRAM, so neither placement can
+// silently drop the requirement.
+void* Memory::AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocContext ctx)
+{
+
     if (size == 0)
     {
         DEKI_LOG_WARNING("Attempted to allocate 0 bytes");
@@ -373,7 +386,7 @@ void* Memory::Allocate(size_t size,
     size_t total_size = size + header_size;
 
     const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
-    const bool used_psram = ResolveExternal(use, psramUsable);
+    const bool used_psram = ResolveExternal(region, psramUsable);
 
     // One region, no second attempt. Quietly moving an Internal buffer into
     // external RAM because internal was full turns a placement mistake into
@@ -396,8 +409,8 @@ void* Memory::Allocate(size_t size,
         // DMA asks for the capability explicitly. Internal RAM is mostly
         // DMA-reachable on that part but not all of it, and a peripheral
         // reading memory that is not gets silent corruption.
-        raw_ptr = (use == MemoryUse::DMA) ? s_CurrentBackend->AllocateDMA(total_size)
-                                          : s_CurrentBackend->AllocateInternal(total_size);
+        raw_ptr = needsDma ? s_CurrentBackend->AllocateDMA(total_size)
+                           : s_CurrentBackend->AllocateInternal(total_size);
     }
     else
     {

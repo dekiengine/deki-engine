@@ -30,7 +30,7 @@ namespace detail
 // The raw allocation path, used by the global operator new on builds with
 // exceptions off (src/providers/OperatorNew.cpp). Deliberately not on Memory
 // itself: a component or a package reaching for these is a mistake — they
-// carry no MemoryUse, so the engine cannot place what they hand back, and
+// carry no region, so the engine cannot place what they hand back, and
 // they have no header, so they have no double-free guard. Use Deki::Buffer<T>
 // or Memory::Allocate.
 void* RawAllocate(size_t size);
@@ -52,7 +52,7 @@ enum class MemorySubsystem : uint8_t
  * argument captures the call site, so an allocation is identified by where it
  * was written:
  *
- *     Deki::Memory::Allocate(n, Deki::MemoryUse::Internal);
+ *     Deki::Memory::Allocate(n, Deki::Mem::Internal);
  *     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
  *
  * There is no name to pass and no way to pass one. A hand-written tag is a
@@ -102,44 +102,67 @@ struct AllocContext
 // police.
 
 
+/// FNV-1a over a name, at compile time. The same function
+/// AssetLookupTable::HashString computes at runtime, so a region name hashes
+/// the way every other name in this engine does.
+constexpr uint32_t HashName(const char* s)
+{
+    uint32_t h = 2166136261u;
+    while (*s)
+    {
+        h ^= static_cast<uint8_t>(*s++);
+        h *= 16777619u;
+    }
+    return h;
+}
+
 /**
  * @brief Where an allocation lives. The caller says; the engine never guesses.
  *
- * Three regions, and every allocating call names one — there is no default and
- * omitting it does not compile. MemoryUse::External is the only route to PSRAM.
+ * A region is a name, not an enumerator, so the set of them is open: a package
+ * defines one and the engine needs no change to carry it.
  *
- * Size says nothing about where a buffer belongs. A full-screen framebuffer
- * is the largest allocation on the part and also the one touched most, and it
- * belongs in internal RAM; a decoded asset the same size may never be read
- * again after load. Only the caller knows which it is holding, so only the
- * caller chooses.
+ *     namespace Deki::Mem
+ *     {
+ *     inline constexpr MemoryRegion Rtc = Region("rtc");
+ *     }
  *
- * The placement is resolved once and NOT revisited. There is no fallback to
- * the other region when the chosen one is full: a failed allocation returns
- * nullptr, which every caller already has to handle. A board with no external
- * RAM resolves everything to internal — not a fallback, just the only region
- * there is.
+ * Deki::Mem is an ordinary namespace, so a package extends it the way it would
+ * extend any other. What a package cannot do is SERVE a region: only the
+ * board's IMemoryProvider can, and one that has not heard of "rtc" returns
+ * nullptr and says so by name. Extension is two-sided on purpose — a package
+ * names what it needs, a board decides whether it has it.
+ *
+ * The name is also the capability name, so a package that declares
+ * platformRequires: ["rtc"] and one that writes Region("rtc") agree by
+ * construction, and the build refuses the target before the allocation can
+ * fail on it.
+ *
+ * The pointer is kept, never copied: Region() is only ever called on a string
+ * literal, which has static storage duration.
  */
-enum class MemoryUse : uint8_t
+struct MemoryRegion
 {
-    /// Internal RAM. Fast, and the scarce one — a few hundred KB on an
-    /// ESP32-S3. Where everything lives unless you say otherwise.
-    Internal = 0,
+    uint32_t id;       ///< HashName(name); what the provider dispatches on
+    const char* name;  ///< what a failure prints
 
-    /// External RAM (PSRAM) where the board has it, internal where it does
-    /// not. Megabytes, and markedly slower: it is reached over SPI, so a
-    /// buffer read every frame does not belong here. Asking for External is a
-    /// claim that this buffer's latency does not matter.
-    External,
-
-    /// Internal RAM that a DMA engine can reach.
-    ///
-    /// Not a synonym for Internal: on the ESP32-S3 some internal regions are
-    /// not DMA-reachable, and a peripheral reading one of those gets silent
-    /// corruption rather than an error. A framebuffer handed to a display
-    /// driver needs this; a glyph table does not.
-    DMA,
+    constexpr bool operator==(const MemoryRegion& other) const { return id == other.id; }
+    constexpr bool operator!=(const MemoryRegion& other) const { return id != other.id; }
 };
+
+constexpr MemoryRegion Region(const char* name) { return MemoryRegion{HashName(name), name}; }
+
+namespace Mem
+{
+/// Internal RAM. Fast, and the scarce one — a few hundred KB on an ESP32-S3.
+inline constexpr MemoryRegion Internal = Region("internal");
+
+/// External RAM (PSRAM) where the board has it. Megabytes, and markedly
+/// slower: it is reached over SPI, so a buffer read every frame does not
+/// belong here. Asking for it is a claim that this buffer's latency does not
+/// matter.
+inline constexpr MemoryRegion External = Region("external");
+}  // namespace Mem
 
 /**
  * @brief Memory statistics structure
@@ -230,28 +253,41 @@ public:
     /**
      * @brief Allocate memory, the engine choosing where it lives
      * @param size Size in bytes
-     * @param use Where it lives (see MemoryUse). Internal unless Buffer is
-     *            named; resolved once, with no fallback to the other region
+     * @param region Where it lives. Resolved once, with no fallback to any
+     *               other region; a region the board's provider does not serve
+     *               returns nullptr and is named in the log
      * @param ctx Who is asking. Omit it — the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
-                          MemoryUse use,
+                          MemoryRegion region,
                           AllocContext ctx = {});
 
     /**
-     * @brief Deprecated: pass a MemoryUse instead of choosing PSRAM yourself
+     * @brief Allocate memory a DMA engine can read, from `region`
      *
-     * Kept so packages built against an older engine still compile. true maps
-     * to MemoryUse::External and false to MemoryUse::Internal.
+     * Reachability is a constraint, not a place: a framebuffer must be
+     * reachable whether the board keeps it in internal RAM or in PSRAM, and
+     * saying so with a separate entry point means neither choice can silently
+     * drop the requirement. On a platform where every allocation is equally
+     * reachable this is the same as Allocate, and the provider says so.
+     */
+    static void* AllocateDma(size_t size,
+                             MemoryRegion region,
+                             AllocContext ctx = {});
+
+    /**
+     * @brief Deprecated: name the region instead of choosing PSRAM yourself
+     *
+     * true maps to Mem::External and false to Mem::Internal.
      */
     static void* Allocate(size_t size, bool prefer_psram, AllocContext ctx = {})
     {
-        return Allocate(size, prefer_psram ? MemoryUse::External : MemoryUse::Internal, ctx);
+        return Allocate(size, prefer_psram ? Mem::External : Mem::Internal, ctx);
     }
 
     // kLargeAllocation is gone with the size heuristic it served. Nothing
-    // decides placement by size any more: a caller names MemoryUse::External or
+    // decides placement by size any more: a caller names Mem::External or
     // gets internal RAM.
 
     /**
@@ -292,7 +328,7 @@ public:
      * raw buffers it replaces.
      */
     template <typename T>
-    static T* AllocateArray(size_t count, MemoryUse use, AllocContext ctx = {})
+    static T* AllocateArray(size_t count, MemoryRegion region, AllocContext ctx = {})
     {
         if (count == 0)
             return nullptr;
@@ -300,7 +336,7 @@ public:
             return nullptr;  // would wrap; no allocation could satisfy it anyway
         // ctx is forwarded, not defaulted again, so it still names the
         // caller of AllocateArray rather than this header.
-        return static_cast<T*>(Allocate(count * sizeof(T), use, ctx));
+        return static_cast<T*>(Allocate(count * sizeof(T), region, ctx));
     }
 
     /**
@@ -364,6 +400,9 @@ public:
     static bool IsPSRAMAvailable();
 
 private:
+    // Both public entry points land here; needsDma is what separates them.
+    static void* AllocateIn(size_t size, MemoryRegion region, bool needsDma, AllocContext ctx);
+
     /**
      * @brief Detect if PSRAM is available
      * @return true if PSRAM detected

@@ -11,7 +11,7 @@
 // So this is std::vector's shape with the one thing changed that matters
 // here: everything that can allocate returns bool.
 //
-//     Deki::Vector<Enemy> enemies(Deki::MemoryUse::Internal);
+//     Deki::Vector<Enemy> enemies(Deki::Mem::Internal);
 //     if (!enemies.Reserve(32))
 //         return;                      // out of memory, said once
 //     if (!enemies.PushBack(spawned))  // and again per growth, if it grows
@@ -63,8 +63,8 @@ public:
      * once here rather than on every Reserve, so the declaration is where a
      * reader learns what memory this list occupies.
      */
-    explicit Vector(MemoryUse use, AllocContext ctx = {})
-        : m_Use(use), m_Context(ctx)
+    explicit Vector(MemoryRegion region, AllocContext ctx = {})
+        : m_Region(region), m_Context(ctx)
     {
     }
 
@@ -78,7 +78,7 @@ public:
     Vector(Vector&& other) noexcept
         : m_Storage(std::move(other.m_Storage)),
           m_Size(other.m_Size),
-          m_Use(other.m_Use),
+          m_Region(other.m_Region),
           m_Context(other.m_Context)
     {
         other.m_Size = 0;
@@ -90,7 +90,7 @@ public:
         {
             m_Storage = std::move(other.m_Storage);
             m_Size = other.m_Size;
-            m_Use = other.m_Use;
+            m_Region = other.m_Region;
             m_Context = other.m_Context;
             other.m_Size = 0;
         }
@@ -118,7 +118,7 @@ public:
             return true;
 
         Buffer<T> grown;
-        if (!grown.Allocate(count, m_Use, m_Context))
+        if (!grown.Allocate(count, m_Region, m_Context))
             return false;
 
         // memcpy, not a loop of moves: T is trivially copyable, which is what
@@ -219,7 +219,7 @@ private:
     // named, and reports the line the vector was declared on rather than the
     // Reserve inside PushBack that happened to trip it. No member default,
     // because that would be the engine choosing.
-    MemoryUse m_Use;
+    MemoryRegion m_Region;
     AllocContext m_Context;
 };
 
