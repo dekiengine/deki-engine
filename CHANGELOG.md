@@ -89,6 +89,17 @@ and package DLLs has its own numbered history in
   32-bit `size_t` on the device, so a corrupt count silently wraps small.
 - `IMemoryProvider::AllocateDma`, and `MALLOC_CAP_DMA` behind it on the ESP32.
   `MemoryUse::Dma` had documented a promise the allocator was not keeping.
+- The boot path reports what it cost. `Memory::LogStats` is called once when
+  the boot scene is up, and again when a setup scene has loaded the startup
+  scene, so a device log says how many bytes are in each region before the
+  game loop allocates anything. A platform that declares no boot scene of its
+  own gets the game scene baked in as one, so on those the first call is the
+  only report there will be; where both happen the labels tell them apart.
+  The function existed and had no callers, which left the one number worth
+  having on a device — how much external RAM the boot path takes — written
+  down nowhere. An S3 with 4MB PSRAM under QEMU now logs `Memory at boot
+  scene: 153600 bytes allocated (0 internal, 153600 external); 121335 free
+  internal, 4037684 free external`.
 
 ### Changed
 - **`MemoryUse` is `Internal`, `External`, `DMA` — required, never inferred.**
