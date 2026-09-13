@@ -129,6 +129,13 @@ and package DLLs has its own numbered history in
   depending on target, so a C++20 feature would compile for the board and
   fail on the desktop. Two identifiers named `requires` had to be renamed
   (it is a keyword since C++20) and nothing else broke.
+- Reflection codegen keeps one precompiled header per flag set instead of one
+  for the whole build tree. A `.gch` records the defines it was built under
+  and GCC refuses one whose defines do not match, so a single shared directory
+  served whichever caller reached it first and every other caller parsed the
+  headers from scratch with a `-Winvalid-pch` warning. It went unnoticed while
+  the editor was the only caller; the per-package compile checks have 23
+  different define sets. Callers that agree on flags still share one PCH.
 - Memory placement resolves once and is not revisited: there is no fallback to
   the other region when the chosen one is full. Quietly moving a `Hot` buffer
   into external RAM turns a placement mistake into frame drops nobody can

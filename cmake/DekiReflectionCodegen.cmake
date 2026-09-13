@@ -273,7 +273,15 @@ function(deki_reflection_codegen)
   set(_pch_src "${_gensrcdir}/reflection_codegen_pch.h")
   set(_pch_active FALSE)
   if(EXISTS "${_pch_src}")
-    set(_pchdir "${CMAKE_BINARY_DIR}/reflcodegen/_pch")
+    # One PCH per flag set. A .gch records the defines it was built under and
+    # GCC refuses one whose defines do not match, so a single shared directory
+    # serves whichever caller reached it first and every other caller parses
+    # the headers from scratch with a -Winvalid-pch warning. The per-package
+    # compile checks have 23 different define sets; callers that agree on
+    # flags still share one PCH.
+    string(MD5 _pch_key "${_flags_common}")
+    string(SUBSTRING "${_pch_key}" 0 12 _pch_key)
+    set(_pchdir "${CMAKE_BINARY_DIR}/reflcodegen/_pch/${_pch_key}")
     set(_pch_hdr "${_pchdir}/reflection_codegen_pch.h")
     set(_pch_gch "${_pch_hdr}.gch")
     set(_pch_dep "${_pch_gch}.d")
