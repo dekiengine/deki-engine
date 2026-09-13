@@ -28,6 +28,22 @@ static constexpr size_t kInternalHeaderSize = sizeof(AllocHeader);
 static constexpr uint32_t kAllocMagic = 0xDEC1A11Cu;
 static constexpr uint32_t kNoTrackSlot = 0xFFFFFFFFu;
 
+// __FILE__ is whatever path the build system fed the compiler, which here is
+// absolute and long. The log wants the last component; this runs only on a
+// failure or a leak, so the scan costs nothing that matters.
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+static const char* BaseName(const char* path)
+{
+    if (!path)
+        return "?";
+    const char* last = path;
+    for (const char* p = path; *p; ++p)
+        if (*p == '/' || *p == '\\')
+            last = p + 1;
+    return last;
+}
+#endif
+
 static inline AllocHeader* HeaderOf(void* userPtr)
 {
     return reinterpret_cast<AllocHeader*>(static_cast<uint8_t*>(userPtr) - sizeof(AllocHeader));
@@ -112,7 +128,7 @@ bool Memory::Initialize()
     const size_t freeInternal = s_CurrentBackend->GetAvailableInternalRAM();
     if (s_PsramAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
-                      "(only MemoryUse::Buffer goes external; everything else "
+                      "(only MemoryUse::External goes external; everything else "
                       "stays internal)",
                       freeInternal, s_CurrentBackend->GetAvailableExternalRAM());
     else
@@ -282,7 +298,7 @@ void Memory::Shutdown()
 
     // And forget that the board had external RAM. These outlived the backend
     // that reported them, so after a shutdown the engine still believed PSRAM
-    // was there: a later MemoryUse::Buffer took the external path, found no
+    // was there: a later MemoryUse::External took the external path, found no
     // provider, and failed with "Failed to allocate N bytes in external RAM"
     // on a machine with gigabytes free. Harmless while shutdown only ever ran
     // at exit; not harmless once anything restarts the memory system.
@@ -319,15 +335,12 @@ void Memory::SetBackend(IMemoryProvider* backend)
 
 // Where a use lives on THIS board. Resolved once, and not revisited.
 //
-// Nothing reaches external RAM unless the caller named MemoryUse::Buffer.
-// There is no size rule and no other way in. The engine used to infer one —
-// anything at or above 16 KB went to PSRAM — and that inference was wrong in
-// the direction that hurts: in a graphics engine the largest allocations are
-// usually the ones touched every frame, and a framebuffer in PSRAM measures
-// markedly worse on real hardware than one in internal RAM. Guessing quietly
-// is worse than asking, because a buffer that ends up somewhere slow for
-// reasons invisible in the source is a performance bug nobody can find by
-// reading the code.
+// Nothing reaches external RAM unless the caller named MemoryUse::External.
+// There is no size rule and no other way in: size does not predict placement,
+// since the largest allocation on the part is usually the framebuffer and it
+// belongs in internal RAM. A buffer that lands somewhere slow for reasons
+// invisible in the source is a performance bug nobody can find by reading the
+// code, so the engine asks instead of guessing.
 //
 // A board with no external RAM resolves everything to internal. That is not a
 // fallback, it is the only region there is.
@@ -335,12 +348,12 @@ static bool ResolveExternal(Deki::MemoryUse use, bool psramUsable)
 {
     if (!psramUsable)
         return false;
-    return use == Deki::MemoryUse::Buffer;
+    return use == Deki::MemoryUse::External;
 }
 
 void* Memory::Allocate(size_t size,
                            MemoryUse use,
-                           const char* context)
+                           AllocContext ctx)
 {
     if (size == 0)
     {
@@ -351,9 +364,9 @@ void* Memory::Allocate(size_t size,
     // The header sits immediately before the user pointer (see AllocHeader).
     // External (PSRAM) buffers are DMA targets on the ESP32-S3, where cache
     // operations work on 64-byte lines, so they keep a cache-line-sized header
-    // and a cache-line-rounded payload. Internal allocations do not need that:
-    // they used to pay the same 64-byte header plus up-to-63 bytes of rounding,
-    // i.e. a minimum of 128 bytes for a 16-byte request, on a part with a few
+    // and a cache-line-rounded payload. Internal allocations take a 16-byte
+    // header and no rounding: giving them the cache-line treatment would cost
+    // a minimum of 128 bytes for a 16-byte request, on a part with a few
     // hundred KB of RAM.
     void* raw_ptr = nullptr;
     size_t header_size = kInternalHeaderSize;
@@ -380,10 +393,10 @@ void* Memory::Allocate(size_t size,
         // the right capability, and it is what FreeInternal pairs with. Plain
         // malloc here was only correct by luck of the backend.
         //
-        // Dma asks for the capability explicitly. Internal RAM is mostly
+        // DMA asks for the capability explicitly. Internal RAM is mostly
         // DMA-reachable on that part but not all of it, and a peripheral
         // reading memory that is not gets silent corruption.
-        raw_ptr = (use == MemoryUse::Dma) ? s_CurrentBackend->AllocateDma(total_size)
+        raw_ptr = (use == MemoryUse::DMA) ? s_CurrentBackend->AllocateDMA(total_size)
                                           : s_CurrentBackend->AllocateInternal(total_size);
     }
     else
@@ -404,7 +417,8 @@ void* Memory::Allocate(size_t size,
 
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
-        header->trackSlot = UpdateTracking(static_cast<int32_t>(size), used_psram, user_ptr, context);
+        header->trackSlot = UpdateTracking(static_cast<int32_t>(size), used_psram, user_ptr,
+                                           ctx.Name(), ctx.Line());
 
         return user_ptr;
     }
@@ -427,20 +441,40 @@ void* Memory::Allocate(size_t size,
                           : s_CurrentBackend->GetAvailableInternalRAM())
             : 0;
         const char* region = used_psram ? "external" : "internal";
+
+        // Every word here is one a reader needs: what, how big, which
+        // region, how much was left in it, and who asked. The placement rule
+        // is printed once at startup rather than restated on every failure.
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+        if (freeHere > 0)
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' at %s:%u "
+                           "(%zu bytes free there)",
+                           size, region, ctx.Name(), BaseName(ctx.File()), ctx.Line(), freeHere);
+        else
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' at %s:%u",
+                           size, region, ctx.Name(), BaseName(ctx.File()), ctx.Line());
+#else
+        // No call site was captured, so none is claimed — and the line says how
+        // to get one instead of spending its width on the no-fallback rule,
+        // which is in docs/memory.md and does not change between runs. Someone
+        // reading this on a board wants to know where to look next, and when
+        // the caller passed no label at all ('?') that is the only lead there
+        // is.
         if (freeHere > 0)
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s' "
-                           "(%zu bytes free there); no fallback is attempted",
-                           size, region, context ? context : "?", freeHere);
+                           "(%zu bytes free there); build with DEBUG for the call site",
+                           size, region, ctx.Name(), freeHere);
         else
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in %s RAM for '%s'; "
-                           "no fallback is attempted",
-                           size, region, context ? context : "?");
+                           "build with DEBUG for the call site",
+                           size, region, ctx.Name());
+#endif
     }
 
     return nullptr;
 }
 
-void* Memory::AllocateInternal(size_t size, const char* context)
+void* Memory::AllocateInternal(size_t size, AllocContext ctx)
 {
     if (size == 0) return nullptr;
 
@@ -460,7 +494,14 @@ void* Memory::AllocateInternal(size_t size, const char* context)
     }
     else
     {
-        DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM (%s)", size, context ? context : "");
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+        DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM for '%s' at %s:%u",
+                       size, ctx.Name(), BaseName(ctx.File()), ctx.Line());
+#else
+        DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM for '%s'; "
+                       "build with DEBUG for the call site",
+                       size, ctx.Name());
+#endif
     }
 
     return ptr;
@@ -478,7 +519,7 @@ void Memory::FreeInternal(void* ptr)
         free(ptr);
 }
 
-void Memory::Free(void* ptr, const char* context)
+void Memory::Free(void* ptr, AllocContext ctx)
 {
     if (!ptr)
     {
@@ -490,7 +531,7 @@ void Memory::Free(void* ptr, const char* context)
     if (header->magic != kAllocMagic)
     {
         DEKI_LOG_ERROR("DekiMemory::Free: %p was not allocated by DekiMemory::Allocate (%s)",
-                       ptr, context ? context : "");
+                       ptr, ctx.Name());
         return;
     }
     header->magic = 0;  // double free shows up as the error above, not as heap corruption
@@ -514,7 +555,7 @@ void Memory::Free(void* ptr, const char* context)
     }
 
     // Always update tracking (both DEBUG and RELEASE builds)
-    UpdateTracking(-static_cast<int32_t>(freed_size), was_psram, ptr, context);
+    UpdateTracking(-static_cast<int32_t>(freed_size), was_psram, ptr, ctx.Name(), ctx.Line());
 }
 
 MemoryStats Memory::GetStats()
@@ -548,7 +589,8 @@ void Memory::FreePSRAM(void* ptr)
     }
 }
 
-uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const char* context)
+uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const char* context,
+                                uint32_t line)
 {
     // Update global counters only - no subsystem overhead
     totalAllocated += size;
@@ -589,7 +631,8 @@ bool Memory::IsPSRAMAvailable()
 }
 
 #ifdef DEBUG
-uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context, bool isPsram)
+uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
+                                 uint32_t line, bool isPsram)
 {
     if (!s_AllocationRecords || !ptr) return kNoTrackSlot;
 
@@ -663,8 +706,9 @@ void Memory::CheckForLeaks()
             leak_count++;
             const char* context = s_AllocationRecords[i].context ? s_AllocationRecords[i].context : "unknown";
             const char* location = s_AllocationRecords[i].isPsram ? "PSRAM" : "Internal";
-            DEKI_LOG_ERROR("  LEAK: %p - %zu bytes [%s] from %s",
-                           s_AllocationRecords[i].ptr, s_AllocationRecords[i].size, location, context);
+            DEKI_LOG_ERROR("  LEAK: %p - %zu bytes [%s] from %s:%u",
+                           s_AllocationRecords[i].ptr, s_AllocationRecords[i].size, location,
+                           context, s_AllocationRecords[i].line);
         }
     }
 

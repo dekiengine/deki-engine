@@ -129,7 +129,7 @@ struct DekiReflectionAbi
  *    say which one a DLL was built for. Growing the struct is itself the
  *    layout change that forces the bump.
  *
- * 11: Deki::IMemoryProvider gained AllocateDma. MemoryUse::Dma promised a
+ * 11: Deki::IMemoryProvider gained AllocateDMA. MemoryUse::DMA promised a
  *    buffer a peripheral could read, and only the platform knows how to get
  *    one — on the ESP32 some internal RAM is not DMA-reachable, so
  *    "internal and probably fine" was silent corruption waiting for a
@@ -146,8 +146,32 @@ struct DekiReflectionAbi
  *    package DLLs were built against it, and those would call into the
  *    provider past the end of the vtable they know. Two numbers inside one
  *    unreleased cycle is cheaper than one silent miscall.
+ *
+ * 13: Deki::Memory's allocating functions take a Deki::AllocContext instead of
+ *    a const char*, so an allocation names itself without the caller writing
+ *    a label. Nothing grew and no vtable moved — AllocContext is a single
+ *    pointer in a release build, the same size the parameter always was — but
+ *    the mangled names of Allocate, AllocateInternal and Free all changed, so
+ *    a package DLL built at ABI 12 would not resolve them. The size
+ *    fingerprint cannot see a parameter type change either, which is the
+ *    second time this cycle that is the reason for a bump.
+ *
+ *    Also in 13: IMemoryProvider::AllocateDma is spelled AllocateDMA, and the
+ *    placement virtuals (AllocateInternal, AllocateDMA, FreeInternal,
+ *    GetAvailableInternalRAM) lost their default implementations. Neither
+ *    moves a slot — a rename keeps its index and a pure virtual keeps its
+ *    index — so both are source breaks rather than binary ones, and they ride
+ *    along on a number this cycle had already bumped. Unlike 11, ABI 13 never
+ *    reached master, so nothing was ever built against an earlier spelling of
+ *    it.
+ *
+ *    AllocContext also has a different LAYOUT between debug and release: it
+ *    carries file, function and line only where DEKI_ALLOC_CONTEXT_CAPTURE is
+ *    defined. Mixing a debug engine with release packages was already
+ *    unsupported (MemoryStats has done this for longer), and this makes the
+ *    consequence sharper rather than introducing it.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 12;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 13;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

@@ -51,12 +51,10 @@
 //
 // Placement is deliberately NOT decided here: these allocations are internal,
 // like everything a caller has not explicitly asked to place elsewhere.
-// Routing by size would silently move a large std::vector into PSRAM and make
-// a hot loop slow for reasons invisible in the code - the engine used to do
-// exactly that with a MemoryUse::Auto rule, and removed it after a framebuffer
-// in PSRAM measured markedly worse on hardware. A caller who wants external
-// memory names MemoryUse::Buffer and gets Deki::Buffer; operator new cannot
-// know, so it does not guess.
+// Routing by size would move a large std::vector into PSRAM and make a hot
+// loop slow for reasons invisible in the code. A caller who wants external
+// memory names MemoryUse::External and gets Deki::Buffer; operator new cannot
+// know what it is allocating for, so it does not guess.
 //
 // WHAT IS NOT REPLACED
 //

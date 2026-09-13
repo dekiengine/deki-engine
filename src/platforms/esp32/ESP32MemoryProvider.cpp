@@ -110,7 +110,7 @@ void* ESP32MemoryProvider::AllocateInternal(size_t size)
     return heap_caps_aligned_alloc(16, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 }
 
-void* ESP32MemoryProvider::AllocateDma(size_t size)
+void* ESP32MemoryProvider::AllocateDMA(size_t size)
 {
     // MALLOC_CAP_DMA, explicitly. Internal RAM is mostly DMA-reachable on this
     // part but not all of it, and a display peripheral reading a framebuffer

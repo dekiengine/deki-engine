@@ -53,6 +53,23 @@ public:
         return false;
     }
 
+    // The three regions, spelled out. On a desktop they are all the C heap:
+    // there is no separate internal pool and no DMA reachability to respect,
+    // so saying malloc three times is the honest answer rather than a
+    // shortcut.
+    void* AllocateInternal(size_t size) override { return malloc(size); }
+    void FreeInternal(void* ptr) override { free(ptr); }
+
+    // No DMA engine is involved on a desktop, so every pointer is equally
+    // reachable and plain malloc satisfies the contract.
+    void* AllocateDMA(size_t size) override { return malloc(size); }
+
+    // Deliberately unmeasured: zero here means "not a meaningful question on
+    // this platform". A desktop's free memory is a question about the OS
+    // rather than the process, and the number would be meaningless next to a
+    // board's "280 KB of internal SRAM left".
+    size_t GetAvailableInternalRAM() const override { return 0; }
+
     // AllocateRaw/FreeRaw keep the base malloc/free. The size query has no
     // portable spelling, so it is per-platform: _msize on the Windows CRT,
     // malloc_usable_size on glibc and musl. It only feeds the reported byte

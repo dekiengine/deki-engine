@@ -149,8 +149,8 @@ static std::string s_StartupScene;
 //
 // Through Deki::Memory like everything else that runs on a board: this was a
 // bare realloc, which skipped the placement decision, the accounting and the
-// double-free guard. Buffer, not Hot — it is read when a package asks for a
-// setting, not per frame.
+// double-free guard. External, because it is read only when a package asks
+// for a setting and the internal heap is the scarce one.
 static Deki::Buffer<uint8_t> s_PackageChunk;
 static size_t s_PackageChunkSize = 0;
 
@@ -166,7 +166,7 @@ static void RetainPackageChunk(const uint8_t* data, size_t size)
         // marked it unreadable in that case, so the effect is the same:
         // ReadPackageSetting* reports the setting as absent and the package
         // takes its default.
-        if (!s_PackageChunk.Allocate(size, Deki::MemoryUse::Buffer,
+        if (!s_PackageChunk.Allocate(size, Deki::MemoryUse::External,
                                      "ProjectSettings::packageSettings"))
         {
             s_PackageChunkSize = 0;

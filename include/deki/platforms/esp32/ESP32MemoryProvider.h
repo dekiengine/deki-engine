@@ -33,7 +33,7 @@ public:
     bool IsExternalPointer(void* ptr) const override;
 
     void* AllocateInternal(size_t size) override;
-    void* AllocateDma(size_t size) override;
+    void* AllocateDMA(size_t size) override;
 
     void FreeInternal(void* ptr) override;
     size_t GetAvailableInternalRAM() const override;

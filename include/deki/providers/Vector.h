@@ -11,7 +11,7 @@
 // So this is std::vector's shape with the one thing changed that matters
 // here: everything that can allocate returns bool.
 //
-//     Deki::Vector<Enemy> enemies(Deki::MemoryUse::Hot, "wave");
+//     Deki::Vector<Enemy> enemies(Deki::MemoryUse::Internal, "wave");
 //     if (!enemies.Reserve(32))
 //         return;                      // out of memory, said once
 //     if (!enemies.PushBack(spawned))  // and again per growth, if it grows
@@ -63,8 +63,8 @@ public:
      * once here rather than on every Reserve, so the declaration is where a
      * reader learns what memory this list occupies.
      */
-    explicit Vector(MemoryUse use, const char* context = nullptr)
-        : m_Use(use), m_Context(context)
+    explicit Vector(MemoryUse use, AllocContext ctx = {})
+        : m_Use(use), m_Context(ctx)
     {
     }
 
@@ -216,9 +216,11 @@ private:
     size_t m_Size = 0;
 
     // From the constructor: every growth lands in the region the declaration
-    // named. No member default, because that would be the engine choosing.
+    // named, and reports the line the vector was declared on rather than the
+    // Reserve inside PushBack that happened to trip it. No member default,
+    // because that would be the engine choosing.
     MemoryUse m_Use;
-    const char* m_Context;
+    AllocContext m_Context;
 };
 
 }  // namespace Deki

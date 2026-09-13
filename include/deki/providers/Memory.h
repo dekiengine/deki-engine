@@ -4,6 +4,17 @@
 #include <stddef.h>
 #include <memory>
 
+// Capturing the call site costs flash: every site that omits a label embeds
+// its file path, its function name and a line number, and those strings live
+// in the binary forever. That is a fine trade in the editor and a poor one on
+// a part where code size is a budget, so it is a debug-build feature.
+//
+// Define DEKI_NO_ALLOC_CONTEXT to switch it off in a debug build too.
+#if defined(DEBUG) && !defined(DEKI_NO_ALLOC_CONTEXT)
+#define DEKI_ALLOC_CONTEXT_CAPTURE 1
+#include <source_location>
+#endif
+
 // Forward declaration
 
 namespace Deki
@@ -32,19 +43,90 @@ enum class MemorySubsystem : uint8_t
 };
 
 /**
- * @brief Where an allocation lives. Internal unless the caller says otherwise.
+ * @brief Who asked for an allocation. Filled in by the compiler.
  *
- * The engine does not guess. Memory goes to internal RAM — fast and scarce —
- * unless a caller names MemoryUse::Buffer, which is the only route to external
- * PSRAM. Nothing infers placement from size or from anything else.
+ * Every allocating call takes one of these and almost nobody writes one: the
+ * default argument captures the call site, so an allocation names itself
+ * without the caller typing a label that can go stale after a rename or get
+ * copied verbatim into the next function along.
  *
- * An earlier version did infer: an `Auto` value sent anything at or above
- * 16 KB to PSRAM. On real ESP32-S3 hardware a framebuffer in PSRAM measured
- * markedly worse than one in internal RAM, and in a graphics engine the
- * largest allocations are usually the ones touched every frame — so the size
- * rule pushed precisely the wrong buffers into the slow region, invisibly. A
- * caller who wants external memory is now made to say so, in the source, where
- * a reviewer can see it.
+ *     Deki::Memory::Allocate(n, Deki::MemoryUse::Internal);
+ *     // -> "SetCapacity" at ParticlePool.h:47
+ *
+ * A literal still works where the call site is not the useful name — one
+ * function allocating three different things, say — and it wins over the
+ * derived one:
+ *
+ *     buffer.Allocate(n, Deki::MemoryUse::Internal, "ParticlePool::posX");
+ *
+ * Nothing here is copied or allocated. Every member points at a string
+ * literal the compiler emitted with static storage duration, which is what
+ * makes it safe for the debug leak table to hold the pointer. Do not
+ * construct one from a std::string: the label must outlive the allocation.
+ */
+struct AllocContext
+{
+    const char* label;  ///< what the caller called it, or nullptr
+
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    const char* file;      ///< __FILE__ of the call site
+    const char* function;  ///< enclosing function, with its signature on GCC
+    uint32_t line;
+
+    /// Omitted: the call site names the allocation.
+    AllocContext(std::source_location loc = std::source_location::current())
+        : label(nullptr), file(loc.file_name()), function(loc.function_name()),
+          line(loc.line())
+    {
+    }
+
+    /// A literal: the caller's name wins, and the call site rides along so a
+    /// failure can still say where. Implicit on purpose — it is what keeps
+    /// every existing `..., "Sprite::Load")` call site compiling unchanged.
+    AllocContext(const char* explicit_label,
+                 std::source_location loc = std::source_location::current())
+        : label(explicit_label), file(loc.file_name()),
+          function(loc.function_name()), line(loc.line())
+    {
+    }
+
+    const char* File() const { return file; }
+    uint32_t Line() const { return line; }
+
+    /// What the logs print: the caller's label when there is one, otherwise
+    /// the function the allocation was written in.
+    const char* Name() const { return label ? label : function; }
+
+#else
+    // Release and firmware: one pointer, which is exactly what the old
+    // `const char* context` parameter was. No strings are captured, so a
+    // label-less call site costs nothing and reports nothing.
+    AllocContext() : label(nullptr) {}
+    AllocContext(const char* explicit_label) : label(explicit_label) {}
+
+    const char* File() const { return "?"; }
+    uint32_t Line() const { return 0; }
+    const char* Name() const { return label ? label : "?"; }
+#endif
+};
+
+// The layout differs between debug and release builds, so the engine and the
+// packages that call into it have to agree — the same constraint MemoryStats
+// already imposes, and the same one the reflection ABI number exists to
+// police.
+
+
+/**
+ * @brief Where an allocation lives. The caller says; the engine never guesses.
+ *
+ * Three regions, and every allocating call names one — there is no default and
+ * omitting it does not compile. MemoryUse::External is the only route to PSRAM.
+ *
+ * Size says nothing about where a buffer belongs. A full-screen framebuffer
+ * is the largest allocation on the part and also the one touched most, and it
+ * belongs in internal RAM; a decoded asset the same size may never be read
+ * again after load. Only the caller knows which it is holding, so only the
+ * caller chooses.
  *
  * The placement is resolved once and NOT revisited. There is no fallback to
  * the other region when the chosen one is full: a failed allocation returns
@@ -54,40 +136,23 @@ enum class MemorySubsystem : uint8_t
  */
 enum class MemoryUse : uint8_t
 {
-    /// The default: internal RAM. Nothing reaches external memory unless a
-    /// caller asks for it by name.
-    ///
-    /// There used to be an `Auto` here that sent anything at or above 16 KB
-    /// to PSRAM. It was removed because the guess has the sign backwards in a
-    /// graphics engine: the largest allocations tend to BE the hot ones —
-    /// framebuffers, composites, bakes — so "large" was close to the worst
-    /// available predictor of "belongs in slow memory". Measured on real
-    /// hardware, a framebuffer in PSRAM was markedly worse than one in
-    /// internal RAM. A heuristic that silently moves a buffer somewhere slow,
-    /// with nothing in the code to show why, is worse than making the caller
-    /// say so.
+    /// Internal RAM. Fast, and the scarce one — a few hundred KB on an
+    /// ESP32-S3. Where everything lives unless you say otherwise.
     Internal = 0,
 
-    /// Internal RAM, and read or written every frame.
-    ///
-    /// Same placement as Internal today, and the distinction is deliberate:
-    /// this is the stronger statement. Internal means "nobody said
-    /// otherwise"; Hot means "this must never be moved external, whatever a
-    /// future policy or tool decides". Sprite pixels walked by the blitter
-    /// every frame are Hot; a glyph table read at load is merely Internal.
-    Hot,
+    /// External RAM (PSRAM) where the board has it, internal where it does
+    /// not. Megabytes, and markedly slower: it is reached over SPI, so a
+    /// buffer read every frame does not belong here. Asking for External is a
+    /// claim that this buffer's latency does not matter.
+    External,
 
-    /// External (PSRAM) where the board has it, internal where it does not.
+    /// Internal RAM that a DMA engine can reach.
     ///
-    /// An explicit opt-in for something large and genuinely cold — an asset
-    /// blob, a decoded image that is read once. External access is markedly
-    /// slower on the ESP32-S3, so asking for this is a claim that the latency
-    /// does not matter for this buffer.
-    Buffer,
-
-    /// Must be reachable by DMA. Internal only; never silently placed
-    /// somewhere a peripheral cannot read.
-    Dma,
+    /// Not a synonym for Internal: on the ESP32-S3 some internal regions are
+    /// not DMA-reachable, and a peripheral reading one of those gets silent
+    /// corruption rather than an error. A framebuffer handed to a display
+    /// driver needs this; a glyph table does not.
+    DMA,
 };
 
 /**
@@ -137,6 +202,7 @@ private:
         void* ptr;
         size_t size;
         const char* context;
+        uint32_t line;      ///< 0 when the context was a hand-written label
         bool isPsram;
     };
     static AllocationRecord* s_AllocationRecords;
@@ -180,35 +246,35 @@ public:
      * @param size Size in bytes
      * @param use Where it lives (see MemoryUse). Internal unless Buffer is
      *            named; resolved once, with no fallback to the other region
-     * @param context Optional context string for debugging
+     * @param ctx Who is asking. Omit it — the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
                           MemoryUse use,
-                          const char* context = nullptr);
+                          AllocContext ctx = {});
 
     /**
      * @brief Deprecated: pass a MemoryUse instead of choosing PSRAM yourself
      *
      * Kept so packages built against an older engine still compile. true maps
-     * to MemoryUse::Buffer and false to MemoryUse::Internal.
+     * to MemoryUse::External and false to MemoryUse::Internal.
      */
-    static void* Allocate(size_t size, bool prefer_psram, const char* context = nullptr)
+    static void* Allocate(size_t size, bool prefer_psram, AllocContext ctx = {})
     {
-        return Allocate(size, prefer_psram ? MemoryUse::Buffer : MemoryUse::Internal, context);
+        return Allocate(size, prefer_psram ? MemoryUse::External : MemoryUse::Internal, ctx);
     }
 
     // kLargeAllocation is gone with the size heuristic it served. Nothing
-    // decides placement by size any more: a caller names MemoryUse::Buffer or
+    // decides placement by size any more: a caller names MemoryUse::External or
     // gets internal RAM.
 
     /**
      * @brief Allocate memory from internal RAM only (never external/PSRAM)
      * @param size Size in bytes to allocate
-     * @param context Optional context string for debugging
+     * @param ctx Who is asking. Omit it — the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
-    static void* AllocateInternal(size_t size, const char* context = nullptr);
+    static void* AllocateInternal(size_t size, AllocContext ctx = {});
 
     /**
      * @brief Free memory allocated via AllocateInternal
@@ -216,7 +282,7 @@ public:
      */
     static void FreeInternal(void* ptr);
 
-    static void Free(void* ptr, const char* context = nullptr);
+    static void Free(void* ptr, AllocContext ctx = {});
 
     /**
      * @brief Allocate an array of `count` T, or return nullptr
@@ -240,14 +306,15 @@ public:
      * raw buffers it replaces.
      */
     template <typename T>
-    static T* AllocateArray(size_t count, MemoryUse use,
-                            const char* context = nullptr)
+    static T* AllocateArray(size_t count, MemoryUse use, AllocContext ctx = {})
     {
         if (count == 0)
             return nullptr;
         if (count > (SIZE_MAX / sizeof(T)))
             return nullptr;  // would wrap; no allocation could satisfy it anyway
-        return static_cast<T*>(Allocate(count * sizeof(T), use, context));
+        // ctx is forwarded, not defaulted again, so it still names the
+        // caller of AllocateArray rather than this header.
+        return static_cast<T*>(Allocate(count * sizeof(T), use, ctx));
     }
 
     /**
@@ -337,13 +404,15 @@ private:
      * @param ptr Pointer for leak tracking (debug only)
      * @param context Context string for leak tracking (debug only)
      */
-    static uint32_t UpdateTracking(int32_t size, bool isPsram, void* ptr = nullptr, const char* context = nullptr);
+    static uint32_t UpdateTracking(int32_t size, bool isPsram, void* ptr = nullptr,
+                                   const char* context = nullptr, uint32_t line = 0);
 
 #ifdef DEBUG
     /**
      * @brief Track allocation for leak detection (debug only)
      */
-    static uint32_t TrackAllocation(void* ptr, size_t size, const char* context, bool isPsram);
+    static uint32_t TrackAllocation(void* ptr, size_t size, const char* context,
+                                    uint32_t line, bool isPsram);
 
     /**
      * @brief Untrack allocation for leak detection (debug only)

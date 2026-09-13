@@ -84,12 +84,28 @@ public:
     // Internal RAM Allocation
     // ========================================================================
 
+    // EVERY REGION BELOW IS PURE. IMPLEMENT ALL OF THEM.
+    //
+    // A provider states what each region means on its platform, even when the
+    // answer is "the same as the others here" — a desktop provider writing
+    // `return malloc(size);` in AllocateDMA has made a claim that can be read
+    // and checked.
+    //
+    // The one that matters is AllocateDMA. On the ESP32 some internal regions
+    // cannot be reached by DMA, and a peripheral pointed at one of those
+    // corrupts silently instead of failing, so "internal and probably fine" is
+    // not an acceptable answer. A provider that could inherit one would ship
+    // that bug with nothing in the build to say so.
+    //
+    // Pure virtuals occupy the same vtable slots as implemented ones, so this
+    // costs no ABI version. It stops a provider compiling until it decides.
+
     /**
      * @brief Allocate memory from internal RAM only (never external)
      * @param size Number of bytes to allocate
      * @return Pointer to allocated memory, nullptr if allocation failed
      */
-    virtual void* AllocateInternal(size_t size) { return malloc(size); }
+    virtual void* AllocateInternal(size_t size) = 0;
 
     /**
      * @brief Allocate memory a DMA engine can read
@@ -99,19 +115,28 @@ public:
      * Not the same as internal RAM: on the ESP32 some internal regions are not
      * DMA-reachable, so a framebuffer handed to a display peripheral needs the
      * explicit capability rather than "internal and probably fine". Freed
-     * through FreeInternal. The default is AllocateInternal, which is right
-     * for hosts where every allocation is equally reachable.
+     * through FreeInternal.
+     *
+     * A platform with no DMA distinction answers with its internal allocator,
+     * and says so in its own body.
      */
-    virtual void* AllocateDma(size_t size) { return AllocateInternal(size); }
-    /// Frees a block from AllocateInternal. Must match that allocator: the
-    /// default pair is malloc/free; a backend that overrides one overrides both.
-    virtual void FreeInternal(void* ptr) { free(ptr); }
+    virtual void* AllocateDMA(size_t size) = 0;
+
+    /// Frees a block from AllocateInternal. Must match that allocator — a
+    /// backend that overrides one overrides both, which is now enforced rather
+    /// than asked for.
+    virtual void FreeInternal(void* ptr) = 0;
 
     /**
      * @brief Get available internal RAM size in bytes
-     * @return Available internal RAM size, 0 if not supported
+     *
+     * Also required. The old default returned 0, which the startup line and
+     * every out-of-memory report then printed as though it were measured — a
+     * board with 280 KB free and a provider that had not been finished looked
+     * identical to one that was genuinely exhausted. A provider that cannot
+     * measure this should say so in a comment and return 0 on purpose.
      */
-    virtual size_t GetAvailableInternalRAM() const { return 0; }
+    virtual size_t GetAvailableInternalRAM() const = 0;
 
     // ========================================================================
     // Raw Allocation (the operator new path)

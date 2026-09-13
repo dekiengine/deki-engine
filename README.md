@@ -93,12 +93,15 @@ reboots the board. `std::nothrow` aborts identically, because libstdc++
 implements it by calling the throwing form inside a `try`/`catch` that
 `-fno-exceptions` has removed.
 
-A caller says what the memory is *for* — `MemoryUse::Hot` (touched every
-frame), `Buffer` (large and read-mostly), `Dma` (a peripheral reads it), or
-`Auto` — and the engine picks the region, because only it knows whether this
-board has external RAM and how slow it is. **That placement resolves once and
-is never retried elsewhere**: a full region returns null, which the caller
-handles. `Deki::IMemoryProvider` is the per-platform half.
+A caller says *where* the memory goes — `MemoryUse::Internal`, `External`
+(PSRAM where the board has it) or `DMA` (a peripheral has to reach it) — on
+every allocating call, because there is no default and nothing is inferred.
+Size is not a hint: the framebuffer is the largest allocation on the part and
+belongs in internal RAM. **Placement resolves once and is never retried
+elsewhere**: a full region returns null, which the caller handles.
+`Deki::IMemoryProvider` is the per-platform half, and every region it offers is
+a pure virtual — a provider for a new board cannot inherit a placement it never
+thought about.
 
 Full reference, including the lint that enforces this:
 [docs/memory.md](https://github.com/dekiengine/deki-editor/blob/master/docs/memory.md).

@@ -7,6 +7,26 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Added
+- `Deki::AllocContext`, so an allocation names itself. The `context` argument
+  is no longer written by hand: its default argument captures the call site
+  via `std::source_location`, and a failure reports the file, line and
+  function that asked. It names the CALLER — `Buffer<T>::Allocate` and
+  `Memory::Allocate` forward the context rather than re-defaulting it, so the
+  location is where you wrote the call and not `Buffer.h`, which a test pins
+  because getting it wrong would report a plausible file for every allocation
+  in the engine. A literal still wins where the call site is not the useful
+  name, and stays implicit so existing call sites compile unchanged.
+
+  **Debug builds only.** Capturing embeds file paths and function names in
+  the binary forever, which is a poor trade on a part where code size is a
+  budget, so it compiles out unless `DEBUG` is defined (or `DEKI_NO_ALLOC_CONTEXT`
+  switches it off in a debug build). In release `AllocContext` is a single
+  pointer — exactly what the old `const char*` parameter was — and the
+  measured firmware cost is +32 bytes, 0.002%. On device the failure line
+  says `build with DEBUG for the call site` instead of inventing an origin it
+  does not have. Available at all because the engine moved to C++23 this
+  cycle; `std::source_location` compiles on the xtensa toolchain at
+  `gnu++2b`.
 - `Deki::Vector<T>`: a growable array whose growth can fail. `std::vector`
   cannot — `push_back` calls `operator new`, which with exceptions off has no
   way to report exhaustion and aborts. Everything here that can allocate
@@ -71,18 +91,33 @@ and package DLLs has its own numbered history in
   `MemoryUse::Dma` had documented a promise the allocator was not keeping.
 
 ### Changed
-- **`MemoryUse` is required and `Auto` is gone.** Placement is never inferred
-  and never defaulted: every allocating call names its region, and omitting
-  it does not compile. `Auto` used to send anything at or above 16 KB to
-  PSRAM, which has the sign backwards in a graphics engine — the largest
-  allocations are usually the ones touched every frame, and a framebuffer in
-  PSRAM measures markedly worse than one in internal RAM on real ESP32-S3
-  hardware. `Internal` replaces it as a value you ask for rather than one you
-  get by omission; `Buffer` is the only route to external RAM.
-  `kLargeAllocation` is gone with the rule it served, and `Deki::Vector` now
-  takes its region as a constructor argument with no default constructor.
-  Every call site in the engine and all 25 packages already passed one
-  explicitly, so nothing needed changing but the signatures.
+- **`MemoryUse` is `Internal`, `External`, `DMA` — required, never inferred.**
+  Placement is not defaulted and not guessed: every allocating call names its
+  region and omitting it does not compile. `Auto` used to send anything at or
+  above 16 KB to PSRAM, which has the sign backwards in a graphics engine —
+  the largest allocations are usually the ones touched every frame, and a
+  framebuffer in PSRAM measures markedly worse than one in internal RAM on
+  real ESP32-S3 hardware. `Hot` and `Buffer` are gone too: they named what
+  memory was *for* rather than where it goes, and `Hot` placed identically to
+  `Internal`, so it was a label pretending to be a behaviour.
+  `kLargeAllocation` went with the rule it served, and `Deki::Vector` takes
+  its region as a constructor argument with no default constructor. Every
+  call site in the engine and all 25 packages already passed a region
+  explicitly, so removing the defaults broke nothing.
+- **`IMemoryProvider`'s placement virtuals are pure.** `AllocateInternal`,
+  `AllocateDMA`, `FreeInternal` and `GetAvailableInternalRAM` had defaults —
+  `malloc`, and `AllocateDMA` forwarding to `AllocateInternal`. That reads as
+  a convenience for hosts and is a bug generator on a board: a provider for a
+  new part that forgot `AllocateDMA` would inherit the forward and hand a
+  display peripheral memory it cannot reach, silently. Every provider now
+  states what each region means on its platform, even where the answer is
+  "the same as the others here". Making a virtual pure moves no vtable slot,
+  so this costs no ABI version on its own — it just stops a provider
+  compiling until it has decided. It immediately found three test providers
+  and the desktop provider relying on the forward.
+- The out-of-memory line dropped `; no fallback is attempted`. It restated
+  the `Failed` the line opens with, and the placement rule it was really
+  explaining is already printed once at startup.
 - `Memory::Shutdown` clears the external-RAM flags. They outlived the backend
   that reported them, so after a shutdown the engine still believed PSRAM was
   present and a later `MemoryUse::Buffer` failed with "Failed to allocate N

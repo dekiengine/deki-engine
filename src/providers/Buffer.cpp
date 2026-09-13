@@ -9,9 +9,9 @@ namespace detail
 // per element type does not emit a copy of it. Everything the template adds is
 // a cast and a multiply.
 
-void* BufferAllocate(size_t bytes, MemoryUse use, const char* context)
+void* BufferAllocate(size_t bytes, MemoryUse use, AllocContext ctx)
 {
-    return Memory::Allocate(bytes, use, context);
+    return Memory::Allocate(bytes, use, ctx);
 }
 
 void BufferFree(void* ptr)
