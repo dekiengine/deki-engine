@@ -32,34 +32,57 @@ enum class MemorySubsystem : uint8_t
 };
 
 /**
- * @brief What an allocation is FOR, so the engine can decide where it goes
+ * @brief Where an allocation lives. Internal unless the caller says otherwise.
  *
- * Callers say how memory will be used; Memory decides whether that means
- * internal RAM or external PSRAM. A caller passing a placement directly cannot
- * know whether this board has external RAM or how slow it is — the engine can.
+ * The engine does not guess. Memory goes to internal RAM — fast and scarce —
+ * unless a caller names MemoryUse::Buffer, which is the only route to external
+ * PSRAM. Nothing infers placement from size or from anything else.
+ *
+ * An earlier version did infer: an `Auto` value sent anything at or above
+ * 16 KB to PSRAM. On real ESP32-S3 hardware a framebuffer in PSRAM measured
+ * markedly worse than one in internal RAM, and in a graphics engine the
+ * largest allocations are usually the ones touched every frame — so the size
+ * rule pushed precisely the wrong buffers into the slow region, invisibly. A
+ * caller who wants external memory is now made to say so, in the source, where
+ * a reviewer can see it.
  *
  * The placement is resolved once and NOT revisited. There is no fallback to
- * the other region when the chosen one is full: quietly moving a Hot buffer
- * into external RAM turns a placement mistake into frame drops nobody can
- * account for, and moving a Buffer the other way exhausts the internal heap
- * the next Hot allocation needed. A failed allocation returns nullptr, which
- * every caller already has to handle.
- *
- * A board with no external RAM resolves everything to internal. That is not a
- * fallback, it is the only region there is.
+ * the other region when the chosen one is full: a failed allocation returns
+ * nullptr, which every caller already has to handle. A board with no external
+ * RAM resolves everything to internal — not a fallback, just the only region
+ * there is.
  */
 enum class MemoryUse : uint8_t
 {
-    /// No opinion. The engine chooses by size: large buffers go external where
-    /// PSRAM exists, small ones stay internal.
-    Auto = 0,
+    /// The default: internal RAM. Nothing reaches external memory unless a
+    /// caller asks for it by name.
+    ///
+    /// There used to be an `Auto` here that sent anything at or above 16 KB
+    /// to PSRAM. It was removed because the guess has the sign backwards in a
+    /// graphics engine: the largest allocations tend to BE the hot ones —
+    /// framebuffers, composites, bakes — so "large" was close to the worst
+    /// available predictor of "belongs in slow memory". Measured on real
+    /// hardware, a framebuffer in PSRAM was markedly worse than one in
+    /// internal RAM. A heuristic that silently moves a buffer somewhere slow,
+    /// with nothing in the code to show why, is worse than making the caller
+    /// say so.
+    Internal = 0,
 
-    /// Read or written every frame. Internal RAM; external access is markedly
-    /// slower, so this never silently ends up there.
+    /// Internal RAM, and read or written every frame.
+    ///
+    /// Same placement as Internal today, and the distinction is deliberate:
+    /// this is the stronger statement. Internal means "nobody said
+    /// otherwise"; Hot means "this must never be moved external, whatever a
+    /// future policy or tool decides". Sprite pixels walked by the blitter
+    /// every frame are Hot; a glyph table read at load is merely Internal.
     Hot,
 
-    /// Large and read-mostly — a gradient bake, a decoded image, an asset
-    /// blob. External where the board has it, internal where it does not.
+    /// External (PSRAM) where the board has it, internal where it does not.
+    ///
+    /// An explicit opt-in for something large and genuinely cold — an asset
+    /// blob, a decoded image that is read once. External access is markedly
+    /// slower on the ESP32-S3, so asking for this is a claim that the latency
+    /// does not matter for this buffer.
     Buffer,
 
     /// Must be reachable by DMA. Internal only; never silently placed
@@ -155,28 +178,29 @@ public:
     /**
      * @brief Allocate memory, the engine choosing where it lives
      * @param size Size in bytes
-     * @param use What the memory is for (see MemoryUse); the engine maps that
-     *            to internal or external and falls back if the first is full
+     * @param use Where it lives (see MemoryUse). Internal unless Buffer is
+     *            named; resolved once, with no fallback to the other region
      * @param context Optional context string for debugging
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
-                          MemoryUse use = MemoryUse::Auto,
+                          MemoryUse use,
                           const char* context = nullptr);
 
     /**
      * @brief Deprecated: pass a MemoryUse instead of choosing PSRAM yourself
      *
      * Kept so packages built against an older engine still compile. true maps
-     * to MemoryUse::Buffer and false to MemoryUse::Auto.
+     * to MemoryUse::Buffer and false to MemoryUse::Internal.
      */
     static void* Allocate(size_t size, bool prefer_psram, const char* context = nullptr)
     {
-        return Allocate(size, prefer_psram ? MemoryUse::Buffer : MemoryUse::Auto, context);
+        return Allocate(size, prefer_psram ? MemoryUse::Buffer : MemoryUse::Internal, context);
     }
 
-    /// Size at or above which MemoryUse::Auto is treated as a Buffer.
-    static constexpr size_t kLargeAllocation = 16 * 1024;
+    // kLargeAllocation is gone with the size heuristic it served. Nothing
+    // decides placement by size any more: a caller names MemoryUse::Buffer or
+    // gets internal RAM.
 
     /**
      * @brief Allocate memory from internal RAM only (never external/PSRAM)
@@ -216,7 +240,7 @@ public:
      * raw buffers it replaces.
      */
     template <typename T>
-    static T* AllocateArray(size_t count, MemoryUse use = MemoryUse::Auto,
+    static T* AllocateArray(size_t count, MemoryUse use,
                             const char* context = nullptr)
     {
         if (count == 0)

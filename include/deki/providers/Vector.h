@@ -11,8 +11,8 @@
 // So this is std::vector's shape with the one thing changed that matters
 // here: everything that can allocate returns bool.
 //
-//     Deki::Vector<Enemy> enemies;
-//     if (!enemies.Reserve(32, Deki::MemoryUse::Hot, "wave"))
+//     Deki::Vector<Enemy> enemies(Deki::MemoryUse::Hot, "wave");
+//     if (!enemies.Reserve(32))
 //         return;                      // out of memory, said once
 //     if (!enemies.PushBack(spawned))  // and again per growth, if it grows
 //         DEKI_LOG_WARNING("dropped a spawn");
@@ -55,7 +55,20 @@ template <typename T>
 class Vector
 {
 public:
-    Vector() = default;
+    /**
+     * @brief Construct with the region this vector's storage lives in
+     *
+     * Required, and there is no default constructor: a vector that grows has
+     * to place the new block somewhere, and the engine does not choose. Said
+     * once here rather than on every Reserve, so the declaration is where a
+     * reader learns what memory this list occupies.
+     */
+    explicit Vector(MemoryUse use, const char* context = nullptr)
+        : m_Use(use), m_Context(context)
+    {
+    }
+
+    Vector() = delete;
     ~Vector() = default;
 
     // Written out rather than defaulted: a defaulted move would carry m_Size
@@ -95,20 +108,17 @@ public:
      * writing on a device: one check instead of one per element.
      *
      * Never shrinks. Returns true when the capacity is already sufficient.
+     *
+     * Placement comes from the constructor, so a growth inside PushBack lands
+     * in the same region as the storage it replaces.
      */
-    bool Reserve(size_t count, MemoryUse use = MemoryUse::Auto, const char* context = nullptr)
+    bool Reserve(size_t count)
     {
         if (count <= m_Storage.Count())
             return true;
 
-        // Remember what the caller asked for, so a later PushBack that has to
-        // grow on its own places the memory the same way rather than
-        // defaulting to Auto and landing somewhere else.
-        m_Use = use;
-        m_Context = context;
-
         Buffer<T> grown;
-        if (!grown.Allocate(count, use, context))
+        if (!grown.Allocate(count, m_Use, m_Context))
             return false;
 
         // memcpy, not a loop of moves: T is trivially copyable, which is what
@@ -136,7 +146,7 @@ public:
             const size_t grown = m_Storage.Count() ? m_Storage.Count() * 2 : kFirstBlock;
             if (grown < m_Storage.Count())  // size_t is 32-bit on the device
                 return false;
-            if (!Reserve(grown, m_Use, m_Context))
+            if (!Reserve(grown))
                 return false;
         }
         m_Storage[m_Size] = value;
@@ -205,10 +215,10 @@ private:
     Buffer<T> m_Storage;
     size_t m_Size = 0;
 
-    // Carried so a growth triggered inside PushBack places its memory where
-    // the caller's Reserve asked for, not wherever Auto would put it.
-    MemoryUse m_Use = MemoryUse::Auto;
-    const char* m_Context = nullptr;
+    // From the constructor: every growth lands in the region the declaration
+    // named. No member default, because that would be the engine choosing.
+    MemoryUse m_Use;
+    const char* m_Context;
 };
 
 }  // namespace Deki

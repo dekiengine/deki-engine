@@ -70,7 +70,7 @@ public:
     Buffer() = default;
 
     /// Allocates `count` elements. Check the result with `if (!buffer)`.
-    Buffer(size_t count, MemoryUse use = MemoryUse::Auto, const char* context = nullptr)
+    Buffer(size_t count, MemoryUse use, const char* context = nullptr)
     {
         Allocate(count, use, context);
     }
@@ -109,7 +109,7 @@ public:
      * part cannot spare. A count that has not changed is left alone, which is
      * what makes this safe to call from a render path every frame.
      */
-    bool Allocate(size_t count, MemoryUse use = MemoryUse::Auto, const char* context = nullptr)
+    bool Allocate(size_t count, MemoryUse use, const char* context = nullptr)
     {
         if (count == m_Count && m_Data)
             return true;

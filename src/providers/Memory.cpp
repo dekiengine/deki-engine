@@ -112,9 +112,9 @@ bool Memory::Initialize()
     const size_t freeInternal = s_CurrentBackend->GetAvailableInternalRAM();
     if (s_PsramAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
-                      "(MemoryUse::Buffer, and Auto over %zu bytes, go external)",
-                      freeInternal, s_CurrentBackend->GetAvailableExternalRAM(),
-                      kLargeAllocation);
+                      "(only MemoryUse::Buffer goes external; everything else "
+                      "stays internal)",
+                      freeInternal, s_CurrentBackend->GetAvailableExternalRAM());
     else
         DEKI_LOG_INFO("Memory: %zu bytes free internal, no external RAM "
                       "(every MemoryUse resolves to internal)",
@@ -280,6 +280,15 @@ void Memory::Shutdown()
         s_CurrentBackend.reset();
     }
 
+    // And forget that the board had external RAM. These outlived the backend
+    // that reported them, so after a shutdown the engine still believed PSRAM
+    // was there: a later MemoryUse::Buffer took the external path, found no
+    // provider, and failed with "Failed to allocate N bytes in external RAM"
+    // on a machine with gigabytes free. Harmless while shutdown only ever ran
+    // at exit; not harmless once anything restarts the memory system.
+    s_PsramAvailable = false;
+    s_PsramEnabled = false;
+
     // Reset all tracking
     totalAllocated = 0;
     psramAllocated = 0;
@@ -310,25 +319,23 @@ void Memory::SetBackend(IMemoryProvider* backend)
 
 // Where a use lives on THIS board. Resolved once, and not revisited.
 //
-// This is the point of taking a MemoryUse rather than a placement: the caller
-// knows how the memory will be used, and only the engine knows whether the
-// board has external RAM and how slow it is.
+// Nothing reaches external RAM unless the caller named MemoryUse::Buffer.
+// There is no size rule and no other way in. The engine used to infer one —
+// anything at or above 16 KB went to PSRAM — and that inference was wrong in
+// the direction that hurts: in a graphics engine the largest allocations are
+// usually the ones touched every frame, and a framebuffer in PSRAM measures
+// markedly worse on real hardware than one in internal RAM. Guessing quietly
+// is worse than asking, because a buffer that ends up somewhere slow for
+// reasons invisible in the source is a performance bug nobody can find by
+// reading the code.
 //
 // A board with no external RAM resolves everything to internal. That is not a
 // fallback, it is the only region there is.
-static bool ResolveExternal(Deki::MemoryUse use, size_t size, bool psramUsable)
+static bool ResolveExternal(Deki::MemoryUse use, bool psramUsable)
 {
     if (!psramUsable)
         return false;
-    switch (use)
-    {
-        case Deki::MemoryUse::Dma:    return false;  // a peripheral must reach it
-        case Deki::MemoryUse::Hot:    return false;  // touched every frame
-        case Deki::MemoryUse::Buffer: return true;
-        case Deki::MemoryUse::Auto:
-        default:
-            return size >= Deki::Memory::kLargeAllocation;
-    }
+    return use == Deki::MemoryUse::Buffer;
 }
 
 void* Memory::Allocate(size_t size,
@@ -353,7 +360,7 @@ void* Memory::Allocate(size_t size,
     size_t total_size = size + header_size;
 
     const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
-    const bool used_psram = ResolveExternal(use, size, psramUsable);
+    const bool used_psram = ResolveExternal(use, psramUsable);
 
     // One region, no second attempt. Quietly moving a Hot buffer into external
     // RAM because internal was full turns a placement mistake into frame drops

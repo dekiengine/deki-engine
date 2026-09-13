@@ -72,6 +72,22 @@ and package DLLs has its own numbered history in
   `MemoryUse::Dma` had documented a promise the allocator was not keeping.
 
 ### Changed
+- **`MemoryUse` is required and `Auto` is gone.** Placement is never inferred
+  and never defaulted: every allocating call names its region, and omitting
+  it does not compile. `Auto` used to send anything at or above 16 KB to
+  PSRAM, which has the sign backwards in a graphics engine — the largest
+  allocations are usually the ones touched every frame, and a framebuffer in
+  PSRAM measures markedly worse than one in internal RAM on real ESP32-S3
+  hardware. `Internal` replaces it as a value you ask for rather than one you
+  get by omission; `Buffer` is the only route to external RAM.
+  `kLargeAllocation` is gone with the rule it served, and `Deki::Vector` now
+  takes its region as a constructor argument with no default constructor.
+  Every call site in the engine and all 25 packages already passed one
+  explicitly, so nothing needed changing but the signatures.
+- `Memory::Shutdown` clears the external-RAM flags. They outlived the backend
+  that reported them, so after a shutdown the engine still believed PSRAM was
+  present and a later `MemoryUse::Buffer` failed with "Failed to allocate N
+  bytes in external RAM" on a machine with gigabytes free.
 - C++23 (`CMAKE_CXX_STANDARD 23`) instead of 17. ESP-IDF forces
   `-std=gnu++2b` for chip targets unconditionally, so firmware had been
   compiling at C++23 while the engine, the editor and the generated project
