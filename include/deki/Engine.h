@@ -44,6 +44,37 @@ enum class ColorFormat
     RGB565A8 = 3   // 24-bit: 3 bytes per pixel — RGB565 (2 bytes) + A8 (1 byte)
 };
 
+/**
+ * @brief Bytes a `width` x `height` framebuffer of `format` occupies
+ *
+ * Here, once, because it was previously a ladder of literals inside a display
+ * package -- `(format == 2) ? 4 : (format == 1) ? 3 : 2` -- which gave
+ * RGB565A8 two bytes per pixel instead of three. That number decides how much
+ * of a PSRAM framebuffer is flushed from CPU cache before DMA reads it, so
+ * undercounting leaves the tail of the screen showing stale pixels.
+ *
+ * Whole-framebuffer rather than bytes-per-pixel on purpose. LovyanGFX drives
+ * 1-bit monochrome panels (SSD1306 and the like) and e-paper, where a pixel
+ * costs less than a byte and any per-pixel answer is either zero or a lie.
+ * Adding MONO1 here is one arm returning (w * h + 7) / 8 and no caller
+ * changes.
+ */
+constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
+{
+    if (width <= 0 || height <= 0)
+        return 0;
+
+    const size_t pixels = static_cast<size_t>(width) * static_cast<size_t>(height);
+    switch (format)
+    {
+        case ColorFormat::RGB565:   return pixels * 2;
+        case ColorFormat::RGB888:   return pixels * 3;
+        case ColorFormat::ARGB8888: return pixels * 4;
+        case ColorFormat::RGB565A8: return pixels * 3;  // RGB565 plane + A8 plane
+    }
+    return 0;
+}
+
 // Engine settings (loaded from project config)
 // Global settings accessible without Engine initialization
 struct DEKI_ENGINE_API EngineSettings

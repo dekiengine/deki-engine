@@ -1,5 +1,6 @@
 #ifdef DEKI_EDITOR
 
+#include <deki/Engine.h>  // ColorFormat, FrameBufferBytes
 #include "EditorDisplay.h"
 #include <deki/LogSystem.h>
 
@@ -85,7 +86,7 @@ void EditorDisplay::Shutdown()
     DEKI_LOG_INTERNAL("EditorDisplay shutdown");
 }
 
-void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, int format)
+void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, ColorFormat format)
 {
     if (!initialized || !framebuffer)
     {
@@ -96,7 +97,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, i
 
     // RGB565 is handed to GL as-is (GL_UNSIGNED_SHORT_5_6_5): the per-pixel
     // conversion that ran here every frame at the game's resolution is gone.
-    if (format == 0)  // RGB565
+    if (format == ColorFormat::RGB565)  // RGB565
     {
         glBindTexture(GL_TEXTURE_2D, m_GlTextureId);
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -106,7 +107,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, i
         glBindTexture(GL_TEXTURE_2D, 0);
         return;
     }
-    else if (format == 1)  // RGB888
+    else if (format == ColorFormat::RGB888)  // RGB888
     {
         const uint8_t* src = framebuffer;
         size_t pixelCount = width * height;
@@ -119,7 +120,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, i
             dst[i * 4 + 3] = 255;
         }
     }
-    else if (format == 2)  // ARGB8888
+    else if (format == ColorFormat::ARGB8888)  // ARGB8888
     {
         // Just copy directly
         memcpy(dst, framebuffer, width * height * 4);
@@ -135,7 +136,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, i
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int height, int format,
+void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
                                    const Rect* rects, int32_t count)
 {
     if (!initialized || !framebuffer || count <= 0)
@@ -146,7 +147,7 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
     // tells GL the source pitch, the pointer is offset to the rectangle.
     glPixelStorei(GL_UNPACK_ROW_LENGTH, width);
 
-    if (format == 0)  // RGB565, handed to GL as-is
+    if (format == ColorFormat::RGB565)  // RGB565, handed to GL as-is
     {
         glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
         for (int32_t i = 0; i < count; ++i)
@@ -170,7 +171,7 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
             for (int32_t y = r.top; y < r.bottom; ++y)
             {
                 uint8_t* dst = m_RgbaBuffer + (static_cast<size_t>(y) * width + r.left) * 4;
-                if (format == 1)  // RGB888
+                if (format == ColorFormat::RGB888)  // RGB888
                 {
                     const uint8_t* src = framebuffer + (static_cast<size_t>(y) * width + r.left) * 3;
                     for (int32_t x = 0; x < r.Width(); ++x)

@@ -176,8 +176,11 @@ struct DekiReflectionAbi
  *    region, so a package can define a region the engine has never heard of.
  *
  * 15: MemoryRegion is Memory::Region, nested where it belongs.
+ *
+ * 16: IDisplay::Present and PresentRegions take a ColorFormat instead of an
+ *    int whose numbering lived in a comment and as literals in every display.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 15;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 16;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

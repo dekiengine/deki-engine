@@ -34,9 +34,9 @@ public:
     // IDisplay interface
     bool Initialize(int32_t width, int32_t height) override;
     void Shutdown() override;
-    void Present(const uint8_t* framebuffer, int width, int height, int format) override;
+    void Present(const uint8_t* framebuffer, int width, int height, ColorFormat format) override;
     bool SupportsPartialPresent() const override { return true; }
-    void PresentRegions(const uint8_t* framebuffer, int width, int height, int format,
+    void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
                         const Rect* rects, int32_t count) override;
     void GetDisplaySize(int32_t* width, int32_t* height) const override;
     bool IsInitialized() const override;

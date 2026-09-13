@@ -344,7 +344,7 @@ void Engine::PresentFrame()
     const uint8_t* fb = m_Renderer->GetFrameBuffer();
     const int32_t w = m_Renderer->GetScreenWidth();
     const int32_t h = m_Renderer->GetScreenHeight();
-    const int format = static_cast<int>(m_Renderer->GetColorFormat());
+    const ColorFormat format = m_Renderer->GetColorFormat();
 
     int32_t count = -1;
     const Rect* rects = m_Renderer->GetPresentRects(&count);

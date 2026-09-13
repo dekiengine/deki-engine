@@ -19,6 +19,11 @@
 namespace Deki
 {
 
+// Forward-declared rather than including Engine.h: a display needs to name the
+// format, not to know what an Engine is. The underlying type is fixed by the
+// definition, so an opaque declaration is enough to pass one by value.
+enum class ColorFormat;
+
 class IDisplay
 {
 public:
@@ -36,9 +41,16 @@ public:
 
     /**
      * @brief Present the frame buffer to the display
-     * @param format 0=RGB565, 1=RGB888, 2=ARGB8888
+     *
+     * `format` used to be an int, with the enum's numbering repeated in a
+     * comment here and as literals in every display package. That comment was
+     * already missing RGB565A8, and one package computed bytes-per-pixel from
+     * the literals in a way that gave it 2 instead of 3. Passing the enum makes
+     * the boundary type-checked and lets a compiler flag a format nobody
+     * handles.
      */
-    virtual void Present(const uint8_t* framebuffer, int width, int height, int format) = 0;
+    virtual void Present(const uint8_t* framebuffer, int width, int height,
+                         ColorFormat format) = 0;
 
     /**
      * @brief True when PresentRegions() pushes only the rectangles it is given.
@@ -58,8 +70,8 @@ public:
      * holds, an LCD does nothing. The default pushes the whole frame, so a
      * display that does not override this behaves exactly as before.
      */
-    virtual void PresentRegions(const uint8_t* framebuffer, int width, int height, int format,
-                                const Rect* rects, int32_t count)
+    virtual void PresentRegions(const uint8_t* framebuffer, int width, int height,
+                                ColorFormat format, const Rect* rects, int32_t count)
     {
         (void)rects;
         (void)count;
