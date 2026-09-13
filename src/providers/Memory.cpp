@@ -375,11 +375,11 @@ void* Memory::Allocate(size_t size,
     const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
     const bool used_psram = ResolveExternal(use, psramUsable);
 
-    // One region, no second attempt. Quietly moving a Hot buffer into external
-    // RAM because internal was full turns a placement mistake into frame drops
-    // nobody can account for, and moving a Buffer the other way exhausts the
-    // internal heap that the next Hot allocation needed. Failing here is
-    // visible, and the caller already has to handle null.
+    // One region, no second attempt. Quietly moving an Internal buffer into
+    // external RAM because internal was full turns a placement mistake into
+    // frame drops nobody can account for, and moving an External one the other
+    // way exhausts the internal heap the next allocation needed. Failing here
+    // is visible, and the caller already has to handle null.
     if (used_psram)
     {
         const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
