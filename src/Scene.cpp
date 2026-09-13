@@ -1125,7 +1125,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         {
             std::string typeName = compJson.value("type", "");
             std::string classHint = compJson.value("class", "");
-            Component* comp = Internal::AddComponentByName(*obj, typeName, classHint);
+            Component* comp = detail::AddComponentByName(*obj, typeName, classHint);
 
             if (comp)
             {
@@ -1214,7 +1214,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                 {
                     missing->m_JsonProperties = compJson["properties"];
                 }
-                Internal::AttachComponent(*obj, missing);
+                detail::AttachComponent(*obj, missing);
             }
         }
     }
@@ -1563,7 +1563,7 @@ bool Scene::ExpandInstance(Object* instanceObj)
             {
                 std::string typeName = compJson.value("type", "");
                 std::string classHint = compJson.value("class", "");
-                Component* comp = Internal::AddComponentByName(*instanceObj, typeName, classHint);
+                Component* comp = detail::AddComponentByName(*instanceObj, typeName, classHint);
                 if (comp)
                 {
                     const ComponentMeta* meta = registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
@@ -1588,7 +1588,7 @@ bool Scene::ExpandInstance(Object* instanceObj)
                     missing->m_OriginalTypeId = HashString(typeName.c_str());
                     if (compJson.contains("properties"))
                         missing->m_JsonProperties = compJson["properties"];
-                    Internal::AttachComponent(*instanceObj, missing);
+                    detail::AttachComponent(*instanceObj, missing);
                 }
             }
         }

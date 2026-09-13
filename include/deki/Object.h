@@ -33,13 +33,17 @@ class Object;
 // Engine-internal entry points (src/ObjectInternal.h): the scene loaders and
 // the editor create components from a file's type name or a pre-built
 // instance. A script adds a component with AddComponent<T>() and nothing else.
-namespace Internal
+//
+// In Deki::detail with the rest of the engine's internals, rather than a
+// second namespace meaning the same thing — and because Deki::Internal now
+// names the internal memory region.
+namespace detail
 {
 void AttachComponent(Object& object, Component* component);
 #ifdef DEKI_EDITOR
 Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
 #endif
-}  // namespace Internal
+}  // namespace detail
 
 #ifdef DEKI_TRANSFORM_2D
 struct WorldTransform
@@ -335,14 +339,14 @@ public:
 private:
     // Not part of the script API: reached through Deki::Internal (see the top
     // of this file). A script that needs a component names its type.
-    friend void Internal::AttachComponent(Object& object, Component* component);
+    friend void detail::AttachComponent(Object& object, Component* component);
     void AddComponent(Component* component)
     {
         component->SetOwner(this);
         components.push_back(component);
     }
 #ifdef DEKI_EDITOR
-    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
+    friend Component* detail::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
     Component* AddComponent(const std::string& typeName, const std::string& classHint);
 #endif
 

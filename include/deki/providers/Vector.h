@@ -11,7 +11,7 @@
 // So this is std::vector's shape with the one thing changed that matters
 // here: everything that can allocate returns bool.
 //
-//     Deki::Vector<Enemy> enemies(Deki::Mem::Internal);
+//     Deki::Vector<Enemy> enemies(Deki::Internal);
 //     if (!enemies.Reserve(32))
 //         return;                      // out of memory, said once
 //     if (!enemies.PushBack(spawned))  // and again per growth, if it grows

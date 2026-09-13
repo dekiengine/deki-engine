@@ -52,7 +52,7 @@ enum class MemorySubsystem : uint8_t
  * argument captures the call site, so an allocation is identified by where it
  * was written:
  *
- *     Deki::Memory::Allocate(n, Deki::Mem::Internal);
+ *     Deki::Memory::Allocate(n, Deki::Internal);
  *     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
  *
  * There is no name to pass and no way to pass one. A hand-written tag is a
@@ -122,13 +122,15 @@ constexpr uint32_t HashName(const char* s)
  * A region is a name, not an enumerator, so the set of them is open: a package
  * defines one and the engine needs no change to carry it.
  *
- *     namespace Deki::Mem
+ *     namespace Deki
  *     {
- *     inline constexpr MemoryRegion Rtc = Region("rtc");
+ *     inline constexpr MemoryRegion Rtc = Region("esp32.rtc");
  *     }
  *
- * Deki::Mem is an ordinary namespace, so a package extends it the way it would
- * extend any other. What a package cannot do is SERVE a region: only the
+ * Deki is an ordinary namespace, so a package extends it the way it would
+ * extend any other — and a package is free to keep its regions in its own
+ * namespace instead; the identity is the hashed name, not where the constant
+ * lives. What a package cannot do is SERVE a region: only the
  * board's IMemoryProvider can, and one that has not heard of "rtc" returns
  * nullptr and says so by name. Extension is two-sided on purpose — a package
  * names what it needs, a board decides whether it has it.
@@ -152,8 +154,6 @@ struct MemoryRegion
 
 constexpr MemoryRegion Region(const char* name) { return MemoryRegion{HashName(name), name}; }
 
-namespace Mem
-{
 /// Internal RAM. Fast, and the scarce one — a few hundred KB on an ESP32-S3.
 inline constexpr MemoryRegion Internal = Region("internal");
 
@@ -162,7 +162,6 @@ inline constexpr MemoryRegion Internal = Region("internal");
 /// belong here. Asking for it is a claim that this buffer's latency does not
 /// matter.
 inline constexpr MemoryRegion External = Region("external");
-}  // namespace Mem
 
 /**
  * @brief Memory statistics structure
@@ -279,15 +278,15 @@ public:
     /**
      * @brief Deprecated: name the region instead of choosing PSRAM yourself
      *
-     * true maps to Mem::External and false to Mem::Internal.
+     * true maps to Deki::External and false to Deki::Internal.
      */
     static void* Allocate(size_t size, bool prefer_psram, AllocContext ctx = {})
     {
-        return Allocate(size, prefer_psram ? Mem::External : Mem::Internal, ctx);
+        return Allocate(size, prefer_psram ? Deki::External : Deki::Internal, ctx);
     }
 
     // kLargeAllocation is gone with the size heuristic it served. Nothing
-    // decides placement by size any more: a caller names Mem::External or
+    // decides placement by size any more: a caller names Deki::External or
     // gets internal RAM.
 
     /**

@@ -664,13 +664,13 @@ void Object::SetScaleZ(float newScaleZ)
 
 #endif  // DEKI_TRANSFORM_2D
 
-void Internal::AttachComponent(Object& object, Component* component)
+void detail::AttachComponent(Object& object, Component* component)
 {
     object.AddComponent(component);
 }
 
 #ifdef DEKI_EDITOR
-Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint)
+Component* detail::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint)
 {
     return object.AddComponent(typeName, classHint);
 }

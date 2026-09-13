@@ -42,7 +42,7 @@ public:
     // place, and saying so explicitly is the honest answer.
     bool Serves(MemoryRegion region) const override
     {
-        return region == Mem::Internal || region == Mem::External;
+        return region == Deki::Internal || region == Deki::External;
     }
 
     void* Allocate(MemoryRegion region, size_t bytes, bool needsDma) override

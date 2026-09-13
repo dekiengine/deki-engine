@@ -18,7 +18,7 @@
 
 namespace Deki
 {
-namespace Internal
+namespace detail
 {
 
 /// Attach a component the caller created (the object takes ownership).
@@ -34,5 +34,5 @@ void AttachComponent(Object& object, Component* component);
 Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint = {});
 #endif
 
-}  // namespace Internal
+}  // namespace detail
 }  // namespace Deki

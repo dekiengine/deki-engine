@@ -51,9 +51,9 @@ void* ESP32MemoryProvider::AllocateExternalBytes(size_t size)
 
 bool ESP32MemoryProvider::Serves(MemoryRegion region) const
 {
-    if (region == Mem::Internal)
+    if (region == Deki::Internal)
         return true;
-    if (region == Mem::External)
+    if (region == Deki::External)
         return m_HasPSRAM;
     // Anything else — a region some package defined — this board does not
     // have. Saying so is what lets the allocation fail by name instead of
@@ -63,14 +63,14 @@ bool ESP32MemoryProvider::Serves(MemoryRegion region) const
 
 void* ESP32MemoryProvider::Allocate(MemoryRegion region, size_t bytes, bool needsDma)
 {
-    if (region == Mem::External)
+    if (region == Deki::External)
     {
         if (!m_HasPSRAM)
             return nullptr;
         return AllocateExternalBytes(bytes);
     }
 
-    if (region != Mem::Internal)
+    if (region != Deki::Internal)
         return nullptr;  // a region this board does not serve
 
     // 16-byte alignment lets the QuadBlit dispatcher engage S3 PIE SIMD
@@ -99,9 +99,9 @@ void ESP32MemoryProvider::Free(MemoryRegion region, void* ptr)
 
 size_t ESP32MemoryProvider::GetAvailable(MemoryRegion region) const
 {
-    if (region == Mem::Internal)
+    if (region == Deki::Internal)
         return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (region == Mem::External)
+    if (region == Deki::External)
         return m_HasPSRAM ? heap_caps_get_free_size(MALLOC_CAP_SPIRAM) : 0;
     return 0;
 }

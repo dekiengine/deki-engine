@@ -53,7 +53,7 @@
 // like everything a caller has not explicitly asked to place elsewhere.
 // Routing by size would move a large std::vector into PSRAM and make a hot
 // loop slow for reasons invisible in the code. A caller who wants external
-// memory names Mem::External and gets Deki::Buffer; operator new cannot
+// memory names Deki::External and gets Deki::Buffer; operator new cannot
 // know what it is allocating for, so it does not guess.
 //
 // WHAT IS NOT REPLACED

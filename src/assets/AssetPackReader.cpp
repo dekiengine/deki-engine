@@ -126,7 +126,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
     }
 
     // Read entire pack into PSRAM
-    uint8_t* data = static_cast<uint8_t*>(Memory::Allocate(fileSize, Mem::External));
+    uint8_t* data = static_cast<uint8_t*>(Memory::Allocate(fileSize, Deki::External));
     if (!data)
     {
         fs->CloseFile(file);
