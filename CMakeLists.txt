@@ -54,6 +54,7 @@ set(DEKI_CORE_SOURCES
     src/Component.cpp
     src/Color.cpp
     src/ComponentInterfaceAdapters.cpp
+    src/assets/Texture2D.cpp
     src/providers/Memory.cpp
     src/providers/Buffer.cpp
     src/providers/OperatorNew.cpp
