@@ -6,6 +6,7 @@
 #include <deki/assets/AssetManager.h>
 #include <deki/ProjectSettings.h>
 #include <deki/LogSystem.h>
+#include <deki/providers/Memory.h>
 
 namespace Deki
 {
@@ -131,6 +132,11 @@ void PlatformSetupComponent::LoadStartupScene()
         Time::ResetFrameTime();
 
         DEKI_LOG_INTERNAL("PlatformSetup: Startup scene loaded successfully");
+
+        // The scene is up and its components have taken what they need, so
+        // this is the moment the numbers mean something: everything the boot
+        // path allocates is in, and nothing the game loop allocates is yet.
+        Memory::LogStats("startup scene");
     }
     else
     {

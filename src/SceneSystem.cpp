@@ -9,6 +9,7 @@
 #include <deki/assets/AssetManager.h>
 #include <deki/providers/IRenderSystem.h>
 #include <deki/providers/IDisplay.h>
+#include <deki/providers/Memory.h>
 
 namespace Deki
 {
@@ -130,6 +131,12 @@ bool SceneSystem::LoadBootScene(const char* path)
     Time::ResetFrameTime();
 
     DEKI_LOG_INTERNAL("SceneSystem: Boot scene loaded successfully");
+
+    // What the boot path cost, before the game loop allocates anything. A
+    // platform that declares no boot scene of its own gets the game scene
+    // baked in as one, so on those this is the only report there will be;
+    // where a setup scene loads a startup scene, that one reports again.
+    Memory::LogStats("boot scene");
     return true;
 }
 
