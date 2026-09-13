@@ -59,6 +59,9 @@ struct DEKI_ENGINE_API EngineSettings
     // and inspector px↔m conversions.
     float pixelsPerMeter = 16.0f;
 
+    // Inspector display only; stored temperatures are always Celsius.
+    TemperatureUnit temperatureUnit = TemperatureUnit::Celsius;
+
     // Global instance for use by Object etc without requiring engine init
     static EngineSettings& Global();
 };

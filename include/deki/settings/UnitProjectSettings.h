@@ -36,10 +36,15 @@ public:
     DEKI_EXPORT
     float pixelsPerMeter = 16.0f;
 
+    DEKI_TOOLTIP("Temperature scale shown in the inspector. Storage is always degrees Celsius; this only changes what you read and type.")
+    DEKI_EXPORT
+    TemperatureUnit temperatureUnit = TemperatureUnit::Celsius;
+
     void ApplyToGlobalCache() const
     {
         EngineSettings::Global().inspectorUnit = inspectorUnit;
         EngineSettings::Global().pixelsPerMeter = pixelsPerMeter;
+        EngineSettings::Global().temperatureUnit = temperatureUnit;
     }
 };
 

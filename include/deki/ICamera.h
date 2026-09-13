@@ -38,6 +38,19 @@ enum class UnitMode : uint8_t
 };
 
 /**
+ * @brief Which temperature scale the inspector shows. Storage is Celsius.
+ *
+ * Separate from UnitMode because the two preferences are independent: someone
+ * laying out a scene in pixels may still want Fahrenheit, and a distance
+ * preference has nothing to say about a thermometer.
+ */
+enum class TemperatureUnit : uint8_t
+{
+    Celsius = 0,
+    Fahrenheit = 1,
+};
+
+/**
  * @brief Camera interface for coordinate conversion.
  *
  * Packages implement this interface on their camera components. The editor

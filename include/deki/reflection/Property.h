@@ -184,11 +184,13 @@ namespace deki_refl {
  * Only meaningful on Float and Vector2 property types.
  */
 enum class PhysicalUnit : uint8_t {
-    None = 0,        // Not a physical quantity (default)
-    Distance,        // meters
-    Velocity,        // meters per second
-    Acceleration,    // meters per second squared
-    Angle            // radians (inspector displays degrees)
+    None = 0,          // Not a physical quantity (default)
+    Distance,          // meters
+    Velocity,          // meters per second
+    Acceleration,      // meters per second squared
+    Angle,             // radians (inspector displays degrees)
+    AngularVelocity,   // radians per second (inspector displays degrees/s)
+    Temperature        // degrees Celsius (inspector may display Fahrenheit)
 };
 
 /**

@@ -510,6 +510,7 @@ static bool DekiGen_Deki_UnitProjectSettings_Deserialize(::Deki::Component* _c, 
         switch (keyHash) {
             case ::Deki::HashString("inspectorUnit"): { int32_t v; if (parser.ReadInt(v)) self.inspectorUnit = static_cast<decltype(self.inspectorUnit)>(v); break; }
             case ::Deki::HashString("pixelsPerMeter"): { float v; if (parser.ReadFloat(v)) self.pixelsPerMeter = v; break; }
+            case ::Deki::HashString("temperatureUnit"): { int32_t v; if (parser.ReadInt(v)) self.temperatureUnit = static_cast<decltype(self.temperatureUnit)>(v); break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -539,6 +540,7 @@ static void DekiGen_Deki_UnitProjectSettings_RemapObjectRefs(::Deki::Component* 
 static const ::Deki::FieldRef DekiGen_Deki_UnitProjectSettings_Fields[] = {
     { ::Deki::HashString("inspectorUnit"), (uint16_t)offsetof(Deki::UnitProjectSettings, inspectorUnit), (uint8_t)::Deki::PropertyType::Enum, 1 },
     { ::Deki::HashString("pixelsPerMeter"), (uint16_t)offsetof(Deki::UnitProjectSettings, pixelsPerMeter), (uint8_t)::Deki::PropertyType::Float, 0 },
+    { ::Deki::HashString("temperatureUnit"), (uint16_t)offsetof(Deki::UnitProjectSettings, temperatureUnit), (uint8_t)::Deki::PropertyType::Enum, 1 },
 };
 
 // =============================================================================
@@ -551,11 +553,16 @@ static const ::Deki::FieldRef DekiGen_Deki_UnitProjectSettings_Fields[] = {
 #define DEKI_GEN_ENUM_UnitMode
 static const char* const s_UnitMode_Values[] = { "Pixels", "Meters" };
 #endif
+#ifndef DEKI_GEN_ENUM_TemperatureUnit
+#define DEKI_GEN_ENUM_TemperatureUnit
+static const char* const s_TemperatureUnit_Values[] = { "Celsius", "Fahrenheit" };
+#endif
 
 static const ::Deki::PropertyInfo DekiGen_Deki_UnitProjectSettings_Props[] = {
     { "inspectorUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::UnitProjectSettings, inspectorUnit),
       "Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.", 0, 0, false, nullptr, s_UnitMode_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "pixelsPerMeter", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::UnitProjectSettings, pixelsPerMeter),
-      "World scale: how many framebuffer pixels render one meter of world space. Drives inspector px<->m conversion and the default zoom of new cameras (CameraComponent::pixelsPerMeter sentinel).", 1.0, 1024.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
+      "World scale: how many framebuffer pixels render one meter of world space. Drives inspector px<->m conversion and the default zoom of new cameras (CameraComponent::pixelsPerMeter sentinel).", 1.0, 1024.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "temperatureUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::UnitProjectSettings, temperatureUnit),
+      "Temperature scale shown in the inspector. Storage is always degrees Celsius; this only changes what you read and type.", 0, 0, false, nullptr, s_TemperatureUnit_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
 };
 
 extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;
@@ -576,7 +583,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_UnitProjectSettings_TypeInfo = {
     &DekiGen_Deki_UnitProjectSettings_Deserialize,
     &DekiGen_Deki_UnitProjectSettings_ResolveObjectRefs,
     &DekiGen_Deki_UnitProjectSettings_RemapObjectRefs,
-    DekiGen_Deki_UnitProjectSettings_Fields, 2,
+    DekiGen_Deki_UnitProjectSettings_Fields, 3,
 #ifdef DEKI_EDITOR
     &DekiGen_Deki_UnitProjectSettings_Meta
 #else
@@ -598,7 +605,7 @@ const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta = {
     false,   // platformSceneOnly
     sizeof(Deki::UnitProjectSettings),
     DekiGen_Deki_UnitProjectSettings_TypeInfo.create,
-    DekiGen_Deki_UnitProjectSettings_Props, 2,
+    DekiGen_Deki_UnitProjectSettings_Props, 3,
     {}, false,
     nullptr,   // displayNameOverride
     "Units",   // settingsSection (DEKI_SETTINGS_SECTION)
