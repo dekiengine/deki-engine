@@ -4,13 +4,16 @@
 #include <stddef.h>
 #include <memory>
 
-// Capturing the call site costs flash: every site that omits a label embeds
-// its file path, its function name and a line number, and those strings live
-// in the binary forever. That is a fine trade in the editor and a poor one on
-// a part where code size is a budget, so it is a debug-build feature.
+// An allocation names itself by where it was written. Define
+// DEKI_STRIP_ALLOC_CONTEXT to compile that away for a build that needs the
+// flash back: the file paths, function names and line numbers all disappear
+// and AllocContext becomes empty.
 //
-// Define DEKI_NO_ALLOC_CONTEXT to switch it off in a debug build too.
-#if defined(DEBUG) && !defined(DEKI_NO_ALLOC_CONTEXT)
+// Measured on the ESP32-S3 firmware, capture costs 5,664 bytes across roughly
+// 118 call sites — 0.37% of a 1.5 MB image, about 48 bytes a site. That is
+// cheap enough to be on by default and only worth stripping if you are
+// genuinely short.
+#if !defined(DEKI_STRIP_ALLOC_CONTEXT)
 #define DEKI_ALLOC_CONTEXT_CAPTURE 1
 #include <source_location>
 #endif
@@ -45,68 +48,51 @@ enum class MemorySubsystem : uint8_t
 /**
  * @brief Who asked for an allocation. Filled in by the compiler.
  *
- * Every allocating call takes one of these and almost nobody writes one: the
- * default argument captures the call site, so an allocation names itself
- * without the caller typing a label that can go stale after a rename or get
- * copied verbatim into the next function along.
+ * Nobody writes one. Every allocating call takes an AllocContext whose default
+ * argument captures the call site, so an allocation is identified by where it
+ * was written:
  *
  *     Deki::Memory::Allocate(n, Deki::MemoryUse::Internal);
- *     // -> "SetCapacity" at ParticlePool.h:47
+ *     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
  *
- * A literal still works where the call site is not the useful name — one
- * function allocating three different things, say — and it wins over the
- * derived one:
+ * There is no name to pass and no way to pass one. A hand-written tag is a
+ * second identity for the same allocation that has to be kept in step with
+ * the first, and the compiler already knows the answer.
  *
- *     buffer.Allocate(n, Deki::MemoryUse::Internal, "ParticlePool::posX");
- *
- * Nothing here is copied or allocated. Every member points at a string
- * literal the compiler emitted with static storage duration, which is what
- * makes it safe for the debug leak table to hold the pointer. Do not
- * construct one from a std::string: the label must outlive the allocation.
+ * Nothing is copied or allocated. Every member points at a string literal the
+ * compiler emitted with static storage duration, which is what makes it safe
+ * for the debug leak table to hold the pointer.
  */
 struct AllocContext
 {
-    const char* label;  ///< what the caller called it, or nullptr
-
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
     const char* file;      ///< __FILE__ of the call site
     const char* function;  ///< enclosing function, with its signature on GCC
     uint32_t line;
 
-    /// Omitted: the call site names the allocation.
+    // The default argument is the whole mechanism: it is evaluated at the
+    // CALL SITE, so the allocation records where it was written rather than
+    // anywhere in the engine it passes through. Every layer between — the
+    // Buffer<T> methods, Memory::Allocate — takes one of these and forwards
+    // it. A layer that took its own default instead would report itself, and
+    // every allocation in the engine would name a plausible, wrong file.
     AllocContext(std::source_location loc = std::source_location::current())
-        : label(nullptr), file(loc.file_name()), function(loc.function_name()),
-          line(loc.line())
-    {
-    }
-
-    /// A literal: the caller's name wins, and the call site rides along so a
-    /// failure can still say where. Implicit on purpose — it is what keeps
-    /// every existing `..., "Sprite::Load")` call site compiling unchanged.
-    AllocContext(const char* explicit_label,
-                 std::source_location loc = std::source_location::current())
-        : label(explicit_label), file(loc.file_name()),
-          function(loc.function_name()), line(loc.line())
+        : file(loc.file_name()), function(loc.function_name()), line(loc.line())
     {
     }
 
     const char* File() const { return file; }
+    const char* Name() const { return function; }
     uint32_t Line() const { return line; }
-
-    /// What the logs print: the caller's label when there is one, otherwise
-    /// the function the allocation was written in.
-    const char* Name() const { return label ? label : function; }
-
 #else
-    // Release and firmware: one pointer, which is exactly what the old
-    // `const char* context` parameter was. No strings are captured, so a
-    // label-less call site costs nothing and reports nothing.
-    AllocContext() : label(nullptr) {}
-    AllocContext(const char* explicit_label) : label(explicit_label) {}
+    // Stripped: an empty struct, so nothing is captured, nothing is passed and
+    // no string reaches the binary. The reporting calls still compile; they
+    // just have nothing to say.
+    AllocContext() = default;
 
     const char* File() const { return "?"; }
+    const char* Name() const { return "?"; }
     uint32_t Line() const { return 0; }
-    const char* Name() const { return label ? label : "?"; }
 #endif
 };
 
@@ -202,7 +188,7 @@ private:
         void* ptr;
         size_t size;
         const char* context;
-        uint32_t line;      ///< 0 when the context was a hand-written label
+        uint32_t line;      ///< 0 in a stripped build
         bool isPsram;
     };
     static AllocationRecord* s_AllocationRecords;
