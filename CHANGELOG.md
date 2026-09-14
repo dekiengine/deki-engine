@@ -74,11 +74,24 @@ and package DLLs has its own numbered history in
   destructor cannot make any of those mistakes. Move-only; `T` must be
   trivially copyable and trivially destructible, both enforced by
   `static_assert` because nothing here constructs or destroys elements.
-- `Deki::MemoryUse`: where an allocation lives — `Internal`, `Hot` (internal,
-  and touched every frame), `Buffer` (external where the board has it) or
-  `Dma`. Required on every allocating call; see Changed below for why nothing
-  is inferred. The old `bool prefer_psram` overload remains as a header inline
-  mapping to `Buffer`/`Internal`.
+- `Deki::Memory::Region`: where an allocation lives, named rather than
+  enumerated. A region is a `constexpr` value built from a string, carrying
+  that string and its FNV-1a hash: `Memory::Internal` and `Memory::External`
+  are declared by the engine, and a package declares its own the same way, in
+  its own namespace — `inline constexpr Deki::Memory::Region kRtc{"esp32.rtc"};`
+  — without the engine knowing the name. Comparison is an integer compare, so
+  this costs no more than the enum it replaces, and the name survives into the
+  failure message. Two packages whose names hash the same are reported at
+  startup with both names.
+
+  Extension is two-sided: a package can name a region, but only the board's
+  `IMemoryProvider` can serve one, and a provider that has not heard of
+  `esp32.rtc` returns null and says so by name. The region name is also the
+  capability name with a `memory:` prefix, so a package allocating from
+  `kRtc` declares `"platformRequires": ["memory:esp32.rtc"]` and a target
+  without it is refused before anything runs.
+
+  Required on every allocating call: omitting the region does not compile.
 - `Deki::Memory::AllocateArray<T>`: a checked replacement for `new T[n]` for
   any count that comes from a file, a scene, or the screen. `new[]` cannot fail
   gracefully on the device — ESP-IDF builds with exceptions off, so the
@@ -87,8 +100,12 @@ and package DLLs has its own numbered history in
   by calling the throwing form inside a `try`/`catch` that `-fno-exceptions`
   has removed. The multiplication is checked too: `count * sizeof(T)` is a
   32-bit `size_t` on the device, so a corrupt count silently wraps small.
-- `IMemoryProvider::AllocateDma`, and `MALLOC_CAP_DMA` behind it on the ESP32.
-  `MemoryUse::Dma` had documented a promise the allocator was not keeping.
+- `Memory::AllocateDma` and `IMemoryProvider`'s `needsDma` flag, with
+  `MALLOC_CAP_DMA` behind it on the ESP32. DMA is a property of an
+  allocation, not a place to put one — a buffer can need to be
+  DMA-reachable in either region — so it is a separate call rather than a
+  region of its own. The old `MemoryUse::Dma` had documented a promise the
+  allocator was not keeping.
 - The boot path reports what it cost. `Memory::LogStats` is called once when
   the boot scene is up, and again when a setup scene has loaded the startup
   scene, so a device log says how many bytes are in each region before the
@@ -102,19 +119,30 @@ and package DLLs has its own numbered history in
   internal, 4037684 free external`.
 
 ### Changed
-- **`MemoryUse` is `Internal`, `External`, `DMA` — required, never inferred.**
+- **`MemoryUse` is replaced by `Memory::Region` — required, never inferred.**
   Placement is not defaulted and not guessed: every allocating call names its
-  region and omitting it does not compile. `Auto` used to send anything at or
-  above 16 KB to PSRAM, which has the sign backwards in a graphics engine —
-  the largest allocations are usually the ones touched every frame, and a
-  framebuffer in PSRAM measures markedly worse than one in internal RAM on
-  real ESP32-S3 hardware. `Hot` and `Buffer` are gone too: they named what
-  memory was *for* rather than where it goes, and `Hot` placed identically to
+  region and omitting it does not compile.
+
+  *Migration.* `MemoryUse::Internal` and `MemoryUse::Hot` become
+  `Deki::Memory::Internal`; `MemoryUse::Buffer` becomes
+  `Deki::Memory::External`; `MemoryUse::Dma` becomes `Memory::AllocateDma`
+  (or `Buffer::AllocateDma`) with the region you actually want, since
+  DMA-reachable and external are independent questions. The
+  `bool prefer_psram` overloads are gone.
+
+  The enum was closed, so only the engine could add a region and a board with
+  RTC-backed or on-chip-SRAM memory had nowhere to put it. A region is now an
+  open name that a package declares for itself. `Auto` is gone with the enum:
+  it sent anything at or above 16 KB to PSRAM, which has the sign backwards in
+  a graphics engine — the largest allocations are usually the ones touched
+  every frame, and a framebuffer in PSRAM measures markedly worse than one in
+  internal RAM on real ESP32-S3 hardware. `Hot` and `Buffer` named what memory
+  was *for* rather than where it goes, and `Hot` placed identically to
   `Internal`, so it was a label pretending to be a behaviour.
   `kLargeAllocation` went with the rule it served, and `Deki::Vector` takes
-  its region as a constructor argument with no default constructor. Every
-  call site in the engine and all 25 packages already passed a region
-  explicitly, so removing the defaults broke nothing.
+  its region as a constructor argument with no default constructor. Every call
+  site in the engine and all 25 packages already passed a placement
+  explicitly, so the change was mechanical.
 - **`IMemoryProvider`'s placement virtuals are pure.** `AllocateInternal`,
   `AllocateDMA`, `FreeInternal` and `GetAvailableInternalRAM` had defaults —
   `malloc`, and `AllocateDMA` forwarding to `AllocateInternal`. That reads as
@@ -131,8 +159,8 @@ and package DLLs has its own numbered history in
   explaining is already printed once at startup.
 - `Memory::Shutdown` clears the external-RAM flags. They outlived the backend
   that reported them, so after a shutdown the engine still believed PSRAM was
-  present and a later `MemoryUse::Buffer` failed with "Failed to allocate N
-  bytes in external RAM" on a machine with gigabytes free.
+  present and a later `Memory::External` allocation failed with "Failed to
+  allocate N bytes in 'external'" on a machine with gigabytes free.
 - C++23 (`CMAKE_CXX_STANDARD 23`) instead of 17. ESP-IDF forces
   `-std=gnu++2b` for chip targets unconditionally, so firmware had been
   compiling at C++23 while the engine, the editor and the generated project
@@ -140,6 +168,12 @@ and package DLLs has its own numbered history in
   depending on target, so a C++20 feature would compile for the board and
   fail on the desktop. Two identifiers named `requires` had to be renamed
   (it is a keyword since C++20) and nothing else broke.
+- A log line's colour reset sits before its newline, not after. It used to be
+  written after, so the escape landed at the start of whatever was printed
+  next: invisible on a terminal, but anywhere stdout and stderr are combined
+  into one stream it prefixed the following line with `[0m`, which is
+  enough to stop a parser anchored at the start of a line from matching it.
+
 - Reflection codegen keeps one precompiled header per flag set instead of one
   for the whole build tree. A `.gch` records the defines it was built under
   and GCC refuses one whose defines do not match, so a single shared directory

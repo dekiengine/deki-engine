@@ -113,7 +113,11 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     // stderr, not stdout. The log is diagnostics; stdout is where a command's
     // result goes. Mixed together, no caller can parse the JSON the editor's
     // headless verbs print, which is the whole point of having them.
-    fprintf(stderr, "%s%s %s %s:%d %s %s\n%s", color, level_text, arrow, display_name, line, arrow,
+    // The reset closes the line it belongs to, before the newline. After
+    // it, the escape lands at the start of whatever is written next, which
+    // is invisible on a terminal but prefixes the following line wherever
+    // stdout and stderr are combined into one stream.
+    fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, level_text, arrow, display_name, line, arrow,
             buffer, reset);
 }
 
