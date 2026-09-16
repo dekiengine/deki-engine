@@ -6,6 +6,44 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+## 0.16.0 - 2026-09-16
+
+Reflection ABI 17. Every package must be rebuilt.
+
+### Changed
+- **Component identity is a qualified name in practice, not just in theory.**
+  Packages moved their types into a namespace of their own, so nothing of a
+  package's sits at global scope. `IRenderSystem` names
+  `DekiRendering::DekiRenderer` and the node metadata in `Property.h` is
+  `DekiNodeGraph::DekiNodeMeta`: both belong to packages, and the engine only
+  stores and returns them. No layout moved, but the mangling of anything naming
+  those types did, hence the ABI bump.
+- **`SceneFormat::SceneMsgPackParser` is forward declared in `Property.h`.** The
+  generated headers that name it are included INSIDE a package's namespace,
+  beside the type they belong to, so the declaration they used to carry made
+  `Pkg::Deki::SceneFormat` — and that inner `Deki` then hid the engine's
+  namespace from every lookup in the rest of the package.
+- **`PropertyInfo` carries `enumInts`**, the underlying value of each
+  enumerator beside the existing names, so a name can be resolved back to the
+  number the field holds. Nothing could before, which is why authored files
+  stored a bare integer. Trails the struct under the append-only rule, so
+  `sizeofPropertyInfo` refuses a package built before it.
+- **`ComponentMeta` carries `formerNames`** for `DEKI_FORMER_NAME`, and the
+  registry resolves an unrecognised type name through them.
+
+### Added
+- `DEKI_OLDEST_SUPPORTED_PACKAGE`: the oldest package generation this engine
+  can build. Releases are in lockstep, so a package's `minEngine` is also the
+  engine it was built against, and the editor refuses anything older rather
+  than letting it fail to compile later. Bump it on any release that breaks
+  packages.
+
+### Fixed
+- The codegen's precompiled headers: one per flag set, but only the first ever
+  got a rebuild rule, so the rest went stale whenever an engine reflection
+  header changed.
+
+
 ## 0.15.0 - 2026-09-14
 
 ### Added
