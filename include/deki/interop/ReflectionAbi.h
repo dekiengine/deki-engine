@@ -184,8 +184,16 @@ struct DekiReflectionAbi
  *
  * 16: IDisplay::Present and PresentRegions take a ColorFormat instead of an
  *    int whose numbering lived in a comment and as literals in every display.
+ *
+ * 17: packages moved their types into a namespace of their own, so every
+ *    component is identified by a qualified name rather than a bare one and
+ *    nothing of a package's sits at global scope. No layout moved, but the
+ *    mangling of anything naming a package type did — IRenderSystem's
+ *    SetRenderer and GetRenderer take DekiRendering::DekiRenderer now — so a
+ *    package built before this fails to resolve against the engine's symbols.
+ *    The bump turns that into the loader's "rebuild it" path.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 16;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 17;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

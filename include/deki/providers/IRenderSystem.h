@@ -2,8 +2,10 @@
 #include <cstdint>
 #include <deki/providers/Rect.h>
 
-// Forward declarations
-class DekiRenderer;
+// Forward declaration. The renderer belongs to the deki-rendering package, not
+// the engine: this interface only stores one and hands it back, so its name in
+// that package's namespace is all the engine needs.
+namespace DekiRendering { class DekiRenderer; }
 
 namespace Deki
 {
@@ -32,8 +34,8 @@ public:
     virtual int32_t GetScreenHeight() const = 0;
     virtual ColorFormat GetColorFormat() const = 0;
 
-    virtual void SetRenderer(DekiRenderer* renderer) = 0;
-    virtual DekiRenderer* GetRenderer() const = 0;
+    virtual void SetRenderer(DekiRendering::DekiRenderer* renderer) = 0;
+    virtual DekiRendering::DekiRenderer* GetRenderer() const = 0;
 
     /**
      * @brief Render a scene to an external buffer (used by edit mode)

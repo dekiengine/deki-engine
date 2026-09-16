@@ -20,7 +20,11 @@
 
 // Forward declarations
 
-struct DekiNodeMeta;   // node-graph node metadata (full definition in deki-nodegraph/DekiNode.h), a package type: global
+// Node-graph node metadata. The definition is deki-nodegraph's
+// (DekiNode.h), so the declaration names that package's namespace: a node
+// declared inside its own package would otherwise bind this to a global type
+// that is never defined.
+namespace DekiNodeGraph { struct DekiNodeMeta; }
 
 namespace Deki
 {
@@ -28,6 +32,13 @@ namespace Deki
 class Component;
 class Scene;
 struct ComponentTypeInfo;  // Component.h
+
+// Declared here, at global scope, because the generated headers that name it
+// are included INSIDE a package's namespace, next to the type they belong to.
+// A `namespace Deki::SceneFormat` written from in there would create
+// `Deki2D::Deki::SceneFormat` instead, and that inner `Deki` then hides the
+// engine's from every lookup in the rest of the package.
+namespace SceneFormat { class SceneMsgPackParser; }
 
 // ============================================================================
 // Export marker for property generator
@@ -593,7 +604,7 @@ namespace deki_refl {
     #define DEKI_NODE_REFLECTION_DECLARATIONS() \
         static const ::Deki::PropertyInfo* GetProperties(); \
         static int GetPropertyCount(); \
-        static const DekiNodeMeta& GetNodeMeta();
+        static const ::DekiNodeGraph::DekiNodeMeta& GetNodeMeta();
 #else
     #define DEKI_NODE_REFLECTION_DECLARATIONS() /* No reflection on embedded */
 #endif
