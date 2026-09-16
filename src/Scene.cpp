@@ -945,20 +945,32 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             propsJson[prop.name] = GetPropertyRef<Deki::Color>(comp, prop).ToRGBA8888();
             break;
         case PropertyType::Enum:
+        {
             // Use enumSize to read the correct number of bytes
+            int32_t enumValue = 0;
             switch (prop.enumSize)
             {
                 case 1:
-                    propsJson[prop.name] = static_cast<int>(GetPropertyValue<uint8_t>(comp, prop));
+                    enumValue = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop));
                     break;
                 case 2:
-                    propsJson[prop.name] = static_cast<int>(GetPropertyValue<uint16_t>(comp, prop));
+                    enumValue = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop));
                     break;
                 default:
-                    propsJson[prop.name] = GetPropertyValue<int32_t>(comp, prop);
+                    enumValue = GetPropertyValue<int32_t>(comp, prop);
                     break;
             }
+            // Write the enumerator's NAME. A bare number would mean whatever sat
+            // at that position when the file was written, so appending to an
+            // enum, or reordering one, silently changed every saved scene. The
+            // name survives both. A value the enum does not declare has no name
+            // to write, so it falls back to the number rather than being lost.
+            if (const char* enumName = EnumNameForValue(prop, enumValue))
+                propsJson[prop.name] = enumName;
+            else
+                propsJson[prop.name] = enumValue;
             break;
+        }
         case PropertyType::Asset:
             // Asset paths are stored as strings
             propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop);
@@ -1331,10 +1343,30 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(static_cast<uint32_t>(value.get<int64_t>()));
             break;
         case PropertyType::Enum:
-            if (value.is_number_integer())
+        {
+            // Both forms are accepted: the NAME, which is what the editor writes
+            // now, and a bare number, which every file written before that used
+            // and which stays readable. An unknown name leaves the field at its
+            // default rather than guessing, since guessing is what made this
+            // worth changing.
+            bool haveValue = false;
+            int32_t intVal = 0;
+            if (value.is_string())
+            {
+                const std::string name = value.get<std::string>();
+                haveValue = EnumValueForName(prop, name.c_str(), intVal);
+                if (!haveValue)
+                    DEKI_LOG_WARNING("Scene: '%s' is not a value of enum property '%s'; leaving the default",
+                                     name.c_str(), prop.name);
+            }
+            else if (value.is_number_integer())
+            {
+                intVal = value.get<int32_t>();
+                haveValue = true;
+            }
+            if (haveValue)
             {
                 // Use enumSize to write the correct number of bytes
-                int intVal = value.get<int>();
                 switch (prop.enumSize)
                 {
                     case 1:
@@ -1349,6 +1381,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 }
             }
             break;
+        }
         case PropertyType::Asset:
             // Asset paths are stored as strings
             if (value.is_string())

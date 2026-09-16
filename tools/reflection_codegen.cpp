@@ -1242,6 +1242,25 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                     }
                 }
                 out << " };\n";
+                // The underlying value of each enumerator, parallel to _Values.
+                // Emitted because a position in that table is not the number
+                // stored in the field: an enum may start off zero, leave gaps,
+                // or be a flags set. Serialisation writes the name and resolves
+                // it back through here, so reordering an enum cannot silently
+                // change what an already-saved scene means.
+                out << "static const int32_t s_" << en << "_Ints[] = { ";
+                f = true;
+                template for (constexpr auto e : std::define_static_array(m::enumerators_of(bare(m::type_of(mem)))))
+                {
+                    if constexpr (!is_sentinel(m::identifier_of(e)))
+                    {
+                        if (!f) out << ", ";
+                        f = false;
+                        constexpr int32_t ev = static_cast<int32_t>([:e:]);
+                        out << ev;
+                    }
+                }
+                out << " };\n";
                 out << "#endif\n";
             }
         }
@@ -1335,14 +1354,22 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 out << u;
             else
                 out << "None";
-            constexpr const char* vo = valueof_of(mem);  // DEKI_VALUE_OF
-            if constexpr (vo != nullptr) out << ", \"" << vo << "\"";
+            // The trailing optionals, in struct order: valueOfProperty,
+            // renamedFrom, enumInts. They are positional, so emitting a later
+            // one means spelling out every earlier one even where it is absent.
+            constexpr const char* vo = valueof_of(mem);        // DEKI_VALUE_OF
             constexpr const char* rfm = renamed_from_of(mem);  // DEKI_RENAMED_FROM
+            constexpr bool wantsEnumInts = is_enum(t);
+            if constexpr (vo != nullptr)
+                out << ", \"" << vo << "\"";
+            else if constexpr (rfm != nullptr || wantsEnumInts)
+                out << ", nullptr";
             if constexpr (rfm != nullptr)
-            {
-                if constexpr (vo == nullptr) out << ", nullptr";
                 out << ", \"" << rfm << "\"";
-            }
+            else if constexpr (wantsEnumInts)
+                out << ", nullptr";
+            if constexpr (wantsEnumInts)
+                out << ", s_" << enum_name(t) << "_Ints";
             out << " }";
         }
         out << "\n};\n\n";
@@ -1777,6 +1804,25 @@ void emit_node(std::ostream& out, std::string_view srcdir)
                     }
                 }
                 out << " };\n";
+                // The underlying value of each enumerator, parallel to _Values.
+                // Emitted because a position in that table is not the number
+                // stored in the field: an enum may start off zero, leave gaps,
+                // or be a flags set. Serialisation writes the name and resolves
+                // it back through here, so reordering an enum cannot silently
+                // change what an already-saved scene means.
+                out << "static const int32_t s_" << en << "_Ints[] = { ";
+                f = true;
+                template for (constexpr auto e : std::define_static_array(m::enumerators_of(bare(m::type_of(mem)))))
+                {
+                    if constexpr (!is_sentinel(m::identifier_of(e)))
+                    {
+                        if (!f) out << ", ";
+                        f = false;
+                        constexpr int32_t ev = static_cast<int32_t>([:e:]);
+                        out << ev;
+                    }
+                }
+                out << " };\n";
                 out << "#endif\n";
             }
         }
@@ -1875,8 +1921,16 @@ void emit_node(std::ostream& out, std::string_view srcdir)
                 out << u;
             else
                 out << "None";
+            // Trailing optionals are positional. This path has no
+            // DEKI_RENAMED_FROM, so reaching enumInts pads that slot too.
             constexpr const char* vo = valueof_of(mem);  // DEKI_VALUE_OF
-            if constexpr (vo != nullptr) out << ", \"" << vo << "\"";
+            constexpr bool wantsEnumInts = is_enum(t);
+            if constexpr (vo != nullptr)
+                out << ", \"" << vo << "\"";
+            else if constexpr (wantsEnumInts)
+                out << ", nullptr";
+            if constexpr (wantsEnumInts)
+                out << ", nullptr, s_" << enum_name(t) << "_Ints";
             out << " }";
         }
         out << "\n    };\n    return props;\n}\n\n";

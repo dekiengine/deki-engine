@@ -428,13 +428,14 @@ static const ::Deki::FieldRef DekiGen_Deki_DisplayProjectSettings_Fields[] = {
 #ifndef DEKI_GEN_ENUM_ColorFormat
 #define DEKI_GEN_ENUM_ColorFormat
 static const char* const s_ColorFormat_Values[] = { "RGB565", "RGB888", "ARGB8888", "RGB565A8" };
+static const int32_t s_ColorFormat_Ints[] = { 0, 1, 2, 3 };
 #endif
 
 static const ::Deki::PropertyInfo DekiGen_Deki_DisplayProjectSettings_Props[] = {
     { "targetWidth", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetWidth),
       "Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetHeight", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetHeight),
       "Logical render height in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "colorFormat", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::DisplayProjectSettings, colorFormat),
-      "Framebuffer pixel format. RGB565 (default) is the smallest and fastest — typical for embedded displays. RGB888 gives full 8-bit color but uses 50% more memory. ARGB8888 adds an alpha channel and uses 100% more memory.", 0, 0, false, nullptr, s_ColorFormat_Values, 4, 4, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
+      "Framebuffer pixel format. RGB565 (default) is the smallest and fastest — typical for embedded displays. RGB888 gives full 8-bit color but uses 50% more memory. ARGB8888 adds an alpha channel and uses 100% more memory.", 0, 0, false, nullptr, s_ColorFormat_Values, 4, 4, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_ColorFormat_Ints }
 };
 
 extern const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta;
@@ -552,17 +553,19 @@ static const ::Deki::FieldRef DekiGen_Deki_UnitProjectSettings_Fields[] = {
 #ifndef DEKI_GEN_ENUM_UnitMode
 #define DEKI_GEN_ENUM_UnitMode
 static const char* const s_UnitMode_Values[] = { "Pixels", "Meters" };
+static const int32_t s_UnitMode_Ints[] = { 0, 1 };
 #endif
 #ifndef DEKI_GEN_ENUM_TemperatureUnit
 #define DEKI_GEN_ENUM_TemperatureUnit
 static const char* const s_TemperatureUnit_Values[] = { "Celsius", "Fahrenheit" };
+static const int32_t s_TemperatureUnit_Ints[] = { 0, 1 };
 #endif
 
 static const ::Deki::PropertyInfo DekiGen_Deki_UnitProjectSettings_Props[] = {
     { "inspectorUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::UnitProjectSettings, inspectorUnit),
-      "Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.", 0, 0, false, nullptr, s_UnitMode_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "pixelsPerMeter", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::UnitProjectSettings, pixelsPerMeter),
+      "Inspector display preference. Pixels: physical-quantity fields show as px / px/s / px/s². Meters: same fields show as m / m/s / m/s². Internal storage is always meters either way.", 0, 0, false, nullptr, s_UnitMode_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_UnitMode_Ints },    { "pixelsPerMeter", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::UnitProjectSettings, pixelsPerMeter),
       "World scale: how many framebuffer pixels render one meter of world space. Drives inspector px<->m conversion and the default zoom of new cameras (CameraComponent::pixelsPerMeter sentinel).", 1.0, 1024.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "temperatureUnit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::UnitProjectSettings, temperatureUnit),
-      "Temperature scale shown in the inspector. Storage is always degrees Celsius; this only changes what you read and type.", 0, 0, false, nullptr, s_TemperatureUnit_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
+      "Temperature scale shown in the inspector. Storage is always degrees Celsius; this only changes what you read and type.", 0, 0, false, nullptr, s_TemperatureUnit_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_TemperatureUnit_Ints }
 };
 
 extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;

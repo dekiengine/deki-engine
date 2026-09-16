@@ -230,13 +230,24 @@ void SaveProp(const Component* comp, const PropertyInfo& prop, nlohmann::json& o
         case PropertyType::Float: out[prop.name] = GetPropertyValue<float>(comp, prop); break;
         case PropertyType::String: out[prop.name] = GetPropertyValue<std::string>(comp, prop); break;
         case PropertyType::Enum:
+        {
+            // Settings files are authored and tracked in git like scenes, so
+            // they store the enumerator's NAME for the same reason: a bare
+            // number means whichever value sat at that position when the file
+            // was written. A value the enum does not declare keeps the number.
+            int32_t enumValue = 0;
             switch (prop.enumSize)
             {
-                case 1: out[prop.name] = (int32_t)GetPropertyValue<uint8_t>(comp, prop); break;
-                case 2: out[prop.name] = (int32_t)GetPropertyValue<uint16_t>(comp, prop); break;
-                default: out[prop.name] = GetPropertyValue<int32_t>(comp, prop); break;
+                case 1: enumValue = (int32_t)GetPropertyValue<uint8_t>(comp, prop); break;
+                case 2: enumValue = (int32_t)GetPropertyValue<uint16_t>(comp, prop); break;
+                default: enumValue = GetPropertyValue<int32_t>(comp, prop); break;
             }
+            if (const char* enumName = EnumNameForValue(prop, enumValue))
+                out[prop.name] = enumName;
+            else
+                out[prop.name] = enumValue;
             break;
+        }
         default: break;
     }
 }
@@ -278,9 +289,20 @@ void LoadProp(Component* comp, const PropertyInfo& prop, const nlohmann::json& i
             if (v.is_string()) SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
             break;
         case PropertyType::Enum:
-            if (v.is_number_integer())
+        {
+            // Accepts the name written now and the bare number written before,
+            // so a settings file from an older editor still loads.
+            bool haveValue = false;
+            int32_t intVal = 0;
+            if (v.is_string())
+                haveValue = EnumValueForName(prop, v.get<std::string>().c_str(), intVal);
+            else if (v.is_number_integer())
             {
-                int32_t intVal = v.get<int32_t>();
+                intVal = v.get<int32_t>();
+                haveValue = true;
+            }
+            if (haveValue)
+            {
                 switch (prop.enumSize)
                 {
                     case 1: SetPropertyValue<uint8_t>(comp, prop, (uint8_t)intVal); break;
@@ -289,6 +311,7 @@ void LoadProp(Component* comp, const PropertyInfo& prop, const nlohmann::json& i
                 }
             }
             break;
+        }
         default: break;
     }
 }

@@ -270,7 +270,10 @@ struct PropertyInfo {
     // AssetTypeRegistry by the owning package
     const char* assetType;
 
-    // Enum support
+    // Enum support. `enumValues` names each enumerator; `enumInts` (below,
+    // trailing the struct) carries the UNDERLYING VALUE of each. A position in
+    // these tables is NOT the number stored in the field: an enum may start
+    // anywhere, skip values, or be a flags set (1, 2, 4, 8).
     const char* const* enumValues;  // Array of enum value names
     int enumCount;                  // Number of enum values
     uint8_t enumSize;               // sizeof(enum) - 1, 2, or 4 bytes
@@ -319,7 +322,55 @@ struct PropertyInfo {
     // Trails the struct (append-only rule); the reflection ABI handshake's
     // sizeofPropertyInfo refuses packages built without it.
     const char* renamedFrom = nullptr;
+
+    // Underlying value of each enumerator, parallel to `enumValues` and the
+    // same `enumCount` long. Authored JSON stores the NAME and resolves it back
+    // through this table, so reordering an enum no longer rewrites the meaning
+    // of saved files. Anything needing the integer must look it up here: the
+    // index into these tables is not the stored value whenever an enum starts
+    // off zero, leaves a gap, or is a flags set.
+    // Trails the struct (append-only rule); null on a package built before it,
+    // which the handshake's sizeofPropertyInfo already refuses.
+    const int32_t* enumInts = nullptr;
 };
+
+/// Name of the enumerator whose underlying value is `value`, or nullptr when
+/// the enum declares no such value. Needs `enumInts`, so it answers nullptr on
+/// a property whose package predates that table.
+inline const char* EnumNameForValue(const PropertyInfo& prop, int32_t value)
+{
+    if (!prop.enumValues || !prop.enumInts) return nullptr;
+    for (int i = 0; i < prop.enumCount; ++i)
+        if (prop.enumInts[i] == value) return prop.enumValues[i];
+    return nullptr;
+}
+
+/// Underlying value of the enumerator called `name`. False when the enum has no
+/// enumerator by that name, leaving `out` untouched.
+inline bool EnumValueForName(const PropertyInfo& prop, const char* name, int32_t& out)
+{
+    if (!prop.enumValues || !prop.enumInts || !name) return false;
+    for (int i = 0; i < prop.enumCount; ++i)
+    {
+        const char* candidate = prop.enumValues[i];
+        if (!candidate) continue;
+        const char* a = candidate;
+        const char* b = name;
+        while (*a && *a == *b) { ++a; ++b; }
+        if (*a == 0 && *b == 0) { out = prop.enumInts[i]; return true; }
+    }
+    return false;
+}
+
+/// Position of `value` in the enum tables, for a UI that works in list indices
+/// such as a combo box. -1 when the enum declares no such value.
+inline int EnumIndexForValue(const PropertyInfo& prop, int32_t value)
+{
+    if (!prop.enumInts) return -1;
+    for (int i = 0; i < prop.enumCount; ++i)
+        if (prop.enumInts[i] == value) return i;
+    return -1;
+}
 
 /**
  * @brief Component metadata for runtime reflection

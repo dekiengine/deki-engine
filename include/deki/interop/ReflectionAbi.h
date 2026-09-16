@@ -100,6 +100,11 @@ struct DekiReflectionAbi
  *    struct's size changed, which sizeofPropertyInfo catches on its own: a
  *    package built before it is refused and rebuilt.
  *
+ * (no bump) Deki::PropertyInfo grew `enumInts`, the underlying value of each
+ *    enumerator beside the existing names. Same reasoning: sizeofPropertyInfo
+ *    moves, so a package built before it is refused and rebuilt rather than
+ *    having its enum tables read as though a list position were a value.
+ *
  * 6: engine 0.10 (the namespace release) moved every engine type into namespace Deki (Deki::Object ->
  *    Deki::Object, ...). Every sizeof is unchanged, but the symbol mangling of
  *    every exported engine function changed, so a 1.x package DLL would fail to
