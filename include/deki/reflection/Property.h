@@ -415,6 +415,15 @@ struct ComponentMeta {
     // Trails the struct (append-only rule).
     const ComponentTypeInfo* typeInfo = nullptr;
 
+    // DEKI_FORMER_NAME: qualified names this component used to be saved under,
+    // newest first. A scene stores the qualified class name, so without these a
+    // rename, or a move into a namespace, orphans every instance in every saved
+    // scene. The loader resolves an unrecognised type through this table and
+    // writes the current name back on save.
+    // Trails the struct (append-only rule).
+    const char* const* formerNames = nullptr;
+    int formerNameCount = 0;
+
     // Get the display name. Prefers an explicit override; otherwise derives from `name`.
     const char* GetDisplayName() const {
         if (displayNameOverride) return displayNameOverride;
@@ -512,6 +521,20 @@ inline const T& GetNodePropertyRef(const void* base, const PropertyInfo& prop) {
 //                    ("DS3231RTCComponent" -> "DS3231 RTC") is not right.
 // DEKI_SETTINGS_SECTION  Makes the component a Project Settings section of
 //                    that name instead of a scene component.
+// DEKI_FORMER_NAME   A qualified name this component used to have. Scenes
+//                    store the qualified class name, so renaming a class or
+//                    moving it into a namespace would otherwise orphan every
+//                    component in every saved scene. Add one line per previous
+//                    name, oldest last, and old scenes keep loading and are
+//                    written back under the current name on save:
+//
+//                        DEKI_FORMER_NAME("SpriteComponent")
+//                        class Deki2D::SpriteComponent : public RendererComponent
+//
+//                    Never delete one: the file that still uses it may be
+//                    older than any migration you remember. The name must stay
+//                    unique across the project, and the loader says so if two
+//                    components claim the same one.
 //
 // Only the reflection generator sees them; every other build expands them to
 // nothing. Exported fields must be public: the generated code reaches them
@@ -522,6 +545,7 @@ namespace deki_refl {
     struct description_tag { const char* text; };
     struct display_name_tag { const char* text; };
     struct settings_section_tag { const char* text; };
+    struct former_name_tag { const char* text; };  // DEKI_FORMER_NAME("Old::Name")
 }
 #define DEKI_REFL_CONCAT2(a, b) a##b
 #define DEKI_REFL_CONCAT(a, b) DEKI_REFL_CONCAT2(a, b)
@@ -531,11 +555,13 @@ namespace deki_refl {
 #define DEKI_DESCRIPTION(text)      DEKI_REFL_TAG(description_tag, text)
 #define DEKI_DISPLAY_NAME(text)     DEKI_REFL_TAG(display_name_tag, text)
 #define DEKI_SETTINGS_SECTION(text) DEKI_REFL_TAG(settings_section_tag, text)
+#define DEKI_FORMER_NAME(text)      DEKI_REFL_TAG(former_name_tag, text)
 #else
 #define DEKI_CATEGORY(text)
 #define DEKI_DESCRIPTION(text)
 #define DEKI_DISPLAY_NAME(text)
 #define DEKI_SETTINGS_SECTION(text)
+#define DEKI_FORMER_NAME(text)
 #endif
 
 // ============================================================================

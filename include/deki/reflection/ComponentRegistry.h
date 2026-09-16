@@ -199,6 +199,17 @@ private:
     void IndexInsertOrReplace(const ComponentMeta* meta);
 #endif
 
+#ifdef DEKI_EDITOR
+    /// Adds this component's DEKI_FORMER_NAME entries to the alias index,
+    /// complaining if two components claim the same discarded name.
+    void IndexFormerNames(const ComponentMeta* meta);
+
+    /// Rebuilds the alias index from the components still registered. Used after
+    /// an unload, where the index could otherwise keep pointing into a DLL that
+    /// is no longer mapped.
+    void RebuildFormerNameIndex();
+#endif
+
     // Field tables live on all platforms (see RegisterFields). The pointers are
     // static storage inside the owning package's .gen.cpp, so in the editor they
     // follow exactly the same freeze/restore lifecycle as m_Components when a
@@ -215,6 +226,10 @@ private:
     std::vector<FieldTable> m_FrozenFieldTables;
     std::unordered_map<uint32_t, const ComponentMeta*> m_ByType;
     std::unordered_map<std::string, const ComponentMeta*> m_ByName;
+    // DEKI_FORMER_NAME -> the component that now answers to it, so a scene
+    // written before a rename still resolves. Kept apart from m_ByName because a
+    // current name must always win over someone else's discarded one.
+    std::unordered_map<std::string, const ComponentMeta*> m_ByFormerName;
     std::unordered_set<uint32_t> m_PluginTypeIds;
     std::unordered_map<uint32_t, std::string> m_PluginTypeToName;  // typeId → serializedName for dereference-safe cleanup
     std::unordered_set<uint32_t> m_EngineTypeIds;
@@ -225,6 +240,7 @@ private:
     std::vector<const ComponentMeta*> m_FrozenComponents;
     std::unordered_map<uint32_t, const ComponentMeta*> m_FrozenByType;
     std::unordered_map<std::string, const ComponentMeta*> m_FrozenByName;
+    std::unordered_map<std::string, const ComponentMeta*> m_FrozenByFormerName;
 #endif
 };
 

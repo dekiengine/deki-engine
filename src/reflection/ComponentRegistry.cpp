@@ -40,6 +40,29 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
     if (const ComponentMeta* existing = GetMeta(meta->typeId))
     {
         if (existing == meta) return;  // Same pointer, skip
+        // A second registration of the same id is normally a hot reload: the
+        // same class, recompiled, arriving from a rebuilt DLL. But a component's
+        // id is the hash of its qualified name, so two DIFFERENT classes that
+        // share a name collide here too, and replacing one with the other means
+        // the survivor's field table is used to read the other's memory.
+        //
+        // The two are told apart by shape. A rebuild of the same class keeps its
+        // size, base and property count; a different class sharing a name
+        // almost never does. Complaining only on a shape change keeps an
+        // ordinary reload silent while the dangerous case is named out loud,
+        // rather than corrupting memory somewhere far from the cause.
+        if (existing->instanceSize != meta->instanceSize || existing->baseTypeId != meta->baseTypeId ||
+            existing->propertyCount != meta->propertyCount)
+        {
+            DEKI_LOG_ERROR(
+                "ComponentRegistry: two different components are registered as '%s'. Component "
+                "identity is the qualified class name, so this is a name clash, not a reload: "
+                "one is %u bytes with %d propertie(s), the other %u with %d. The one registered "
+                "second wins and the other's instances will be read with the wrong field "
+                "offsets. Rename one of them, or put them in different namespaces.",
+                meta->serializedName ? meta->serializedName : "?", (unsigned)existing->instanceSize,
+                existing->propertyCount, (unsigned)meta->instanceSize, meta->propertyCount);
+        }
         for (size_t i = 0; i < m_Components.size(); ++i)
         {
             if (m_Components[i]->typeId == meta->typeId)
@@ -51,6 +74,7 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
 #ifdef DEKI_EDITOR
         m_ByType[meta->typeId] = meta;
         m_ByName[meta->serializedName] = meta;
+        IndexFormerNames(meta);
 #else
         IndexInsertOrReplace(meta);
 #endif
@@ -62,10 +86,39 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
 #ifdef DEKI_EDITOR
     m_ByType[meta->typeId] = meta;
     m_ByName[meta->serializedName] = meta;
+    IndexFormerNames(meta);
 #else
     IndexInsertOrReplace(meta);
 #endif
 }
+
+#ifdef DEKI_EDITOR
+void ComponentRegistry::IndexFormerNames(const ComponentMeta* meta)
+{
+    if (!meta || !meta->formerNames) return;
+    for (int i = 0; i < meta->formerNameCount; ++i)
+    {
+        const char* former = meta->formerNames[i];
+        if (!former || !*former) continue;
+        // Two components claiming the same discarded name cannot both be
+        // resolved, and picking one silently would load somebody's scene as the
+        // wrong component. Keep the first and say so.
+        auto existing = m_ByFormerName.find(former);
+        if (existing != m_ByFormerName.end() && existing->second != meta)
+        {
+            DEKI_LOG_ERROR(
+                "ComponentRegistry: '%s' and '%s' both declare DEKI_FORMER_NAME(\"%s\"). A scene "
+                "written under that name cannot be resolved to either with confidence, so '%s' "
+                "keeps it. Only the class that actually had that name should claim it.",
+                existing->second->serializedName ? existing->second->serializedName : "?",
+                meta->serializedName ? meta->serializedName : "?", former,
+                existing->second->serializedName ? existing->second->serializedName : "?");
+            continue;
+        }
+        m_ByFormerName[former] = meta;
+    }
+}
+#endif
 
 const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
 {
@@ -148,6 +201,16 @@ const ComponentMeta* ComponentRegistry::GetMeta(const std::string& name) const
     if (it != m_ByName.end())
     {
         return it->second;
+    }
+    // Not a name any component currently answers to, so try the names they used
+    // to have (DEKI_FORMER_NAME). This is what lets a class be renamed, or moved
+    // into a namespace, without orphaning every instance in every saved scene.
+    // The caller writes the current name back on save, so a file migrates the
+    // first time it is opened and saved.
+    auto former = m_ByFormerName.find(name);
+    if (former != m_ByFormerName.end())
+    {
+        return former->second;
     }
     return nullptr;
 }
@@ -253,8 +316,19 @@ void ComponentRegistry::ClearPluginComponents()
     for (const auto& [typeId, meta] : m_ByType)
         m_Components.push_back(meta);
 
+    // The alias index points at metas too, and the plugin's are gone. Rebuilt
+    // from the survivors, which are by definition still loaded.
+    RebuildFormerNameIndex();
+
     m_PluginTypeIds.clear();
     m_PluginTypeToName.clear();
+}
+
+void ComponentRegistry::RebuildFormerNameIndex()
+{
+    m_ByFormerName.clear();
+    for (const ComponentMeta* meta : m_Components)
+        IndexFormerNames(meta);
 }
 
 bool ComponentRegistry::IsPluginComponent(uint32_t typeId) const
@@ -264,6 +338,7 @@ bool ComponentRegistry::IsPluginComponent(uint32_t typeId) const
 
 void ComponentRegistry::Unregister(uint32_t typeId)
 {
+    bool rebuildAliases = false;
     auto it = m_Components.begin();
     while (it != m_Components.end())
     {
@@ -273,12 +348,15 @@ void ComponentRegistry::Unregister(uint32_t typeId)
             if ((*it)->serializedName)
                 m_ByName.erase((*it)->serializedName);
             it = m_Components.erase(it);
+            rebuildAliases = true;
         }
         else
         {
             ++it;
         }
     }
+    // The alias index may have pointed at the meta just removed.
+    if (rebuildAliases) RebuildFormerNameIndex();
 }
 
 void ComponentRegistry::FreezeEngineComponents()
@@ -293,6 +371,7 @@ void ComponentRegistry::FreezeEngineComponents()
     m_FrozenComponents = m_Components;
     m_FrozenByType = m_ByType;
     m_FrozenByName = m_ByName;
+    m_FrozenByFormerName = m_ByFormerName;
     m_FrozenFieldTables = m_FieldTables;
 }
 
@@ -304,6 +383,7 @@ void ComponentRegistry::ClearNonEngineComponents()
     m_Components = m_FrozenComponents;
     m_ByType = m_FrozenByType;
     m_ByName = m_FrozenByName;
+    m_ByFormerName = m_FrozenByFormerName;
     // Field tables point into package .gen.cpp statics, so they die with the DLL
     // exactly like the metas do and are restored from the same snapshot.
     m_FieldTables = m_FrozenFieldTables;

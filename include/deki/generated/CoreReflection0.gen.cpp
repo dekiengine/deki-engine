@@ -97,7 +97,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta = {
     {}, false,
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
-    &DekiGen_Deki_SetupComponent_TypeInfo
+    &DekiGen_Deki_SetupComponent_TypeInfo,
+    nullptr, 0   // formerNames (none declared)
 };
 #endif // DEKI_EDITOR
 
@@ -241,7 +242,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta = {
     {}, false,
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
-    &DekiGen_Deki_PlatformSetupComponent_TypeInfo
+    &DekiGen_Deki_PlatformSetupComponent_TypeInfo,
+    nullptr, 0   // formerNames (none declared)
 };
 #endif // DEKI_EDITOR
 
@@ -357,7 +359,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta = {
     {}, false,
     nullptr,   // displayNameOverride
     "Core",   // settingsSection (DEKI_SETTINGS_SECTION)
-    &DekiGen_Deki_CoreProjectSettings_TypeInfo
+    &DekiGen_Deki_CoreProjectSettings_TypeInfo,
+    nullptr, 0   // formerNames (none declared)
 };
 #endif // DEKI_EDITOR
 
@@ -482,7 +485,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta = {
     {}, false,
     nullptr,   // displayNameOverride
     "Framebuffer",   // settingsSection (DEKI_SETTINGS_SECTION)
-    &DekiGen_Deki_DisplayProjectSettings_TypeInfo
+    &DekiGen_Deki_DisplayProjectSettings_TypeInfo,
+    nullptr, 0   // formerNames (none declared)
 };
 #endif // DEKI_EDITOR
 
@@ -612,7 +616,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta = {
     {}, false,
     nullptr,   // displayNameOverride
     "Units",   // settingsSection (DEKI_SETTINGS_SECTION)
-    &DekiGen_Deki_UnitProjectSettings_TypeInfo
+    &DekiGen_Deki_UnitProjectSettings_TypeInfo,
+    nullptr, 0   // formerNames (none declared)
 };
 #endif // DEKI_EDITOR
 

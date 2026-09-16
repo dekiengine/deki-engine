@@ -707,7 +707,7 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
 // Under DEKI_REFLECT each marker expands to a namespace-scope constant of a
 // deki_refl tag type. A marker belongs to the first component declared after it
 // in the same file; one that no component follows is reported as an error.
-enum TagKind { TAG_NONE = 0, TAG_CATEGORY, TAG_DESCRIPTION, TAG_DISPLAY_NAME, TAG_SETTINGS_SECTION };
+enum TagKind { TAG_NONE = 0, TAG_CATEGORY, TAG_DESCRIPTION, TAG_DISPLAY_NAME, TAG_SETTINGS_SECTION, TAG_FORMER_NAME };
 consteval int tag_kind(m::info x)
 {
     if (!m::is_variable(x)) return TAG_NONE;
@@ -716,6 +716,7 @@ consteval int tag_kind(m::info x)
     if (t == ^^Deki::deki_refl::description_tag) return TAG_DESCRIPTION;
     if (t == ^^Deki::deki_refl::display_name_tag) return TAG_DISPLAY_NAME;
     if (t == ^^Deki::deki_refl::settings_section_tag) return TAG_SETTINGS_SECTION;
+    if (t == ^^Deki::deki_refl::former_name_tag) return TAG_FORMER_NAME;
     return TAG_NONE;
 }
 consteval const char* tag_text(m::info x)
@@ -726,6 +727,7 @@ consteval const char* tag_text(m::info x)
         case TAG_DESCRIPTION: return m::extract<Deki::deki_refl::description_tag>(x).text;
         case TAG_DISPLAY_NAME: return m::extract<Deki::deki_refl::display_name_tag>(x).text;
         case TAG_SETTINGS_SECTION: return m::extract<Deki::deki_refl::settings_section_tag>(x).text;
+        case TAG_FORMER_NAME: return m::extract<Deki::deki_refl::former_name_tag>(x).text;
         default: return nullptr;
     }
 }
@@ -776,6 +778,17 @@ consteval const char* tag_text_of(m::info comp, int kind)
     for (m::info t : kTags)
         if (tag_kind(t) == kind && tag_owner(t) == comp) return tag_text(t);
     return nullptr;
+}
+
+// Every marker of one kind on a component, in source order. DEKI_FORMER_NAME is
+// repeatable: a class renamed twice keeps one line per previous name, so a scene
+// written before either rename still resolves.
+consteval std::vector<const char*> tag_texts_of(m::info comp, int kind)
+{
+    std::vector<const char*> out;
+    for (m::info t : kTags)
+        if (tag_kind(t) == kind && tag_owner(t) == comp) out.push_back(tag_text(t));
+    return out;
 }
 
 // ---- member collection ----
@@ -1405,6 +1418,20 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     out << "};\n\n";
 
     out << "#ifdef DEKI_EDITOR\n";
+    // DEKI_FORMER_NAME table, emitted before the meta that points at it.
+    constexpr auto kFormerNames = std::define_static_array(tag_texts_of(COMP, TAG_FORMER_NAME));
+    if constexpr (kFormerNames.size() > 0)
+    {
+        out << "static const char* const " << G << "_FormerNames[] = { ";
+        bool firstName = true;
+        for (const char* formerName : kFormerNames)
+        {
+            if (!firstName) out << ", ";
+            firstName = false;
+            out << "\"" << formerName << "\"";
+        }
+        out << " };\n";
+    }
     out << "const ::Deki::ComponentMeta " << G << "_Meta = {\n";
     out << "    \"" << CLS << "\",\n";
     out << "    ::Deki::TypeName<" << QN << ">(),  // serializedName: the scene file's \"type\"\n";
@@ -1444,7 +1471,13 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
         out << "    \"" << section << "\",   // settingsSection (DEKI_SETTINGS_SECTION)\n";
     else
         out << "    nullptr,   // settingsSection\n";
-    out << "    &" << G << "_TypeInfo\n";
+    out << "    &" << G << "_TypeInfo,\n";
+    // Newest first: the qualified names a saved scene may still carry for this
+    // class, so the loader can resolve a type it no longer recognises.
+    if constexpr (kFormerNames.size() > 0)
+        out << "    " << G << "_FormerNames, " << kFormerNames.size() << "   // DEKI_FORMER_NAME\n";
+    else
+        out << "    nullptr, 0   // formerNames (none declared)\n";
     out << "};\n";
     out << "#endif // DEKI_EDITOR\n\n";
 }
