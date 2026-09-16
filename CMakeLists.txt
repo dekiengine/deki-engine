@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.15.0 LANGUAGES C CXX)
+project(deki-engine VERSION 0.16.0 LANGUAGES C CXX)
 
 # Transform width (include/deki/Object.h, deki-editor/COMPATIBILITY.md).
 # Whoever configures this tree says which: the editor forces both on so it can
@@ -159,8 +159,24 @@ endif()
 # every package together; a change to a class packages subclass also bumps
 # kDekiReflectionAbiVersion (deki-editor/tools/ci/check_abi.py enforces that).
 # See deki-editor/COMPATIBILITY.md.
+#
+# DEKI_OLDEST_SUPPORTED_PACKAGE is the other half of that comparison: the
+# oldest package generation this engine can still build. Releases are in
+# lockstep, so a package's minEngine IS the engine it was built against, and
+# the editor refuses a package whose minEngine is older than this.
+#
+# Without it minEngine is a floor with nothing above it, and a package from an
+# older generation installs happily, fails the ABI handshake at load, gets
+# rebuilt from source, and fails to compile. The user then sees a compile error
+# deep in a project build rather than a sentence naming the package and the
+# version, which is exactly what the minEngine check exists to avoid.
+#
+# Bump it to the release version whenever a release breaks packages, which is
+# any release that bumps kDekiReflectionAbiVersion or changes what packages
+# compile against. Leave it alone for a release that does not.
 target_compile_definitions(deki-engine-core PUBLIC
-    "DEKI_ENGINE_VERSION=\"${PROJECT_VERSION}\"")
+    "DEKI_ENGINE_VERSION=\"${PROJECT_VERSION}\""
+    "DEKI_OLDEST_SUPPORTED_PACKAGE=\"0.16.0\"")
 
 # The transform width, PUBLIC so everything compiled against this target sees
 # the same Deki::Object layout the engine itself was built with.
