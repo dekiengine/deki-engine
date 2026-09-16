@@ -841,8 +841,14 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         if (meta)
         {
             compJson["type"] = meta->serializedName;
-            if (meta->name)
-                compJson["class"] = meta->name;
+            // "class" is no longer written. It was the 0.10-era hint for
+            // resolving a component whose type had moved, and since identity
+            // became the qualified class name it has held the same string as
+            // "type" with a namespace stripped off — a second name that can
+            // drift from the first and says nothing the first does not.
+            // Still READ, below, for the files that have it, and still written
+            // for a component whose package is missing, where it is the only
+            // record of what the type was called.
             compJson["properties"] = nlohmann::json::object();
 
             // Serialize base class properties first (e.g., sortingOrder from RendererComponent)
@@ -941,8 +947,14 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop);
             break;
         case PropertyType::Color:
-            // Use ToRGBA8888() for consistent serialization (matches generated code's FromRGBA8888)
-            propsJson[prop.name] = GetPropertyRef<Deki::Color>(comp, prop).ToRGBA8888();
+        {
+            // "#RRGGBBAA". A packed number is unreadable in a diff and freezes
+            // the channel order into every saved file. The compiled scene the
+            // device loads keeps the packed form: that is build output.
+            char hex[10];
+            ColorToHex(GetPropertyRef<Deki::Color>(comp, prop), hex);
+            propsJson[prop.name] = hex;
+        }
             break;
         case PropertyType::Enum:
         {
@@ -1337,7 +1349,19 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
             break;
         case PropertyType::Color:
-            if (value.is_number_unsigned())
+            // "#RRGGBBAA" is what is written now; the packed number every file
+            // before this used still reads. A malformed string keeps the
+            // field's default rather than silently turning it black.
+            if (value.is_string())
+            {
+                Deki::Color parsed;
+                if (ColorFromHex(value.get<std::string>().c_str(), parsed))
+                    GetPropertyRef<Deki::Color>(comp, prop) = parsed;
+                else
+                    DEKI_LOG_WARNING("Scene: '%s' is not a colour like #RRGGBBAA on property '%s'",
+                                     value.get<std::string>().c_str(), prop.name);
+            }
+            else if (value.is_number_unsigned())
                 GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(value.get<uint32_t>());
             else if (value.is_number_integer())
                 GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(static_cast<uint32_t>(value.get<int64_t>()));

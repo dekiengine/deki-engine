@@ -201,7 +201,12 @@ enum class PhysicalUnit : uint8_t {
     Acceleration,      // meters per second squared
     Angle,             // radians (inspector displays degrees)
     AngularVelocity,   // radians per second (inspector displays degrees/s)
-    Temperature        // degrees Celsius (inspector may display Fahrenheit)
+    Temperature,       // degrees Celsius (inspector may display Fahrenheit)
+    // Appended, so existing values keep their numbers. Both existed as a unit
+    // spelled into field names instead (spiMhz, durationMs), which is how one
+    // package ended up in megahertz while another was in hertz.
+    Frequency,         // hertz
+    Time               // seconds
 };
 
 /**
