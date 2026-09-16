@@ -337,9 +337,18 @@ function(deki_reflection_codegen)
       # register a duplicate rule and fail the Ninja generate with "multiple
       # rules generate reflcodegen/_pch/...".
       if(CMAKE_GENERATOR MATCHES "Ninja")
-        get_property(_pch_rule_added GLOBAL PROPERTY _DEKI_REFLCODEGEN_PCH_RULE)
+        # The guard is keyed BY PCH, not per build tree. There is one .gch per
+        # flag set (_pch_key above), and a single global boolean gave the first
+        # one a rebuild rule and every other one none: those were then refreshed
+        # only at configure time, so editing an engine reflection header and
+        # rebuilding left them stale. A stale .gch does not fail quietly — it
+        # surfaces as "redefinition of struct Deki::deki_refl::..." from the
+        # header the .gch already contains. Keying by _pch_key keeps the
+        # duplicate-rule protection the comment below describes while giving
+        # every distinct PCH its own rule.
+        get_property(_pch_rule_added GLOBAL PROPERTY _DEKI_REFLCODEGEN_PCH_RULE_${_pch_key})
         if(NOT _pch_rule_added)
-          set_property(GLOBAL PROPERTY _DEKI_REFLCODEGEN_PCH_RULE TRUE)
+          set_property(GLOBAL PROPERTY _DEKI_REFLCODEGEN_PCH_RULE_${_pch_key} TRUE)
           add_custom_command(
             OUTPUT "${_pch_gch}"
             COMMAND ${_host_env} "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
