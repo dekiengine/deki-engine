@@ -1206,6 +1206,20 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     int fieldCount = 0;
     if constexpr (!deser_members(COMP).empty())
     {
+        // FieldRef::offset is a uint16_t, to keep the device's field table at 8
+        // bytes per entry in flash. The casts below are C-style and so silent:
+        // a component over 65535 bytes would have its later fields truncated to
+        // an offset pointing somewhere arbitrary inside the object, and every
+        // data-driven write through FindField (an FSM action, a tween target)
+        // would corrupt whatever sits there instead of failing. Nothing shipped
+        // is anywhere near the limit, but a user with a big inline buffer would
+        // meet it with no diagnostic at all. Turn it into a compile error that
+        // names the component.
+        out << "static_assert(sizeof(" << QN << ") <= 0xFFFF,\n"
+            << "    \"" << QN << " is larger than 65535 bytes. Deki's field table stores a \"\n"
+            << "    \"16-bit field offset, so this component's fields cannot be addressed. \"\n"
+            << "    \"Hold the bulk of the data behind a pointer or a Deki::Buffer instead of \"\n"
+            << "    \"inline in the component.\");\n";
         out << "static const ::Deki::FieldRef " << G << "_Fields[] = {\n";
         template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
         {

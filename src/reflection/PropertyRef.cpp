@@ -19,6 +19,20 @@ void PropertyRef::Rehash()
     // the next save writes it.
     if (const char* legacyName = LegacyComponentTypeName(component))
         component = legacyName;
+
+    // Authored before a rename, which for 0.16.0 means every package component,
+    // since they all moved into a namespace. GetMeta falls back to
+    // DEKI_FORMER_NAME, so ask who answers to this name now and store that.
+    // Without it the hash below is of a name nothing answers to any more, and
+    // BindPropertyRef fails with "object has no such component" on a binding
+    // that looks perfectly correct in the inspector. Writing the current name
+    // back also migrates the file the next time it is saved.
+    if (!component.empty())
+    {
+        const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(component);
+        if (meta && meta->serializedName && component != meta->serializedName)
+            component = meta->serializedName;
+    }
 #endif
     componentTypeId = component.empty() ? 0u : HashString(component.c_str());
     fieldHash = field.empty() ? 0u : HashString(field.c_str());

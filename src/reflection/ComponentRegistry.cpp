@@ -1,5 +1,6 @@
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/LogSystem.h>
+#include <deki/TypeId.h>  // HashString, for the former-name id index
 #include <algorithm>
 #include <cstdio>
 
@@ -116,6 +117,14 @@ void ComponentRegistry::IndexFormerNames(const ComponentMeta* meta)
             continue;
         }
         m_ByFormerName[former] = meta;
+
+        // Keyed by hash as well, for ObjectRef and PropertyRef, which store a
+        // type id and no name. A current type id must win over a discarded
+        // name's, so a former name that collides with some live component's id
+        // is not indexed: that id already resolves, correctly, to that class.
+        const uint32_t formerId = HashString(former);
+        if (GetMeta(formerId) == nullptr)
+            m_ByFormerTypeId[formerId] = meta;
     }
 }
 #endif
@@ -327,8 +336,16 @@ void ComponentRegistry::ClearPluginComponents()
 void ComponentRegistry::RebuildFormerNameIndex()
 {
     m_ByFormerName.clear();
+    m_ByFormerTypeId.clear();
     for (const ComponentMeta* meta : m_Components)
         IndexFormerNames(meta);
+}
+
+const ComponentMeta* ComponentRegistry::GetMetaByFormerTypeId(uint32_t formerTypeId) const
+{
+    if (formerTypeId == 0) return nullptr;
+    auto it = m_ByFormerTypeId.find(formerTypeId);
+    return it != m_ByFormerTypeId.end() ? it->second : nullptr;
 }
 
 bool ComponentRegistry::IsPluginComponent(uint32_t typeId) const

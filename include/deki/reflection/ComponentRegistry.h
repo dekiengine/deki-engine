@@ -88,6 +88,25 @@ public:
     const ComponentMeta* GetMetaByClassName(const std::string& className) const;
 
     /**
+     * @brief Get metadata from the HASH of a name a component used to have.
+     *
+     * The string form of a rename is handled by GetMeta(name), which falls back
+     * to DEKI_FORMER_NAME. But a scene also stores component identity as a bare
+     * number in places where no name is written: ObjectRef::componentTypeId and
+     * PropertyRef::componentTypeId. Those numbers are the hash of whatever the
+     * class was called when the file was saved, and a hash cannot be mapped
+     * back to its string, so the name fallback cannot reach them.
+     *
+     * This is the numeric equivalent: it indexes HashString(formerName) so a
+     * stale id resolves to the class that now owns that name. Callers rewrite
+     * the reference to the current id, which migrates the file on its next save.
+     *
+     * @param formerTypeId A type id read from a file, possibly pre-rename
+     * @return Pointer to metadata, or nullptr if no component ever had that name
+     */
+    const ComponentMeta* GetMetaByFormerTypeId(uint32_t formerTypeId) const;
+
+    /**
      * @brief Create a new component instance by type ID
      * @param typeId The ComponentType value
      * @return New component instance, or nullptr if not found/abstract
@@ -230,6 +249,9 @@ private:
     // written before a rename still resolves. Kept apart from m_ByName because a
     // current name must always win over someone else's discarded one.
     std::unordered_map<std::string, const ComponentMeta*> m_ByFormerName;
+    // The same table keyed by HashString(formerName), for the references that
+    // store a type id and no name. See GetMetaByFormerTypeId.
+    std::unordered_map<uint32_t, const ComponentMeta*> m_ByFormerTypeId;
     std::unordered_set<uint32_t> m_PluginTypeIds;
     std::unordered_map<uint32_t, std::string> m_PluginTypeToName;  // typeId → serializedName for dereference-safe cleanup
     std::unordered_set<uint32_t> m_EngineTypeIds;

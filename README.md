@@ -54,7 +54,7 @@ scene files: renaming one is a file-format change, done with
 | Path | What it is |
 | --- | --- |
 | `include/deki/` | The public headers, included as `<deki/Object.h>`: `Deki::Engine` (frame loop), `Deki::Object`, `Deki::Component` (data, and any of Awake/Start/Update a class declares), `Deki::Scene`, `Deki::SceneSystem`, `SceneMessagePack` (runtime scene format). Everything is in `namespace Deki`, unprefixed, and so are the file names |
-| `include/deki/reflection/` | `Property.h` (`DEKI_EXPORT`, the attributes, the markers above a class), `ComponentRegistry`, `ComponentFactory`, `SettingsRegistry`; `TypeId.h` (a component's identity is its qualified class name) |
+| `include/deki/reflection/` | `Property.h` (`DEKI_EXPORT`, the attributes, the markers above a class), `ComponentRegistry`, `ComponentFactory`, `SettingsRegistry`. `TypeId.h`, which defines that identity as the qualified class name, sits one level up in `include/deki/` |
 | `include/deki/assets/` | `AssetManager`, `AssetRef<T>`, asset packs |
 | `include/deki/providers/` | The provider interfaces packages implement |
 | `include/deki/interop/` | `Plugin.h` (the C exports a package DLL provides), `ReflectionAbi.h` (the ABI handshake and its changelog); the C symbols keep the `DekiPlugin_` prefix |

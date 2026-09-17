@@ -8,6 +8,20 @@ and package DLLs has its own numbered history in
 
 ## 0.16.0 - 2026-09-16
 
+### Fixed
+- A component's former names are now indexed by hash as well as by string, so
+  a reference that stores only a type id resolves across a rename. `ObjectRef`
+  and `PropertyRef` both store identity without a name beside it, and a hash
+  cannot be mapped back to the string it came from, so the `DEKI_FORMER_NAME`
+  fallback could not reach them: every such reference to a package component
+  went dead when 0.16.0 moved those components into namespaces, and the stale
+  value was written back on save. Both are now rewritten to the current
+  identity as they load, so a file repairs itself the first time it is saved.
+- The generated field table asserts that a component fits in 65535 bytes.
+  `FieldRef` stores a 16-bit offset to keep the device's table at 8 bytes per
+  field, and the cast that produced it was silent, so a larger component would
+  have had its later fields point at arbitrary memory.
+
 Reflection ABI 17. Every package must be rebuilt.
 
 ### Changed

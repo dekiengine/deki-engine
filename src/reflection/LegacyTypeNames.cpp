@@ -1,6 +1,7 @@
 #include "reflection/LegacyTypeNames.h"
 
 #include <deki/TypeId.h>
+#include <deki/reflection/ComponentRegistry.h>
 
 #ifdef DEKI_EDITOR
 
@@ -84,8 +85,35 @@ const char* LegacyComponentTypeName(const std::string& guid)
 uint32_t LegacyComponentTypeId(uint32_t typeId)
 {
     if (typeId == 0) return 0;
+
+    // A 0.10 file stores the hash of a GUID. Translate it to the hash of the
+    // name that GUID stood for, then fall through: those names are bare, from
+    // before the packages had namespaces, so they are stale in their own right
+    // and still need the step below.
     for (const LegacyEntry& e : kLegacyTypes)
-        if (HashString(e.guid) == typeId) return HashString(e.name);
+    {
+        if (HashString(e.guid) == typeId)
+        {
+            typeId = HashString(e.name);
+            break;
+        }
+    }
+
+    const ComponentRegistry& reg = ComponentRegistry::Instance();
+
+    // A live component owning this id always wins. Only if nothing answers to
+    // it is it worth asking who used to.
+    if (reg.GetMeta(typeId) != nullptr)
+        return typeId;
+
+    // An id written before a rename — most often 0.16.0 moving every package
+    // component into a namespace, which changed every one of these hashes.
+    // Unlike the "type" string beside it, a bare id carries no name to fall
+    // back on, so without this the reference resolves to nothing and the dead
+    // id is written straight back out on the next save.
+    if (const ComponentMeta* meta = reg.GetMetaByFormerTypeId(typeId))
+        return meta->typeId;
+
     return typeId;
 }
 

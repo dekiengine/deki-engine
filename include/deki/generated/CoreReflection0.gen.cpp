@@ -182,6 +182,11 @@ static void DekiGen_Deki_PlatformSetupComponent_RemapObjectRefs(::Deki::Componen
 // Compact Field Table (all platforms)
 // =============================================================================
 
+static_assert(sizeof(Deki::PlatformSetupComponent) <= 0xFFFF,
+    "Deki::PlatformSetupComponent is larger than 65535 bytes. Deki's field table stores a "
+    "16-bit field offset, so this component's fields cannot be addressed. "
+    "Hold the bulk of the data behind a pointer or a Deki::Buffer instead of "
+    "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_PlatformSetupComponent_Fields[] = {
     { ::Deki::HashString("setupComponents"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },
     { ::Deki::HashString("setup_components"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },  // DEKI_RENAMED_FROM
@@ -298,6 +303,11 @@ static void DekiGen_Deki_CoreProjectSettings_RemapObjectRefs(::Deki::Component* 
 // Compact Field Table (all platforms)
 // =============================================================================
 
+static_assert(sizeof(Deki::CoreProjectSettings) <= 0xFFFF,
+    "Deki::CoreProjectSettings is larger than 65535 bytes. Deki's field table stores a "
+    "16-bit field offset, so this component's fields cannot be addressed. "
+    "Hold the bulk of the data behind a pointer or a Deki::Buffer instead of "
+    "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_CoreProjectSettings_Fields[] = {
     { ::Deki::HashString("capFps"), (uint16_t)offsetof(Deki::CoreProjectSettings, capFps), (uint8_t)::Deki::PropertyType::Bool, 0 },
     { ::Deki::HashString("targetFps"), (uint16_t)offsetof(Deki::CoreProjectSettings, targetFps), (uint8_t)::Deki::PropertyType::Int32, 0 },
@@ -416,6 +426,11 @@ static void DekiGen_Deki_DisplayProjectSettings_RemapObjectRefs(::Deki::Componen
 // Compact Field Table (all platforms)
 // =============================================================================
 
+static_assert(sizeof(Deki::DisplayProjectSettings) <= 0xFFFF,
+    "Deki::DisplayProjectSettings is larger than 65535 bytes. Deki's field table stores a "
+    "16-bit field offset, so this component's fields cannot be addressed. "
+    "Hold the bulk of the data behind a pointer or a Deki::Buffer instead of "
+    "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_DisplayProjectSettings_Fields[] = {
     { ::Deki::HashString("targetWidth"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetWidth), (uint8_t)::Deki::PropertyType::Int32, 0 },
     { ::Deki::HashString("targetHeight"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetHeight), (uint8_t)::Deki::PropertyType::Int32, 0 },
@@ -542,6 +557,11 @@ static void DekiGen_Deki_UnitProjectSettings_RemapObjectRefs(::Deki::Component* 
 // Compact Field Table (all platforms)
 // =============================================================================
 
+static_assert(sizeof(Deki::UnitProjectSettings) <= 0xFFFF,
+    "Deki::UnitProjectSettings is larger than 65535 bytes. Deki's field table stores a "
+    "16-bit field offset, so this component's fields cannot be addressed. "
+    "Hold the bulk of the data behind a pointer or a Deki::Buffer instead of "
+    "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_UnitProjectSettings_Fields[] = {
     { ::Deki::HashString("inspectorUnit"), (uint16_t)offsetof(Deki::UnitProjectSettings, inspectorUnit), (uint8_t)::Deki::PropertyType::Enum, 1 },
     { ::Deki::HashString("pixelsPerMeter"), (uint16_t)offsetof(Deki::UnitProjectSettings, pixelsPerMeter), (uint8_t)::Deki::PropertyType::Float, 0 },
