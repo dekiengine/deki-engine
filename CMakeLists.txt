@@ -135,10 +135,11 @@ if(DEKI_EDITOR)
     )
 endif()
 
-# Platform providers - shared between simulator and editor
+# Platform providers. The prefix routing only; the implementations behind each
+# mount live in the package for that target (deki-desktop-integration,
+# deki-esp32-integration), because the engine does not know what targets exist.
 list(APPEND DEKI_CORE_SOURCES
     src/providers/FileSystem.cpp
-    src/platforms/desktop/DesktopFileSystem.cpp
 )
 
 # Build as shared library for editor (so plugins can link against it)

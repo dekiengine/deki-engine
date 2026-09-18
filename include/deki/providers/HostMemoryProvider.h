@@ -12,7 +12,12 @@
 
 /**
  * @file DesktopMemoryProvider.h
- * @brief Desktop memory provider using malloc/free
+ * @brief Memory provider over the C heap (malloc/free)
+ *
+ * Not platform-specific despite where this used to live: any host with a
+ * normal C library heap uses it - the editor, the desktop simulator, a test.
+ * It sat under platforms/desktop/ purely by habit, which made the engine
+ * look like it shipped support for a particular target.
  *
  * Implementation for desktop platforms without external RAM:
  * - Desktop (Windows, macOS, Linux)
@@ -26,11 +31,11 @@
 namespace Deki
 {
 
-class DesktopMemoryProvider : public IMemoryProvider
+class HostMemoryProvider : public IMemoryProvider
 {
 public:
-    DesktopMemoryProvider() = default;
-    ~DesktopMemoryProvider() override = default;
+    HostMemoryProvider() = default;
+    ~HostMemoryProvider() override = default;
 
     bool Initialize() override { return true; }
     void Shutdown() override {}
