@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file LegacyTypeNames.h
+ * @file FormerTypeIds.h
  * @brief Engine 0.10 component GUIDs, mapped to the class names that replaced them.
  *
  * Until 0.11 a component declared a GUID and scene files referred to it by
@@ -20,13 +20,11 @@ namespace Deki
 {
 
 /// The class name a 0.10 component GUID stands for, or nullptr when unknown.
-const char* LegacyComponentTypeName(const std::string& guid);
 
 /// A type id that was the hash of a 0.10 GUID, as the hash of the class name
 /// that replaced it; ids that are not legacy GUIDs come back unchanged.
 uint32_t LegacyComponentTypeId(uint32_t typeId);
 
 /// True when the string has the shape of a component GUID.
-bool LooksLikeComponentGuid(const std::string& s);
 
 }  // namespace Deki

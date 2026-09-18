@@ -14,7 +14,7 @@
 #include <deki/SceneMessagePack.h>
 #include "MissingComponent.h"
 #include "ObjectInternal.h"
-#include "reflection/LegacyTypeNames.h"
+#include "reflection/FormerTypeIds.h"
 #include <deki/Time.h>
 #include <deki/assets/AssetManager.h>
 

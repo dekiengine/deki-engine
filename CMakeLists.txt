@@ -87,7 +87,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/reflection/ComponentRegistry.cpp
     src/reflection/ComponentFactory.cpp
     src/reflection/PropertyRef.cpp
-    src/reflection/LegacyTypeNames.cpp
+    src/reflection/FormerTypeIds.cpp
     src/reflection/SettingsRegistry.cpp
     src/providers/DekiProviderRegistryBase.cpp
     src/providers/Power.cpp

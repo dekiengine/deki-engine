@@ -2,7 +2,7 @@
 
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/Component.h>  // HashString
-#include "reflection/LegacyTypeNames.h"
+#include "reflection/FormerTypeIds.h"
 #include <deki/Object.h>
 
 #include <cstdlib>
@@ -15,11 +15,6 @@ namespace Deki
 void PropertyRef::Rehash()
 {
 #ifdef DEKI_EDITOR
-    // Authored before 0.11: the component is a GUID. Store the class name so
-    // the next save writes it.
-    if (const char* legacyName = LegacyComponentTypeName(component))
-        component = legacyName;
-
     // Authored before a rename, which for 0.16.0 means every package component,
     // since they all moved into a namespace. GetMeta falls back to
     // DEKI_FORMER_NAME, so ask who answers to this name now and store that.
