@@ -46,6 +46,13 @@ Reflection ABI 17. Every package must be rebuilt.
   registry resolves an unrecognised type name through them.
 
 ### Added
+- **A package's automatic SetupComponent declares when it runs.**
+  `DEKI_REGISTER_EDITOR_AUTO_SETUP` fires when packages finish loading, which is
+  every project open and every hot reload, and suits something cheap and local.
+  The new `DEKI_REGISTER_PLAY_AUTO_SETUP` waits for the user to press Play, for
+  anything with a side effect beyond the editor. There was only one moment
+  before, so a setup that reached the network ran every time a project was
+  opened. Registering without a phase still means editor load.
 - `DEKI_OLDEST_SUPPORTED_PACKAGE`: the oldest package generation this engine
   can build. Releases are in lockstep, so a package's `minEngine` is also the
   engine it was built against, and the editor refuses anything older rather

@@ -16,6 +16,7 @@ namespace
 struct Entry
 {
     SetupComponent::EditorAutoFactory factory;
+    SetupComponent::SetupPhase phase;
     bool fired;
 };
 
@@ -28,10 +29,10 @@ std::vector<Entry>& Entries()
 }
 }  // namespace
 
-void SetupComponent::RegisterEditorAutoFactory(EditorAutoFactory factory)
+void SetupComponent::RegisterEditorAutoFactory(EditorAutoFactory factory, SetupPhase phase)
 {
     if (factory)
-        Entries().push_back({ factory, false });
+        Entries().push_back({ factory, phase, false });
 }
 
 void SetupComponent::ClearEditorAutoFactories()
@@ -39,14 +40,14 @@ void SetupComponent::ClearEditorAutoFactories()
     Entries().clear();
 }
 
-void SetupComponent::RunEditorAutoSetups()
+void SetupComponent::RunEditorAutoSetups(SetupPhase phase)
 {
     // Idempotent: only fire entries that haven't been fired yet. Safe to call
     // after every package load so newly installed packages' editor setup runs
     // without re-running the ones already live.
     for (auto& e : Entries())
     {
-        if (e.fired)
+        if (e.fired || e.phase != phase)
             continue;
         SetupComponent* c = e.factory();
         e.fired = true;
