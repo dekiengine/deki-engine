@@ -171,6 +171,9 @@ bool Engine::Initialize(const EngineHost& host)
     // Setup the rendering system (if rendering package is loaded)
     if (engine.m_Renderer)
     {
+#if !defined(DEKI_SCREEN_WIDTH) || !defined(DEKI_SCREEN_HEIGHT) || !defined(DEKI_DEFAULT_COLOR_FORMAT)
+#error "The engine is built for a target, and the target's build says what its screen is: define DEKI_SCREEN_WIDTH, DEKI_SCREEN_HEIGHT and DEKI_DEFAULT_COLOR_FORMAT on deki-engine-core. There is no default."
+#endif
         const int32_t width = DEKI_SCREEN_WIDTH;
         const int32_t height = DEKI_SCREEN_HEIGHT;
         const ColorFormat format = DEKI_DEFAULT_COLOR_FORMAT;

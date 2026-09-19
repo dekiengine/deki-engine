@@ -44,7 +44,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Core Engine Library (deki-engine-core)
 # =============================================================================
 # This static library contains the portable engine core that compiles on all
-# platforms: ESP32-S3 (via PlatformIO), desktop simulator, and editor.
+# targets; which ones exist is not something the engine knows.
 #
 # Components write to RGB565 buffers - the display backend is separate.
 
@@ -242,7 +242,7 @@ if(DEKI_EDITOR)
         PACKAGE_OUTDIRS "${GENERATED_DIR}"
         GENERATOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
         INCLUDE_DIRS ${_RC_INCS}
-        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED DEKI_PACKAGE_2D DEKI_PACKAGE_TWEEN ${_DEKI_TRANSFORM_DEFINES}
+        DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_DEKI_TRANSFORM_DEFINES}
                 "DEKI_SCREEN_WIDTH=320" "DEKI_SCREEN_HEIGHT=240" "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
     add_custom_target(generate_properties)  # reflection function registered its own build-time target
@@ -258,10 +258,10 @@ if(DEKI_EDITOR)
     target_compile_definitions(deki-engine-core PUBLIC DEKI_EDITOR)
     target_compile_definitions(deki-engine-core PUBLIC DEKI_LOG_ENABLED)
 
-    # Defines previously provided by DekiTargetEditor.h (now removed)
+    # What the engine has to be told about the target it is built for; here
+    # that target is the editor itself. No package defines: the engine tests
+    # none, and naming packages is not its business.
     target_compile_definitions(deki-engine-core PUBLIC
-        DEKI_PACKAGE_2D
-        DEKI_PACKAGE_TWEEN
         "DEKI_SCREEN_WIDTH=320"
         "DEKI_SCREEN_HEIGHT=240"
         "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
@@ -338,21 +338,14 @@ if(DEKI_EDITOR)
     endif()
 
 else()
-    # Detect target platform
-    if(DEFINED SIMULATOR)
-        target_compile_definitions(deki-engine-core PUBLIC SIMULATOR)
-        message(STATUS "Building deki-engine-core for SIMULATOR")
-        # Defines previously provided by DekiTargetSimulator.h (now removed)
-        target_compile_definitions(deki-engine-core PUBLIC
-            DEKI_PACKAGE_SDL3
-            DEKI_PACKAGE_2D
-            DEKI_PACKAGE_TWEEN
-            "DEKI_SCREEN_WIDTH=320"
-            "DEKI_SCREEN_HEIGHT=240"
-            "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
-            "DEKI_ENABLE_TRANSPARENCY=true"
-    
-            "DEKI_FAST_ATTR="
-        )
-    endif()
+    # A game build. The engine does not know which target this is, and sets
+    # nothing for it: the screen size, colour format, DEKI_FAST_ATTR and the
+    # rest come from whoever adds this directory - the build backend of the
+    # target, which has the platform in hand - through
+    # target_compile_definitions(deki-engine-core PUBLIC ...).
+    #
+    # This used to be `if(DEFINED SIMULATOR)`, with the desktop simulator's
+    # 320x240 RGB565 and three packages' defines written here. Engine.cpp
+    # refuses to compile without the values it needs (see the #error there),
+    # so a backend that forgets them finds out at once.
 endif()
