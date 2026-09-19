@@ -115,7 +115,7 @@ constexpr uint32_t HashName(const char* s)
 struct MemoryStats
 {
     uint32_t totalAllocated;
-    uint32_t psramAllocated;
+    uint32_t externalAllocated;
     uint32_t internalRamAllocated;
 #ifdef DEBUG
     uint32_t activeAllocations;
@@ -126,8 +126,11 @@ struct MemoryStats
 /**
  * @brief Memory Provider for Deki Engine
  *
- * Provides centralized memory management with PSRAM support.
- * Handles PSRAM usage and RAM allocation limits for the Deki.
+ * Centralized memory management over named regions. Internal is the heap every
+ * target has; External is whatever second, larger, slower memory a target may
+ * offer (PSRAM on a microcontroller, for one). The engine uses its own words
+ * for them: what a region is called on a given target is that target's
+ * provider's business.
  */
 class Memory
 {
@@ -141,12 +144,12 @@ private:
     // Platform-specific memory provider
     static std::unique_ptr<IMemoryProvider> s_CurrentBackend;
     static bool initialized;
-    static bool s_PsramAvailable;
-    static bool s_PsramEnabled;
+    static bool s_ExternalAvailable;
+    static bool s_ExternalEnabled;
 
     // Global tracking
     static uint32_t totalAllocated;
-    static uint32_t psramAllocated;
+    static uint32_t externalAllocated;
     static uint32_t internalRamAllocated;
 
 #ifdef DEBUG
@@ -157,7 +160,7 @@ private:
         size_t size;
         const char* context;
         uint32_t line;      ///< 0 in a stripped build
-        bool isPsram;
+        bool isExternal;
     };
     static AllocationRecord* s_AllocationRecords;
     static uint32_t s_MaxAllocations;
@@ -287,13 +290,13 @@ public:
                              AllocContext ctx = {});
 
     /**
-     * @brief Deprecated: name the region instead of choosing PSRAM yourself
+     * @brief Deprecated: name the region instead of passing a flag for it
      *
      * true maps to Deki::Memory::External and false to Deki::Memory::Internal.
      */
-    static void* Allocate(size_t size, bool prefer_psram, AllocContext ctx = {})
+    static void* Allocate(size_t size, bool preferExternal, AllocContext ctx = {})
     {
-        return Allocate(size, prefer_psram ? Deki::Memory::External : Deki::Memory::Internal, ctx);
+        return Allocate(size, preferExternal ? Deki::Memory::External : Deki::Memory::Internal, ctx);
     }
 
     // kLargeAllocation is gone with the size heuristic it served. Nothing
@@ -356,10 +359,10 @@ public:
     static MemoryStats GetStats();
 
     /**
-     * @brief Get available PSRAM size
-     * @return Available PSRAM size in bytes (0 if no PSRAM)
+     * @brief Free bytes in the External region
+     * @return 0 when the target has no such region
      */
-    static size_t GetAvailablePSRAM();
+    static size_t GetAvailableExternal();
 
     /**
      * @brief Get available internal RAM
@@ -367,7 +370,7 @@ public:
      *         report it (the desktop provider does not — the number is
      *         meaningless where the OS pages)
      *
-     * The companion to GetAvailablePSRAM, which existed alone: the free
+     * The companion to GetAvailableExternal, which existed alone: the free
      * internal figure is the one a project is actually sized against, and it
      * was reachable only through a provider a caller does not have.
      */
@@ -404,42 +407,22 @@ public:
     static void LogStats(const char* label = nullptr);
 
     /**
-     * @brief Check if PSRAM is available
-     * @return true if PSRAM available
+     * @brief Whether the target's provider serves the External region
      */
-    static bool IsPSRAMAvailable();
+    static bool IsExternalAvailable();
 
 private:
     // Both public entry points land here; needsDma is what separates them.
     static void* AllocateIn(size_t size, Memory::Region region, bool needsDma, AllocContext ctx);
 
     /**
-     * @brief Detect if PSRAM is available
-     * @return true if PSRAM detected
-     */
-    static bool DetectPSRAM();
-
-    /**
-     * @brief Allocate from PSRAM specifically
-     * @param size Size to allocate
-     * @return Pointer or nullptr
-     */
-    static void* AllocatePSRAM(size_t size);
-
-    /**
-     * @brief Free PSRAM allocation
-     * @param ptr Pointer to free
-     */
-    static void FreePSRAM(void* ptr);
-
-    /**
      * @brief Update internal tracking counters
      * @param size Size of allocation (positive) or deallocation (negative)
-     * @param isPsram Whether allocation used PSRAM
+     * @param isExternal Whether the allocation was placed in the External region
      * @param ptr Pointer for leak tracking (debug only)
      * @param context Context string for leak tracking (debug only)
      */
-    static uint32_t UpdateTracking(int32_t size, bool isPsram, void* ptr = nullptr,
+    static uint32_t UpdateTracking(int32_t size, bool isExternal, void* ptr = nullptr,
                                    const char* context = nullptr, uint32_t line = 0);
 
 #ifdef DEBUG
@@ -447,7 +430,7 @@ private:
      * @brief Track allocation for leak detection (debug only)
      */
     static uint32_t TrackAllocation(void* ptr, size_t size, const char* context,
-                                    uint32_t line, bool isPsram);
+                                    uint32_t line, bool isExternal);
 
     /**
      * @brief Untrack allocation for leak detection (debug only)

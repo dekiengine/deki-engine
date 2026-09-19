@@ -53,7 +53,7 @@ static_assert(sizeof(DPackEntry) == 68, "DPackEntry must be 68 bytes");
 // Represents a loaded pack file in memory
 struct LoadedPack
 {
-    uint8_t* data;  // Raw pack data (entire file in PSRAM)
+    uint8_t* data;  // Raw pack data (the entire file)
     size_t dataSize;
     uint32_t entryCount;
 

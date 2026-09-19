@@ -6,6 +6,33 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Changed
+- **The engine knows no target by name.** `CMakeLists.txt` had an
+  `if(DEFINED SIMULATOR)` block that compiled the engine for 320x240 RGB565 and
+  forced `DEKI_PACKAGE_SDL3`, `DEKI_PACKAGE_2D` and `DEKI_PACKAGE_TWEEN` on as
+  public defines. A game build sets nothing now: whoever adds the engine's
+  directory - the target's build backend - passes `DEKI_SCREEN_WIDTH`,
+  `DEKI_SCREEN_HEIGHT`, `DEKI_DEFAULT_COLOR_FORMAT` and the rest through
+  `target_compile_definitions(deki-engine-core PUBLIC ...)`, and `Engine.cpp`
+  refuses to compile without them. No engine source ever tested a package
+  define, so the editor build's two are gone as well.
+- **Memory speaks of the External region, not of PSRAM.** PSRAM is what one kind
+  of target calls it. `MemoryStats::psramAllocated` -> `externalAllocated`,
+  `Memory::GetAvailablePSRAM()` -> `GetAvailableExternal()`,
+  `Memory::IsPSRAMAvailable()` -> `IsExternalAvailable()`; the deprecated
+  `Allocate(size, bool)` overload's flag is `preferExternal` (callers passing it
+  positionally are unaffected). Layouts are unchanged, so the reflection ABI is
+  too.
+
+### Fixed
+- The simulator's engine assumed 320x240 RGB565 regardless of its platform, so
+  a simulator platform of any other size set the renderer up wrong.
+- A define of a package stripped from a simulator build came back in through
+  the engine's public defines.
+
+### Removed
+- `Memory::DetectPSRAM`, `AllocatePSRAM`, `FreePSRAM`: private, and never called.
+
 ## 0.16.0 - 2026-09-16
 
 ### Fixed

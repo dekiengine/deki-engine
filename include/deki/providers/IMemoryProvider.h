@@ -14,7 +14,7 @@
  *
  * This interface allows the engine to work with different MCU memory systems
  * without hardcoded platform-specific code. Implementations handle:
- * - ESP32: PSRAM via heap_caps
+ * - a microcontroller with external RAM: its SDK's capability allocator
  * - RP2040: Standard malloc (no external RAM)
  * - Desktop: Standard malloc
  */

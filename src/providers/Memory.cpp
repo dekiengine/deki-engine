@@ -64,10 +64,10 @@ static inline AllocHeader* HeaderOf(void* userPtr)
 // Static member definitions
 std::unique_ptr<IMemoryProvider> Memory::s_CurrentBackend = nullptr;
 bool Memory::initialized = false;
-bool Memory::s_PsramAvailable = false;
-bool Memory::s_PsramEnabled = false;
+bool Memory::s_ExternalAvailable = false;
+bool Memory::s_ExternalEnabled = false;
 uint32_t Memory::totalAllocated = 0;
-uint32_t Memory::psramAllocated = 0;
+uint32_t Memory::externalAllocated = 0;
 uint32_t Memory::internalRamAllocated = 0;
 
 #ifdef DEBUG
@@ -110,12 +110,12 @@ bool Memory::Initialize()
     }
 
     // Detect external RAM availability via backend
-    s_PsramAvailable = s_CurrentBackend->Serves(Deki::Memory::External);
-    s_PsramEnabled = s_PsramAvailable;
+    s_ExternalAvailable = s_CurrentBackend->Serves(Deki::Memory::External);
+    s_ExternalEnabled = s_ExternalAvailable;
 
     // Reset all counters
     totalAllocated = 0;
-    psramAllocated = 0;
+    externalAllocated = 0;
     internalRamAllocated = 0;
 #ifdef DEBUG
     activeAllocations = 0;
@@ -138,7 +138,7 @@ bool Memory::Initialize()
     // arrives with nothing to compare against. ESP-IDF prints its heap
     // regions, but not which of them Deki will treat as external.
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
-    if (s_PsramAvailable)
+    if (s_ExternalAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
                       "(only Deki::Memory::External goes external; everything else "
                       "stays internal)",
@@ -247,13 +247,13 @@ void Memory::LogStats(const char* label)
     // for the free side. Answering it should not be a research task.
     const MemoryStats s = GetStats();
     const size_t freeInternal = GetAvailableInternal();
-    const size_t freeExternal = GetAvailablePSRAM();
+    const size_t freeExternal = GetAvailableExternal();
 
-    if (s_PsramAvailable)
+    if (s_ExternalAvailable)
         DEKI_LOG_INFO("Memory%s%s: %u bytes allocated (%u internal, %u external); "
                       "%zu free internal, %zu free external",
                       label ? " at " : "", label ? label : "",
-                      s.totalAllocated, s.internalRamAllocated, s.psramAllocated,
+                      s.totalAllocated, s.internalRamAllocated, s.externalAllocated,
                       freeInternal, freeExternal);
     else
         DEKI_LOG_INFO("Memory%s%s: %u bytes allocated; %zu free internal",
@@ -314,12 +314,12 @@ void Memory::Shutdown()
     // provider, and failed with "Failed to allocate N bytes in external RAM"
     // on a machine with gigabytes free. Harmless while shutdown only ever ran
     // at exit; not harmless once anything restarts the memory system.
-    s_PsramAvailable = false;
-    s_PsramEnabled = false;
+    s_ExternalAvailable = false;
+    s_ExternalEnabled = false;
 
     // Reset all tracking
     totalAllocated = 0;
-    psramAllocated = 0;
+    externalAllocated = 0;
     internalRamAllocated = 0;
 #ifdef DEBUG
     activeAllocations = 0;
@@ -434,15 +434,15 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // A board with no external RAM has exactly one region, so an External
     // request resolves to Internal there. That is not a fallback — there is no
     // second region to fall back to.
-    const bool psramUsable = s_PsramAvailable && s_PsramEnabled;
+    const bool externalUsable = s_ExternalAvailable && s_ExternalEnabled;
     const Memory::Region placed =
-        (region == Deki::Memory::External && !psramUsable) ? Deki::Memory::Internal : region;
-    const bool used_psram = (placed == Deki::Memory::External);
+        (region == Deki::Memory::External && !externalUsable) ? Deki::Memory::Internal : region;
+    const bool usedExternal = (placed == Deki::Memory::External);
 
     // External buffers are DMA targets on the ESP32-S3, where cache operations
     // work on 64-byte lines, so they take a cache-line-sized header and a
     // cache-line-rounded payload.
-    if (used_psram)
+    if (usedExternal)
     {
         const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
         header_size = CACHE_LINE_SIZE;
@@ -473,7 +473,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
         header->SetPacked(static_cast<uint32_t>(header_size),
-                          UpdateTracking(static_cast<int32_t>(size), used_psram, user_ptr,
+                          UpdateTracking(static_cast<int32_t>(size), usedExternal, user_ptr,
                                          ctx.Name(), ctx.Line()));
 
         return user_ptr;
@@ -610,7 +610,7 @@ void Memory::Free(void* ptr, AllocContext ctx)
     // The name is not stored (it would cost a pointer per allocation); a
     // provider dispatches on the id, and only a failure would want the name.
     const Memory::Region region{header->regionId, "?"};
-    const bool was_psram = (header->regionId == Deki::Memory::External.id);
+    const bool wasExternal = (header->regionId == Deki::Memory::External.id);
 
     if (s_CurrentBackend)
         s_CurrentBackend->Free(region, raw_ptr);
@@ -618,14 +618,14 @@ void Memory::Free(void* ptr, AllocContext ctx)
         free(raw_ptr);
 
     // Always update tracking (both DEBUG and RELEASE builds)
-    UpdateTracking(-static_cast<int32_t>(freed_size), was_psram, ptr, ctx.Name(), ctx.Line());
+    UpdateTracking(-static_cast<int32_t>(freed_size), wasExternal, ptr, ctx.Name(), ctx.Line());
 }
 
 MemoryStats Memory::GetStats()
 {
     MemoryStats stats;
     stats.totalAllocated = totalAllocated;
-    stats.psramAllocated = psramAllocated;
+    stats.externalAllocated = externalAllocated;
     stats.internalRamAllocated = internalRamAllocated;
 #ifdef DEBUG
     stats.activeAllocations = activeAllocations;
@@ -634,32 +634,14 @@ MemoryStats Memory::GetStats()
     return stats;
 }
 
-bool Memory::DetectPSRAM()
-{
-    return s_CurrentBackend ? s_CurrentBackend->Serves(Deki::Memory::External) : false;
-}
-
-void* Memory::AllocatePSRAM(size_t size)
-{
-    return s_CurrentBackend ? s_CurrentBackend->Allocate(Deki::Memory::External, size, false) : nullptr;
-}
-
-void Memory::FreePSRAM(void* ptr)
-{
-    if (s_CurrentBackend)
-    {
-        s_CurrentBackend->Free(Deki::Memory::External, ptr);
-    }
-}
-
-uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const char* context,
+uint32_t Memory::UpdateTracking(int32_t size, bool isExternal, void* ptr, const char* context,
                                 uint32_t line)
 {
     // Update global counters only - no subsystem overhead
     totalAllocated += size;
-    if (isPsram)
+    if (isExternal)
     {
-        psramAllocated += size;
+        externalAllocated += size;
     }
     else
     {
@@ -669,7 +651,7 @@ uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const cha
 #ifdef DEBUG
     if (size > 0 && ptr)
     {
-        return TrackAllocation(ptr, static_cast<size_t>(size), context, isPsram);
+        return TrackAllocation(ptr, static_cast<size_t>(size), context, isExternal);
     }
 #else
     (void)ptr;
@@ -678,7 +660,7 @@ uint32_t Memory::UpdateTracking(int32_t size, bool isPsram, void* ptr, const cha
     return kNoTrackSlot;
 }
 
-size_t Memory::GetAvailablePSRAM()
+size_t Memory::GetAvailableExternal()
 {
     return s_CurrentBackend ? s_CurrentBackend->GetAvailable(Deki::Memory::External) : 0;
 }
@@ -688,14 +670,14 @@ bool Memory::IsInitialized()
     return initialized;
 }
 
-bool Memory::IsPSRAMAvailable()
+bool Memory::IsExternalAvailable()
 {
-    return s_PsramAvailable;
+    return s_ExternalAvailable;
 }
 
 #ifdef DEBUG
 uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
-                                 uint32_t line, bool isPsram)
+                                 uint32_t line, bool isExternal)
 {
     if (!s_AllocationRecords || !ptr) return kNoTrackSlot;
 
@@ -727,7 +709,7 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
     s_AllocationRecords[slot].ptr = ptr;
     s_AllocationRecords[slot].size = size;
     s_AllocationRecords[slot].context = context;
-    s_AllocationRecords[slot].isPsram = isPsram;
+    s_AllocationRecords[slot].isExternal = isExternal;
     activeAllocations++;
     if (activeAllocations > peakAllocations)
     {
@@ -744,7 +726,7 @@ void Memory::UntrackAllocation(void* ptr, uint32_t slot)
     s_AllocationRecords[slot].ptr = nullptr;
     s_AllocationRecords[slot].size = 0;
     s_AllocationRecords[slot].context = nullptr;
-    s_AllocationRecords[slot].isPsram = false;
+    s_AllocationRecords[slot].isExternal = false;
     activeAllocations--;
     if (s_FreeSlotCount < s_MaxAllocations)
         s_FreeSlots[s_FreeSlotCount++] = slot;
@@ -768,7 +750,7 @@ void Memory::CheckForLeaks()
             leaked_bytes += s_AllocationRecords[i].size;
             leak_count++;
             const char* context = s_AllocationRecords[i].context ? s_AllocationRecords[i].context : "unknown";
-            const char* location = s_AllocationRecords[i].isPsram ? "PSRAM" : "Internal";
+            const char* location = s_AllocationRecords[i].isExternal ? "External" : "Internal";
             DEKI_LOG_ERROR("  LEAK: %p - %zu bytes [%s] from %s:%u",
                            s_AllocationRecords[i].ptr, s_AllocationRecords[i].size, location,
                            context, s_AllocationRecords[i].line);

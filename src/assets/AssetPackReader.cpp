@@ -125,7 +125,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
         return false;
     }
 
-    // Read entire pack into PSRAM
+    // Read the entire pack into memory
     uint8_t* data = static_cast<uint8_t*>(Memory::Allocate(fileSize, Deki::Memory::External));
     if (!data)
     {
