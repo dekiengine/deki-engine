@@ -2439,9 +2439,24 @@ int main()
              << "// Per-type stubs are the .gen.h files next to this one.\n\n";
         if (mergedCpp[i].empty())
             head << "// (no reflected types in this work unit)\n";
+
+        // The field tables take offsetof() of components, which have a vtable
+        // and so are not standard-layout. That is "conditionally supported"
+        // C++; GCC and Clang support it (offsets are fixed without virtual
+        // bases, which components never have) and only warn. ESP-IDF 6.1 turns
+        // the warning into an error, which stopped every firmware build at
+        // these tables. Scoped with push/pop because package sources are
+        // unity-built: a bare `ignored` would switch the warning off for
+        // whichever hand-written file follows in the same translation unit.
+        std::string body = mergedCpp[i];
+        if (!body.empty())
+            body = "#if defined(__GNUC__)\n#pragma GCC diagnostic push\n"
+                   "#pragma GCC diagnostic ignored \"-Winvalid-offsetof\"\n#endif\n\n" +
+                   body + "\n#if defined(__GNUC__)\n#pragma GCC diagnostic pop\n#endif\n";
+
         write_if_changed(std::string(kPackages[i].outdir) + "/" + kPackages[i].prefix +
                              "Reflection" + std::to_string(DEKI_CODEGEN_SHARD_INDEX) + ".gen.cpp",
-                         head.str() + mergedCpp[i]);
+                         head.str() + body);
     }
 
     // Registration: CoreRegistration (engine-core) or {Prefix}Registration (package DLL).

@@ -50,20 +50,25 @@ enum class LogLevel
 #define DEKI_LOG_WARNING(fmt, ...) DEKI_LOG(::Deki::LogLevel::Warning, fmt, ##__VA_ARGS__)
 #define DEKI_LOG_ERROR(fmt, ...) DEKI_LOG(::Deki::LogLevel::Error, fmt, ##__VA_ARGS__)
 #else
-// All logging disabled in release
-#define DEKI_LOG(level, fmt, ...)
-#define DEKI_LOG_EDITOR(fmt, ...)
-#define DEKI_LOG_DEBUG(fmt, ...)
-#define DEKI_LOG_INFO(fmt, ...)
-#define DEKI_LOG_WARNING(fmt, ...)
-#define DEKI_LOG_ERROR(fmt, ...)
+// All logging disabled in release.
+//
+// ((void)0), not nothing: a call is still a statement. Expanding to nothing
+// turned `if (x) DEKI_LOG_INFO(...);` into `if (x) ;`, which GCC flags as an
+// empty body - an error under ESP-IDF 6's -Werror. The arguments are still
+// never evaluated.
+#define DEKI_LOG(level, fmt, ...) ((void)0)
+#define DEKI_LOG_EDITOR(fmt, ...) ((void)0)
+#define DEKI_LOG_DEBUG(fmt, ...) ((void)0)
+#define DEKI_LOG_INFO(fmt, ...) ((void)0)
+#define DEKI_LOG_WARNING(fmt, ...) ((void)0)
+#define DEKI_LOG_ERROR(fmt, ...) ((void)0)
 #endif
 
 // Internal engine logging — off by default, opt-in via DEKI_LOG_INTERNAL_ENABLED
 #if defined(DEKI_LOG_ENABLED) && defined(DEKI_LOG_INTERNAL_ENABLED)
 #define DEKI_LOG_INTERNAL(fmt, ...) DEKI_LOG(::Deki::LogLevel::Internal, fmt, ##__VA_ARGS__)
 #else
-#define DEKI_LOG_INTERNAL(fmt, ...)
+#define DEKI_LOG_INTERNAL(fmt, ...) ((void)0)  // a statement, not nothing: see above
 #endif
 
 // Log callback type for editor integration

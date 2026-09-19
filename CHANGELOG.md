@@ -7,6 +7,10 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Changed
+- The reflection code generator wraps its field tables in a scoped
+  `-Winvalid-offsetof` suppression. Components have a vtable, so `offsetof`
+  on them is "conditionally supported": GCC gets it right and only warns, but
+  ESP-IDF 6.1 turns the warning into an error.
 - **The engine knows no target by name.** `CMakeLists.txt` had an
   `if(DEFINED SIMULATOR)` block that compiled the engine for 320x240 RGB565 and
   forced `DEKI_PACKAGE_SDL3`, `DEKI_PACKAGE_2D` and `DEKI_PACKAGE_TWEEN` on as
@@ -25,6 +29,10 @@ and package DLLs has its own numbered history in
   too.
 
 ### Fixed
+- With logging compiled out, the `DEKI_LOG_*` macros expanded to nothing, so
+  `if (x) DEKI_LOG_INFO(...);` became an empty `if` body, an error under
+  ESP-IDF 6. They expand to `((void)0)` now; arguments are still not
+  evaluated.
 - The simulator's engine assumed 320x240 RGB565 regardless of its platform, so
   a simulator platform of any other size set the renderer up wrong.
 - A define of a package stripped from a simulator build came back in through
