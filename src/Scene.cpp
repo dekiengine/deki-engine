@@ -1277,6 +1277,23 @@ Object* Scene::DuplicateObject(const Object* source)
         // LoadObjectFromJson adds to root objects list, remove it
         RemoveObject(cloned);
         cloned->SetOwnerScene(this);
+
+        // The JSON round-trip copies ids too, so every duplicate - and each
+        // object under it - used to share its original's id: two objects
+        // answering to one id, and a saved scene full of them. Fresh ids for
+        // the whole copy, and its references to objects inside it moved to
+        // the copies, as spawning a prefab already does. References out of
+        // the copy keep pointing where the original's did.
+        std::unordered_map<uint32_t, uint32_t> idRemap;
+        VisitSubtree(cloned, [&idRemap](Object* obj)
+                     {
+            const uint32_t newId = Object::GenerateId();
+            idRemap[obj->GetId()] = newId;
+            obj->SetId(newId); });
+        VisitSubtree(cloned, [&idRemap](Object* obj)
+                     {
+            for (auto* comp : obj->GetComponents())
+                comp->RemapObjectRefs(idRemap); });
     }
     return cloned;
 }

@@ -29,6 +29,13 @@ and package DLLs has its own numbered history in
   too.
 
 ### Fixed
+- `Scene::DuplicateObject` gave the copy, and every object under it, its
+  original's id: it clones through the scene JSON, which carries ids. A scene
+  built by duplicating (the editor's Duplicate, or the CLI's
+  `duplicate_object`) saved many objects under one id. The copy now gets
+  fresh ids, and its references to objects inside it move to the copies, as
+  spawning a prefab already did. **A scene saved with shared ids keeps them**:
+  rebuild it, or re-duplicate the affected objects.
 - With logging compiled out, the `DEKI_LOG_*` macros expanded to nothing, so
   `if (x) DEKI_LOG_INFO(...);` became an empty `if` body, an error under
   ESP-IDF 6. They expand to `((void)0)` now; arguments are still not
