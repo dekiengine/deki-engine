@@ -79,7 +79,7 @@ public:
     // Big-endian primitives. These exist so the shift is written once: the
     // open-coded form was `(b3 << 24) | ...` on uint8_t operands, which promote
     // to int, so any value with the high bit set was signed left-shift overflow
-    // (UB) — reachable from any msgpack uint32/int32 >= 0x80000000.
+    // (UB) - reachable from any msgpack uint32/int32 >= 0x80000000.
     bool ReadBE16(uint16_t& value);
     bool ReadBE32(uint32_t& value);
 
@@ -94,7 +94,7 @@ public:
     // A MessagePack fixarray/fixmap header is a single byte, so a run of them
     // nests one level per input byte. Without a cap, SkipValue and
     // ParseObjectInternal recursed once per level and ~20 KB of input exhausted
-    // a 1 MB desktop stack — on an ESP32 task stack (commonly 8 KB) a couple of
+    // a 1 MB desktop stack - on an ESP32 task stack (commonly 8 KB) a couple of
     // hundred bytes was enough, which a corrupt SD card can produce on its own.
     // Real scenes nest far below this: object trees are a handful deep and
     // component data is one or two levels.
@@ -187,7 +187,7 @@ constexpr const char* TR_ROTATION = "rotation";  // the Z angle, always
 // wrote scaleX/scaleY, so this is also what makes the two agree.
 //
 // Safe to change without a migration only because MessagePack scenes are build
-// output — the editor compiles them from the authored .scene JSON on export.
+// output - the editor compiles them from the authored .scene JSON on export.
 // Authored data is never in this format.
 constexpr const char* TR_SCALE_X = "scaleX";
 constexpr const char* TR_SCALE_Y = "scaleY";

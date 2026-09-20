@@ -27,7 +27,7 @@
  *
  * This block used to show a `QueryInterface` override calling
  * `Component::QueryInterface(id)`. Component has no such method and
- * never has — following the example produced a compile error on the first
+ * never has - following the example produced a compile error on the first
  * custom implementation. The adapter registry exists precisely so Component
  * needs no virtual for this.
  */

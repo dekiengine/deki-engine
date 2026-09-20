@@ -4,7 +4,7 @@
 #include "EditorDisplay.h"
 #include <deki/LogSystem.h>
 
-#include <cstring>  // memcpy — pulled in transitively by <windows.h> on MSVC only
+#include <cstring>  // memcpy - pulled in transitively by <windows.h> on MSVC only
 
 // OpenGL headers
 #ifdef _WIN32

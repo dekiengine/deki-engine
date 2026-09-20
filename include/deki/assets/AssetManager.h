@@ -70,7 +70,7 @@ public:
      * When cache=true, the raw file bytes are pinned in RAM so subsequent loads skip disk I/O
      * but still return a new instance with the original data.
      *
-     * @tparam T Asset type — any registered loader type (Scene is core; packages
+     * @tparam T Asset type - any registered loader type (Scene is core; packages
      *           register their own via AssetManager::RegisterLoader)
      * @param path Asset path without "assets/" prefix and extension (e.g., "scenes/Demo")
      * @param cache If true, pins the raw file bytes in RAM for faster subsequent loads.
@@ -183,7 +183,7 @@ public:
      *
      * Forces every AssetRef to drop its cached pointer and re-resolve on its
      * next Get(). Call when the set of resolvable assets changes in a way that
-     * isn't a free/replace of existing memory — e.g. an asset is imported live
+     * isn't a free/replace of existing memory - e.g. an asset is imported live
      * (or restored via undo), so refs that previously resolved to null can
      * reconnect instead of staying empty.
      */
@@ -191,7 +191,7 @@ public:
 
     /**
      * @brief Check if an asset type is cacheable
-     * @param typeName Asset type name (e.g., "Scene" — package types register via RegisterLoader)
+     * @param typeName Asset type name (e.g., "Scene" - package types register via RegisterLoader)
      * @return true if the type is cacheable (default), false if explicitly non-cacheable
      */
     bool IsTypeCacheable(const char* typeName) const;
@@ -309,7 +309,7 @@ private:
     mutable std::string m_LookupBuffer;
 
     // Generic per-type asset cache: typeName -> (path -> void*)
-    // Used for cacheable types — same pointer returned each time
+    // Used for cacheable types - same pointer returned each time
     std::unordered_map<std::string, std::unordered_map<std::string, void*>> m_TypeCache;
 
     // Raw byte cache: path -> file bytes

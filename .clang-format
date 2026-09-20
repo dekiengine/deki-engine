@@ -7,7 +7,7 @@
 # (the 1- and 5-space runs are Doxygen comment continuations, not code), and
 # `T* p` beats `T *p` 877 to 27.
 #
-# Unlike the editor, applying this is NOT close to a no-op — it touches ~40% of
+# Unlike the editor, applying this is NOT close to a no-op - it touches ~40% of
 # lines. That is the point: the engine had `   private:` at three spaces in some
 # files and zero in others, stray alignment padding, and K&R braces mixed into
 # an otherwise Allman codebase.
@@ -46,7 +46,7 @@ AllowShortCaseLabelsOnASingleLine: true
 
 # Include order here is deliberate: a file's own header first, then project
 # headers, then engine, then third-party. Sorting would reorder that and produce
-# a large diff for no benefit — and in a few places the order is load-bearing.
+# a large diff for no benefit - and in a few places the order is load-bearing.
 SortIncludes: Never
 
 # Likewise leave using-declarations where the author put them; sorting them

@@ -33,7 +33,7 @@
 //      report the SAME numbers in both. That is the whole point of keeping the
 //      instance payload in a side table rather than in members.
 //   2. The layout must not change without the package ABI version changing.
-//      If one of these fires, that is not a licence to update the number — it
+//      If one of these fires, that is not a licence to update the number - it
 //      means every prebuilt package is now wrong. Bump
 //      kDekiReflectionAbiVersion in interop/ReflectionAbi.h in the same
 //      commit, so the loader rejects stale DLLs instead of miscomputing.
@@ -49,7 +49,7 @@ static_assert(!std::is_polymorphic<Object>::value,
 // Pinned on 64-bit desktop, where the editor and every package DLL are built.
 // Measured on both configurations at the time the instance payload moved to the
 // side table: editor and runtime agree at 152. Before that move they were 224
-// and 152 respectively — a 72-byte divergence sitting underneath inline
+// and 152 respectively - a 72-byte divergence sitting underneath inline
 // GetParent()/GetChildren(), which is the bug this pins shut.
 //
 // 32-bit targets (ESP32) are deliberately not asserted: they have their
@@ -84,7 +84,7 @@ namespace
 //
 // Deliberately NOT a member: a member would make sizeof(Object) depend
 // on DEKI_EDITOR, which is exactly the hazard this table exists to remove.
-// Deliberately NOT in a header either — this accessor is non-inline and
+// Deliberately NOT in a header either - this accessor is non-inline and
 // non-template, so there is exactly one table in the process. Inlining it
 // would give every package DLL its own copy, and an object written through
 // one would read back empty through another.

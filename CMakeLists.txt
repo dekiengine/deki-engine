@@ -110,7 +110,7 @@ file(GLOB GENERATED_SOURCES
 
 # The merged reflection TU (every reflected core type in one file) is written by the
 # codegen step invoked FURTHER DOWN in this same file, so the glob above cannot see it
-# on a fresh tree — the glob runs first, add_library() runs next, and the generator only
+# on a fresh tree - the glob runs first, add_library() runs next, and the generator only
 # runs after both. Declaring it explicitly as GENERATED is what lets add_library() accept
 # a path this configure is about to produce, instead of failing with "Cannot find source
 # file" and then "No SOURCES given to target". The build-time ordering is already
@@ -290,7 +290,7 @@ if(DEKI_EDITOR)
     target_link_libraries(deki-engine-core PRIVATE OpenGL::GL)
 
     # No SDL3 link. This used to be PUBLIC SDL3::SDL3-static "needed by
-    # EditorTimeProvider in Engine.cpp" — there is no EditorTimeProvider in
+    # EditorTimeProvider in Engine.cpp" - there is no EditorTimeProvider in
     # this repo (it lives in the editor app) and src/ contains no SDL header or
     # symbol, only the word in a few comments. It was pushing a statically
     # linked SDL3 onto every consumer of deki-engine-core.
@@ -310,7 +310,7 @@ if(DEKI_EDITOR)
     # everything makes all 6363 symbols in this DLL public API on the day it is
     # tagged, including registry internals, TU-locals and anything else that
     # happens to be non-static. It is also why the DekiReflectionAbi handshake
-    # has to exist — packages reach into DekiObject's layout through inline
+    # has to exist - packages reach into DekiObject's layout through inline
     # accessors because there is no narrow ABI to reach through instead.
     #
     # The fix is to mark the intended surface with DEKI_ENGINE_API (see
@@ -318,7 +318,7 @@ if(DEKI_EDITOR)
     # both the property and the MinGW link option below. That is a large
     # mechanical pass over ~105 types plus whatever the editor and the 23
     # packages actually depend on, and a half-finished version links but fails
-    # at load — so it wants to be done in one deliberate change, not folded into
+    # at load - so it wants to be done in one deliberate change, not folded into
     # an unrelated one.
     if(WIN32)
         set_target_properties(deki-engine-core PROPERTIES
@@ -330,7 +330,7 @@ if(DEKI_EDITOR)
         # WINDOWS_EXPORT_ALL_SYMBOLS is a no-op for GNU ld. MinGW normally
         # auto-exports everything, but the handful of explicit
         # __declspec(dllexport) symbols in the engine headers switch that
-        # default off — leaving Scene/Guid/msgpack unresolved for consumers.
+        # default off - leaving Scene/Guid/msgpack unresolved for consumers.
         # --export-all-symbols restores the intent of the property above.
         if(MINGW)
             target_link_options(deki-engine-core PRIVATE -Wl,--export-all-symbols)

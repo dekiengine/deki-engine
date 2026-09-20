@@ -53,7 +53,7 @@ struct CodegenPackage
 #include <charconv>
 
 // kPackages / kPackageCount / the shard pair all come from the .inc. Missing means the
-// CMake step and this file are out of sync — fail loudly rather than guess a default.
+// CMake step and this file are out of sync - fail loudly rather than guess a default.
 #if !defined(DEKI_CODEGEN_SHARD_INDEX) || !defined(DEKI_CODEGEN_SHARD_COUNT)
 #error "deki_codegen_includes.inc must define DEKI_CODEGEN_SHARD_INDEX and DEKI_CODEGEN_SHARD_COUNT"
 #endif
@@ -333,7 +333,7 @@ consteval bool is_node(m::info type)
 }
 // Index into kPackages of the package a reflected type belongs to, or -1 when the type
 // came from outside this unit (engine headers, a sibling package pulled in transitively).
-// Membership is "the package's tag appears in the type's source path" — the same rule the
+// Membership is "the package's tag appears in the type's source path" - the same rule the
 // single-package build has always used, just applied to every package in the unit.
 // -2 means the path matched two tags; the caller static_asserts on it.
 consteval int package_index_of(m::info decl)
@@ -424,7 +424,7 @@ inline std::string_view path_basename(std::string_view p)
 
 // Write only when the bytes differ from what is already on disk. Every package source
 // includes the package's .gen.h files, so an unconditional rewrite bumps their mtime and
-// invalidates hundreds of objects on every codegen re-run — even when the generated text
+// invalidates hundreds of objects on every codegen re-run - even when the generated text
 // is identical, which is the normal case when the re-run was triggered by an unrelated
 // engine header.
 inline void write_if_changed(const std::string& path, const std::string& content)
@@ -466,8 +466,8 @@ inline std::string src_rel_include(std::string_view full, std::string_view sd)
 // same component produced
 //   // Source: C:\work\...\deki-engine\src\SetupComponent.h            (Windows)
 //   // Source: /home/deck/...//deki-engine/src/SetupComponent.h      (Linux)
-// Generated files are committed — embedded builds glob them and never run the
-// codegen — so every build on a different machine rewrote all of them and the
+// Generated files are committed - embedded builds glob them and never run the
+// codegen - so every build on a different machine rewrote all of them and the
 // churn landed in every diff. Both halves matter: making the path relative
 // removes the machine prefix, and normalising the separator removes the
 // remaining Windows/POSIX difference.
@@ -2293,7 +2293,7 @@ int main()
 
     // One MERGED .gen.cpp per package instead of one per type. The .gen.h stubs stay
     // per type because hand-written headers include them BY NAME; nothing includes a
-    // .gen.cpp, so their names are ours to choose — and choosing a FIXED one is what
+    // .gen.cpp, so their names are ours to choose - and choosing a FIXED one is what
     // makes adding a type a one-build operation. The package source list comes from a
     // file(GLOB CONFIGURE_DEPENDS) evaluated at configure time, so a per-type .gen.cpp
     // is a brand new path that only joins the build at the NEXT configure: build one
@@ -2460,7 +2460,7 @@ int main()
     }
 
     // Registration: CoreRegistration (engine-core) or {Prefix}Registration (package DLL).
-    // Shard 0 owns it — every shard has the full component list, but only one may write.
+    // Shard 0 owns it - every shard has the full component list, but only one may write.
     if (DEKI_CODEGEN_SHARD_INDEX == 0)
     {
         for (int i = 0; i < kPackageCount; ++i)

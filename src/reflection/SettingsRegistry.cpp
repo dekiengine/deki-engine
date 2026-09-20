@@ -28,7 +28,7 @@ void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* me
     if (existing != m_ByName.end())
     {
         DEKI_LOG(LogLevel::Error,
-                 "[SettingsRegistry] Duplicate section '%s' (existing typeId=%u, new typeId=%u) — ignoring second registration",
+                 "[SettingsRegistry] Duplicate section '%s' (existing typeId=%u, new typeId=%u) - ignoring second registration",
                  sectionName, m_All[existing->second].meta->typeId, meta->typeId);
         return;
     }
@@ -62,7 +62,7 @@ void SettingsRegistry::RegisterPlugin(const char* sectionName, const ComponentMe
     if (existing != m_ByName.end())
     {
         DEKI_LOG(LogLevel::Error,
-                 "[SettingsRegistry] Duplicate plugin section '%s' (existing typeId=%u, new typeId=%u) — ignoring second registration",
+                 "[SettingsRegistry] Duplicate plugin section '%s' (existing typeId=%u, new typeId=%u) - ignoring second registration",
                  sectionName, m_All[existing->second].meta->typeId, meta->typeId);
         return;
     }
@@ -353,7 +353,7 @@ void SettingsRegistry::RestoreFromJson(const std::string& snapshotJson)
         const std::string& section = it.key();
         const nlohmann::json& sectionJson = it.value();
         Component* inst = GetByName(section.c_str());
-        if (!inst) continue;  // package didn't reload yet — skip
+        if (!inst) continue;  // package didn't reload yet - skip
         // Use the meta we own; safer than going through ComponentRegistry,
         // which mirrors the same pointer.
         auto byNameIt = m_ByName.find(section);

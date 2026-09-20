@@ -64,7 +64,7 @@ enum class LogLevel
 #define DEKI_LOG_ERROR(fmt, ...) ((void)0)
 #endif
 
-// Internal engine logging — off by default, opt-in via DEKI_LOG_INTERNAL_ENABLED
+// Internal engine logging - off by default, opt-in via DEKI_LOG_INTERNAL_ENABLED
 #if defined(DEKI_LOG_ENABLED) && defined(DEKI_LOG_INTERNAL_ENABLED)
 #define DEKI_LOG_INTERNAL(fmt, ...) DEKI_LOG(::Deki::LogLevel::Internal, fmt, ##__VA_ARGS__)
 #else

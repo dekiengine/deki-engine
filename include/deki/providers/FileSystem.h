@@ -10,7 +10,7 @@
  *
  * Holds the process-wide filesystem. Platform integration packages install a
  * concrete implementation via SetFileSystem(); there is no build-time platform
- * enum — which one you get is decided by which package is loaded.
+ * enum - which one you get is decided by which package is loaded.
  */
 
 namespace Deki

@@ -54,7 +54,7 @@ public:
     const ComponentMeta* GetMeta(uint32_t typeId) const;
 
     // ========================================================================
-    // Compact field tables — available on EVERY platform, embedded included.
+    // Compact field tables - available on EVERY platform, embedded included.
     //
     // ComponentMeta above is editor-only (it carries display names,
     // tooltips, ranges). A device build still needs to locate a field by name
@@ -201,7 +201,7 @@ private:
     //
     // Device builds have no unordered_map here on purpose (per-node allocation
     // is expensive on an MCU), but the linear scan this replaces was O(n) on a
-    // list that grows with every installed package — GetMeta is called during
+    // list that grows with every installed package - GetMeta is called during
     // deserialization for each component of each object, so the scan showed up
     // on scene load. A sorted vector keeps the memory profile (one contiguous
     // block, no per-entry allocation) and makes lookup O(log n).

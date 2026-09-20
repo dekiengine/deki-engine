@@ -8,7 +8,7 @@
 
 #include <deki/Object.h>
 #include <deki/Component.h>
-#include <deki/Export.h>  // DEKI_ENGINE_API — NOT Engine.h, which includes us back
+#include <deki/Export.h>  // DEKI_ENGINE_API - NOT Engine.h, which includes us back
 
 #ifdef DEKI_EDITOR
 #include <nlohmann/json_fwd.hpp>
@@ -58,7 +58,7 @@ public:
      * @param path Asset-relative path without extension (e.g., "scenes/settings/settings")
      * @param cache If true, pins the raw file bytes in RAM so subsequent loads skip disk I/O.
      *              If false (default), reads from disk every time. Either way, a fresh instance
-     *              is returned — cached bytes are never mutated.
+     *              is returned - cached bytes are never mutated.
      * @return Loaded scene or nullptr on failure
      */
     static Scene* Load(const char* path, bool cache = false);
@@ -156,7 +156,7 @@ public:
     /// Reflected member names ARE the scene-file format: reflection_codegen
     /// emits each C++ identifier as a HashString key, with no opt-in gate.
     /// So renaming a reflected member silently changes the on-disk key, the
-    /// parser's switch falls through, and the property reverts to its default —
+    /// parser's switch falls through, and the property reverts to its default -
     /// no error, no log line. The value itself survives (unknown keys are
     /// re-emitted on save), but the behaviour is gone.
     ///
@@ -175,8 +175,8 @@ public:
     /// a warning ("re-save to migrate"), not an error.
     static std::vector<std::pair<std::string, std::string>> CollectLegacyProperties();
 
-    /// Every reflected property of `comp` — its base class's first, then its
-    /// own — as the JSON a scene file holds for it, keyed by reflected name.
+    /// Every reflected property of `comp` - its base class's first, then its
+    /// own - as the JSON a scene file holds for it, keyed by reflected name.
     /// The same writer SaveToFile uses, so a value prints exactly as it would
     /// be saved. The docs build reads default values through this.
     static nlohmann::json ComponentPropertiesToJson(const Component* comp,
@@ -193,7 +193,7 @@ public:
     using OnObjectsAboutToBeDestroyedFn = std::function<void(const std::vector<Object*>&)>;
     /// Out of line: the callback is stored in a side table in Scene.cpp, not in
     /// a member, so that sizeof(Scene) does not depend on DEKI_EDITOR.
-    /// std::function is 32 bytes here — too much to carry unconditionally on an
+    /// std::function is 32 bytes here - too much to carry unconditionally on an
     /// embedded target that can never invoke it.
     void SetOnObjectsAboutToBeDestroyed(OnObjectsAboutToBeDestroyedFn fn);
 #endif
@@ -226,7 +226,7 @@ private:
 
 #ifdef DEKI_EDITOR
     // Instance-path helpers. Internal to the instance expand/collapse and
-    // override machinery above — no caller outside this class.
+    // override machinery above - no caller outside this class.
     static std::string BuildObjectPath(Object* obj, Object* instanceRoot);
     Object* FindObjectByPath(Object* root, const std::string& path);
 

@@ -129,7 +129,7 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * @brief Receive the editor's ImGui context.
      *
      * Only needed by packages that call ImGui directly. Note that none
-     * currently do — they draw through deki-editor's EditorUI, which shares the
+     * currently do - they draw through deki-editor's EditorUI, which shares the
      * context via Deki::SetImGuiContext.
      */
     DEKI_PLUGIN_API void DekiPlugin_SetImGuiContext(void* context);
@@ -139,7 +139,7 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      *
      * The loader compares this against its own and refuses the package on a
      * mismatch, rather than letting it corrupt the shared context. A package
-     * that does not export it is loaded unchecked — so export it if you touch
+     * that does not export it is loaded unchecked - so export it if you touch
      * ImGui at all.
      */
     DEKI_PLUGIN_API unsigned int DekiPlugin_GetImGuiContextSize(void);
@@ -148,8 +148,8 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * @brief Drop everything this package registered into engine-side registries.
      *
      * Called before the package's DLL is unloaded for a hot reload. Anything
-     * holding a pointer into this DLL — factories, std::function callbacks,
-     * metadata — must go here, or it dangles the moment FreeLibrary runs.
+     * holding a pointer into this DLL - factories, std::function callbacks,
+     * metadata - must go here, or it dangles the moment FreeLibrary runs.
      */
     DEKI_PLUGIN_API void DekiPlugin_ClearRegistries(void);
 

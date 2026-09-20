@@ -285,13 +285,13 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
 bool SceneMsgPackParser::SkipValue()
 {
     // Every nested container costs a stack frame, and a fixarray/fixmap header
-    // is one byte — so without this a small crafted or corrupt file walks the
+    // is one byte - so without this a small crafted or corrupt file walks the
     // stack off its end. Refusing to descend past kMaxDepth turns that into a
     // failed parse.
     DepthGuard guard(*this);
     if (!guard.Enter())
     {
-        DEKI_LOG_ERROR("SceneMsgPackParser: nesting deeper than %d levels — refusing to parse",
+        DEKI_LOG_ERROR("SceneMsgPackParser: nesting deeper than %d levels - refusing to parse",
                        kMaxDepth);
         return false;
     }
@@ -530,7 +530,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     DepthGuard guard(*this);
     if (!guard.Enter())
     {
-        DEKI_LOG_ERROR("SceneMsgPackParser: object tree deeper than %d levels — refusing to parse",
+        DEKI_LOG_ERROR("SceneMsgPackParser: object tree deeper than %d levels - refusing to parse",
                        kMaxDepth);
         return false;
     }
@@ -556,7 +556,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
 
     // Children are parsed (and allocated) before the parent exists, and every
     // key in the loop below can fail the parse. Without this, each malformed
-    // scene leaked every child parsed up to the failure — and the depth cap
+    // scene leaked every child parsed up to the failure - and the depth cap
     // above makes that exit path reachable by design. Disarmed once the
     // children are handed to the parent.
     struct PendingChildCleanup
@@ -791,7 +791,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         }
         else
         {
-            // Unknown type — create MissingComponent to preserve data
+            // Unknown type - create MissingComponent to preserve data
             auto* missing = new MissingComponent();
             missing->m_OriginalTypeId = deferred.typeId;
             missing->m_TypeName = std::string(deferred.typeNamePtr, deferred.typeNameLen);
@@ -802,12 +802,12 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 missing->m_RawData.assign(m_Data + deferred.dataPos, m_Data + deferred.dataEndPos);
             }
             Internal::AttachComponent(*obj, missing);
-            DEKI_LOG_WARNING("SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' — data preserved",
+            DEKI_LOG_WARNING("SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' - data preserved",
                              (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, name.c_str());
         }
     }
 
-    // Add children (parsed recursively) — forms parent-child hierarchy.
+    // Add children (parsed recursively) - forms parent-child hierarchy.
     // Ownership passes to the parent here, so the cleanup guard stands down.
     for (Object* child : pendingChildren)
     {
@@ -1150,7 +1150,7 @@ void SceneMsgPackWriter::WriteComponents(Object* obj)
 
 void SceneMsgPackWriter::WriteComponent(Component* comp)
 {
-    // Handle MissingComponent — write preserved raw data
+    // Handle MissingComponent - write preserved raw data
     if (comp->GetType() == MissingComponent::StaticType)
     {
         auto* missing = static_cast<MissingComponent*>(comp);

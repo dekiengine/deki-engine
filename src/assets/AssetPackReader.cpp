@@ -15,7 +15,7 @@ namespace
 ///
 /// These fields are `char[N]` in the on-disk struct and are only
 /// NUL-terminated by convention. Passing one straight to std::string lets a
-/// file with no terminator read past the field — into the next one, and off
+/// file with no terminator read past the field - into the next one, and off
 /// the end of the table for the final entry. Bounded here instead.
 std::string FixedFieldToString(const char* field, size_t capacity)
 {
@@ -189,7 +189,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
         const uint64_t end = static_cast<uint64_t>(e.offset) + static_cast<uint64_t>(e.size);
         if (end > static_cast<uint64_t>(packSize))
         {
-            DEKI_LOG_ERROR("[PACK] %s entry %u spans %u..%llu, past the %zu-byte pack — skipping",
+            DEKI_LOG_ERROR("[PACK] %s entry %u spans %u..%llu, past the %zu-byte pack - skipping",
                            packPath, i, e.offset,
                            static_cast<unsigned long long>(end), packSize);
             continue;
@@ -206,7 +206,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
         std::string guid = FixedFieldToString(e.guid, sizeof(e.guid));
         if (guid.empty())
         {
-            DEKI_LOG_WARNING("[PACK] %s entry %u has an empty GUID — skipping", packPath, i);
+            DEKI_LOG_WARNING("[PACK] %s entry %u has an empty GUID - skipping", packPath, i);
             continue;
         }
 

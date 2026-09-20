@@ -4,7 +4,7 @@
 //
 // `new` cannot report failure on a device. ESP-IDF builds with
 // -fno-exceptions, so libstdc++'s operator new calls std::__throw_bad_alloc,
-// which with exceptions removed is a direct abort() — the board reboots with
+// which with exceptions removed is a direct abort() - the board reboots with
 // no message saying it ran out of memory. Worse, `new (std::nothrow) T[n]`
 // aborts identically, because libstdc++ implements the nothrow form by
 // calling the throwing form inside a try/catch that -fno-exceptions has
@@ -25,7 +25,7 @@
 //
 // HOW IT GOES THROUGH THE ENGINE WITHOUT COSTING ANYTHING
 //
-// Through Deki::detail::RawAllocate, which is the provider's AllocateRaw —
+// Through Deki::detail::RawAllocate, which is the provider's AllocateRaw -
 // so a board really does see every allocation on the device and can
 // substitute its own heap for all of them, and the engine can report what
 // containers are holding.
@@ -39,7 +39,7 @@
 //     a vector is about to overwrite;
 //   * its internal path over-aligns to 16 bytes on ESP32 so the blit kernels
 //     can use SIMD, and ESP-IDF implements aligned allocation by
-//     over-allocating — more waste than the header.
+//     over-allocating - more waste than the header.
 //
 // AllocateRaw has none of that: natural alignment, no header, the pointer the
 // heap returned. The bytes are accounted anyway by asking the heap for the

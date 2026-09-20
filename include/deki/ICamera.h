@@ -8,7 +8,7 @@
  *
  * Orthographic is the only path used by the 2D software renderer today;
  * Perspective is reserved for future 3D / external renderers. Standard2DRenderer
- * does NOT consume the projection matrix — it calls ICamera::WorldToScreen
+ * does NOT consume the projection matrix - it calls ICamera::WorldToScreen
  * directly. The enum + GetProjectionMatrix() exist only so that future 3D
  * code, debug tools, or third-party renderers can ask the camera for a matrix
  * without us having to retrofit the API later.

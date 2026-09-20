@@ -11,7 +11,7 @@
 #endif
 
 // DLL export/import for SettingsRegistry (editor builds only).
-// Mirrors ComponentRegistry — the singleton lives in deki-engine-core.dll
+// Mirrors ComponentRegistry - the singleton lives in deki-engine-core.dll
 // and is shared across all package DLLs.
 #ifdef DEKI_EDITOR
 #ifdef _WIN32
@@ -36,7 +36,7 @@ namespace Deki
 
 struct SettingsTypeInfo
 {
-    const char* sectionName;        // "Rendering", "Audio" — editor section header & registry key
+    const char* sectionName;        // "Rendering", "Audio" - editor section header & registry key
     const ComponentMeta* meta;  // component metadata (properties, factory, etc.)
     Component* instance;        // owned by registry, lifetime tied to plugin DLL
     bool isPlugin;                  // true → cleared on plugin unload
@@ -48,7 +48,7 @@ struct SettingsTypeInfo
  * Packages declare settings types as ordinary components with a
  * DEKI_SETTINGS_SECTION("...") marker above the class; the reflection codegen
  * registers them here from the package's registration function. The editor's Project Settings panel iterates the registry and renders
- * each type's properties via the existing PropertyEditorFactory machinery —
+ * each type's properties via the existing PropertyEditorFactory machinery -
  * tooltips, ranges, visibility conditions all work out of the box.
  *
  * The registry **owns** the live instance (one per registered type), unlike
@@ -127,7 +127,7 @@ public:
      * DLLs, then restore them via RestoreFromJson() after the DLLs reload and
      * re-register their (default-valued) instances.
      *
-     * Engine-core settings are NOT included — those instances survive the
+     * Engine-core settings are NOT included - those instances survive the
      * reload because they live in deki-engine-core.dll.
      *
      * The format mirrors deki.json's "packageSettings" block, so a snapshot can
@@ -141,7 +141,7 @@ public:
      *
      * Sections whose owning package didn't reload are silently skipped (the
      * user can still recover them on the next reload). Properties that no
-     * longer exist on the new metadata are silently skipped — graceful for
+     * longer exist on the new metadata are silently skipped - graceful for
      * field renames or removals.
      */
     void RestoreFromJson(const std::string& snapshotJson);

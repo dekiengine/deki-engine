@@ -117,7 +117,7 @@ private:
     // diagnostic. This byte lands in padding that existed anyway (see the
     // static_asserts in Object.cpp), so it costs the embedded build nothing.
     //
-    // The instance PAYLOAD — the source-scene GUID and the overrides JSON — is
+    // The instance PAYLOAD - the source-scene GUID and the overrides JSON - is
     // cold (touched only on expand/collapse, override collect/apply and
     // serialization) and lives in a side table in Object.cpp, so the runtime
     // build carries none of it, not even a pointer.
@@ -177,8 +177,8 @@ public:
     // Object has no virtual functions (asserted in Object.cpp), so
     // conditionally declared non-virtual members change nothing about the object.
     //
-    // The predicates stay inline — IsSceneInstance() is called per-object
-    // per-frame from HierarchyPanel — and read the flag byte directly. The
+    // The predicates stay inline - IsSceneInstance() is called per-object
+    // per-frame from HierarchyPanel - and read the flag byte directly. The
     // string accessors are out of line because their storage is the side table.
     bool IsSceneInstance() const { return (m_EditorFlags & EditorFlag_SceneInstance) != 0; }
     bool IsPartOfInstance() const { return (m_EditorFlags & EditorFlag_PartOfInstance) != 0; }
@@ -472,7 +472,7 @@ public:
 
     /**
      * @brief Find a component implementing a given interface
-     * No RTTI needed — uses ComponentInterfaceAdapters registry.
+     * No RTTI needed - uses ComponentInterfaceAdapters registry.
      * T must have a static constexpr uint32_t InterfaceID member.
      */
     template <typename T>

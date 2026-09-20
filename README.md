@@ -93,8 +93,8 @@ reboots the board. `std::nothrow` aborts identically, because libstdc++
 implements it by calling the throwing form inside a `try`/`catch` that
 `-fno-exceptions` has removed.
 
-A caller says *where* the memory goes — `Deki::Memory::Internal` or
-`Deki::Memory::External` — on every allocating call, because there is no default
+A caller says *where* the memory goes - `Deki::Memory::Internal` or
+`Deki::Memory::External` - on every allocating call, because there is no default
 and nothing is inferred. Size is not a hint: the framebuffer is the largest
 allocation on the part and belongs in internal RAM. `Memory::AllocateDma` adds
 the constraint that a peripheral must be able to read the block, which is
@@ -103,7 +103,7 @@ orthogonal to where it lives.
 **A region is a name, not an enumerator**, so the set is open: a board-support
 package writes `Deki::Memory::Region("esp32.rtc")` and the engine carries it with no
 change. Only that board's `Deki::IMemoryProvider` can serve it, and one that
-cannot returns null and says which region — **placement resolves once and is
+cannot returns null and says which region - **placement resolves once and is
 never substituted**.
 
 Full reference, including the lint that enforces this:

@@ -140,7 +140,7 @@ const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
 #else
     // Binary search the sorted type index. This used to be a linear scan of
     // m_Components, which was fine when "a small number of components" meant
-    // the engine's own — with packages registering theirs it grew, and GetMeta
+    // the engine's own - with packages registering theirs it grew, and GetMeta
     // runs per component per object during scene deserialization.
     auto it = std::lower_bound(
         m_TypeIndex.begin(), m_TypeIndex.end(), typeId,
@@ -309,7 +309,7 @@ void ComponentRegistry::RegisterPluginComponent(const ComponentMeta* meta)
 
 void ComponentRegistry::ClearPluginComponents()
 {
-    // Remove plugin components using stored typeIds and names — avoids
+    // Remove plugin components using stored typeIds and names - avoids
     // dereferencing ComponentMeta* pointers that may be stale if the
     // plugin DLL was already unloaded.
     for (uint32_t typeId : m_PluginTypeIds)

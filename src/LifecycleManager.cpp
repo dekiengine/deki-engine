@@ -33,7 +33,7 @@ namespace
 {
 // Borrows a reusable scratch vector, falling back to its own storage if that
 // buffer is already in use further up the stack. The snapshot semantics are
-// unchanged either way — this only decides where the copy lives.
+// unchanged either way - this only decides where the copy lives.
 class ScratchSnapshot
 {
 public:

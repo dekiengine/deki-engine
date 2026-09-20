@@ -10,7 +10,7 @@
 // and AllocContext becomes empty.
 //
 // Measured on the ESP32-S3 firmware, capture costs 5,664 bytes across roughly
-// 118 call sites — 0.37% of a 1.5 MB image, about 48 bytes a site. That is
+// 118 call sites - 0.37% of a 1.5 MB image, about 48 bytes a site. That is
 // cheap enough to be on by default and only worth stripping if you are
 // genuinely short.
 #if !defined(DEKI_STRIP_ALLOC_CONTEXT)
@@ -29,7 +29,7 @@ namespace detail
 {
 // The raw allocation path, used by the global operator new on builds with
 // exceptions off (src/providers/OperatorNew.cpp). Deliberately not on Memory
-// itself: a component or a package reaching for these is a mistake — they
+// itself: a component or a package reaching for these is a mistake - they
 // carry no region, so the engine cannot place what they hand back, and
 // they have no header, so they have no double-free guard. Use Deki::Buffer<T>
 // or Memory::Allocate.
@@ -64,8 +64,8 @@ struct AllocContext
 
     // The default argument is the whole mechanism: it is evaluated at the
     // CALL SITE, so the allocation records where it was written rather than
-    // anywhere in the engine it passes through. Every layer between — the
-    // Buffer<T> methods, Memory::Allocate — takes one of these and forwards
+    // anywhere in the engine it passes through. Every layer between - the
+    // Buffer<T> methods, Memory::Allocate - takes one of these and forwards
     // it. A layer that took its own default instead would report itself, and
     // every allocation in the engine would name a plausible, wrong file.
     AllocContext(std::source_location loc = std::source_location::current())
@@ -89,7 +89,7 @@ struct AllocContext
 };
 
 // The layout differs between debug and release builds, so the engine and the
-// packages that call into it have to agree — the same constraint MemoryStats
+// packages that call into it have to agree - the same constraint MemoryStats
 // already imposes, and the same one the reflection ABI number exists to
 // police.
 
@@ -187,7 +187,7 @@ public:
      *     }
      *
      * A package keeps its regions in its OWN namespace rather than reopening
-     * Deki::Memory — which it could not do anyway, a class being closed, and
+     * Deki::Memory - which it could not do anyway, a class being closed, and
      * which is the point: two board packages that both want an "Rtc" constant
      * cannot collide, because the language keeps them apart. Where the constant
      * lives is never load-bearing; a region's identity is its hashed name, so
@@ -195,7 +195,7 @@ public:
      *
      * What a package cannot do is SERVE a region: only the board's
      * IMemoryProvider can, and one that has not heard of "esp32.rtc" returns
-     * nullptr and says so by name. Extension is two-sided on purpose — a
+     * nullptr and says so by name. Extension is two-sided on purpose - a
      * package names what it needs, a board decides whether it has it.
      *
      * The name is also the capability name, prefixed: a package that allocates
@@ -231,7 +231,7 @@ public:
         friend class Memory;
     };
 
-    /// Internal RAM. Fast, and the scarce one — a few hundred KB on an ESP32-S3.
+    /// Internal RAM. Fast, and the scarce one - a few hundred KB on an ESP32-S3.
     static const Region Internal;
 
     /// External RAM (PSRAM) where the board has it. Megabytes, and markedly
@@ -269,7 +269,7 @@ public:
      * @param region Where it lives. Resolved once, with no fallback to any
      *               other region; a region the board's provider does not serve
      *               returns nullptr and is named in the log
-     * @param ctx Who is asking. Omit it — the compiler fills in the call site
+     * @param ctx Who is asking. Omit it - the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* Allocate(size_t size,
@@ -306,7 +306,7 @@ public:
     /**
      * @brief Allocate memory from internal RAM only (never external/PSRAM)
      * @param size Size in bytes to allocate
-     * @param ctx Who is asking. Omit it — the compiler fills in the call site
+     * @param ctx Who is asking. Omit it - the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
     static void* AllocateInternal(size_t size, AllocContext ctx = {});
@@ -367,7 +367,7 @@ public:
     /**
      * @brief Get available internal RAM
      * @return Free internal RAM in bytes, or 0 where the platform does not
-     *         report it (the desktop provider does not — the number is
+     *         report it (the desktop provider does not - the number is
      *         meaningless where the OS pages)
      *
      * The companion to GetAvailableExternal, which existed alone: the free
@@ -445,7 +445,7 @@ private:
 };
 
 // Memory is not a complete type until its closing brace above, so these are
-// defined here rather than inside it — the same reason a member function can be
+// defined here rather than inside it - the same reason a member function can be
 // defined out of line. inline gives them one definition across every
 // translation unit; constexpr belongs on the definition of a variable, not on
 // the declaration ([dcl.constexpr]).

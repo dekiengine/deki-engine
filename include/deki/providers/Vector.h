@@ -3,7 +3,7 @@
 // A growable array whose growth can fail.
 //
 // std::vector cannot do that. push_back calls operator new, which with
-// exceptions off has no way to report exhaustion — the engine's replacement
+// exceptions off has no way to report exhaustion - the engine's replacement
 // makes it say how many bytes it wanted, but it still aborts, and the board
 // still reboots. That is fine for the editor and wrong for a device, where
 // running short of memory is a normal operating condition rather than a bug.
@@ -45,7 +45,7 @@ namespace Deki
  * Move-only, like Buffer, and for the same reason: copying needs a second
  * allocation that can fail, which a copy constructor cannot report.
  *
- * T must be trivially copyable and trivially destructible — the same
+ * T must be trivially copyable and trivially destructible - the same
  * constraint Buffer imposes, enforced by it. Growth moves elements with a
  * memcpy and destruction frees the block, so a T with a destructor or a
  * non-trivial move would be silently mishandled. These are the plain structs
@@ -103,7 +103,7 @@ public:
     /**
      * @brief Make room for at least `count` elements
      *
-     * Say this once, up front, where a failure is easy to handle — then the
+     * Say this once, up front, where a failure is easy to handle - then the
      * PushBack calls that follow cannot fail. That is the pattern worth
      * writing on a device: one check instead of one per element.
      *
@@ -166,7 +166,7 @@ public:
     /**
      * @brief Remove the element at `index`, filling the hole with the last one
      *
-     * O(1), and it does not preserve order — which is what a device wants for
+     * O(1), and it does not preserve order - which is what a device wants for
      * the lists it keeps (live entities, active timers) and is the same trick
      * ParticlePool's KillSwap uses. For order-preserving removal, rebuild.
      */
@@ -205,7 +205,7 @@ public:
     const T* begin() const { return m_Storage.Data(); }
     const T* end() const { return m_Storage.Data() + m_Size; }
 
-    /// Elements, not capacity — so `for (auto& x : v)` sees what Size() says.
+    /// Elements, not capacity - so `for (auto& x : v)` sees what Size() says.
     T& Back() { return m_Storage[m_Size - 1]; }
     const T& Back() const { return m_Storage[m_Size - 1]; }
 

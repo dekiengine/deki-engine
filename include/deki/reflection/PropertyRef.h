@@ -120,7 +120,7 @@ struct PropertyRef
 /**
  * @brief A resolved PropertyRef: where the field lives and what it is.
  *
- * Plain old data on purpose — callers cache it in zero-initialized scratch
+ * Plain old data on purpose - callers cache it in zero-initialized scratch
  * memory (e.g. an FSM action's per-run state blob), so it must survive being
  * memset to zero and must not own anything.
  */
@@ -155,7 +155,7 @@ bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& ou
 /**
  * @brief Parse an authored literal per the bound field's type.
  *
- * Numbers, bools ("true"/"1") and enums (stored as their index — the editor
+ * Numbers, bools ("true"/"1") and enums (stored as their index - the editor
  * resolves value names, the device never needs the name table) land in `out`.
  * Vector2-typed targets read "x, y" and fill `out2` as well. String fields need
  * no parsing and return true with both untouched. Returns false when the text

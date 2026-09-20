@@ -24,7 +24,7 @@
  * the typed wrapper (ProviderRegistry<Interface>) downcasts via static_cast.
  * Safe because each (category, providerId) pair is owned by exactly one type.
  *
- * Same DLL-boundary pattern as SettingsRegistry — singleton symbol is
+ * Same DLL-boundary pattern as SettingsRegistry - singleton symbol is
  * exported from deki-engine-core.dll so every package DLL sees the same
  * instance via dllimport. Plugin-aware ClearPlugin path lets PackageLoader
  * drop providers before FreeLibrary without dangling vtables.

@@ -42,7 +42,7 @@ namespace
 {
 // Write `content` to `path` without ever leaving the destination truncated.
 //
-// A scene is the user's source asset — the only copy of their work. Streaming
+// A scene is the user's source asset - the only copy of their work. Streaming
 // straight into it opens a window where a crash, a kill, or a full disk leaves
 // a zero-byte or half-written file with the original already gone. Writing to a
 // sibling temp file and renaming it over the destination closes that window:
@@ -50,7 +50,7 @@ namespace
 //
 // The stream is also flushed and checked *before* the rename. std::ofstream
 // buffers, so testing good() while the buffer is still pending reports success
-// for a write that never reached the disk — which would let the editor clear
+// for a write that never reached the disk - which would let the editor clear
 // its dirty flag over a file it failed to save.
 bool AtomicWriteTextFile(const std::string& path, const std::string& content)
 {
@@ -96,7 +96,7 @@ bool AtomicWriteTextFile(const std::string& path, const std::string& content)
     if (ec)
     {
         // The temp file holds good content and the destination is untouched, so
-        // leave both in place — the caller reports failure and the user's
+        // leave both in place - the caller reports failure and the user's
         // previous save is still on disk.
         DEKI_LOG_ERROR("AtomicWriteTextFile: rename '%s' -> '%s' failed: %s",
                        tmp.string().c_str(), target.string().c_str(), ec.message().c_str());
@@ -116,7 +116,7 @@ namespace
 // metadata. Used to forward-carry property values across hot-reload when
 // a new DLL adds a previously-unknown field.
 //
-// Lives outside Component so we don't change its ABI — plugin DLLs
+// Lives outside Component so we don't change its ABI - plugin DLLs
 // built against the old layout keep working.
 using UnknownProps = std::unordered_map<std::string, nlohmann::json>;
 std::unordered_map<const Component*, UnknownProps>& UnknownPropsTable()
@@ -166,7 +166,7 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 }
 #endif
 
-// Layout tripwire — see the longer note in Object.cpp. Scene is milder than
+// Layout tripwire - see the longer note in Object.cpp. Scene is milder than
 // Object (packages hold Scene* and call out-of-line methods rather than
 // reading members inline), but deki-editor.dll constructs one by value in
 // AssetPipeline::CompileSceneFile, so the size must still agree across configs.
@@ -188,7 +188,7 @@ namespace
 //
 // Not a member, for the same reason Object's instance payload is not one:
 // a std::function member would make sizeof(Scene) depend on DEKI_EDITOR.
-// Same single-definition rule as UnknownPropsTable above — non-inline, one
+// Same single-definition rule as UnknownPropsTable above - non-inline, one
 // table per process.
 //
 // Only a handful of scenes are ever live and this is read once per
@@ -415,7 +415,7 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
     (void)y;
 #endif
 
-    // Fix ownerScene on the entire spawned subtree — LoadObjectFromJson set
+    // Fix ownerScene on the entire spawned subtree - LoadObjectFromJson set
     // them to &tempScene, which is about to be destroyed. Do this before
     // AddChild so the propagation check inside AddChild sees consistent state.
     VisitSubtree(root, [targetScene](Object* obj)
@@ -466,7 +466,7 @@ void Scene::AddObject(Object* obj)
 {
     // Set owner_scene on the entire subtree, not just the root. Loaders that
     // build the tree before adding it (e.g. SceneMsgPackParser::ParseObjectInternal)
-    // only call AddChild on descendants — without this, child objects loaded
+    // only call AddChild on descendants - without this, child objects loaded
     // via the runtime MessagePack path would have null owner_scene, breaking
     // any code that walks back up the scene from a child (anything that calls
     // GetOwnerScene() on a non-root object).
@@ -824,7 +824,7 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     {
         nlohmann::json compJson;
 
-        // MissingComponent — write back preserved type name and JSON properties
+        // MissingComponent - write back preserved type name and JSON properties
         if (comp->GetType() == MissingComponent::StaticType)
         {
             auto* missing = static_cast<const MissingComponent*>(comp);
@@ -844,7 +844,7 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
             // "class" is no longer written. It was the 0.10-era hint for
             // resolving a component whose type had moved, and since identity
             // became the qualified class name it has held the same string as
-            // "type" with a namespace stripped off — a second name that can
+            // "type" with a namespace stripped off - a second name that can
             // drift from the first and says nothing the first does not.
             // Still READ, below, for the files that have it, and still written
             // for a component whose package is missing, where it is the only
@@ -1182,8 +1182,8 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                     // pick them up on the next save+load. Stored in a side-table
                     // so Component's ABI stays unchanged for plugin DLLs.
                     std::unordered_set<std::string> known;
-                    // A DEKI_RENAMED_FROM alias is a known key too — read by
-                    // LoadPropertyFromJson when the current name is absent — and
+                    // A DEKI_RENAMED_FROM alias is a known key too - read by
+                    // LoadPropertyFromJson when the current name is absent - and
                     // that case is recorded as legacy so a check can ask for a
                     // re-save. A file carrying both keys is fine: the new one won.
                     auto noteProps = [&](const ComponentMeta* m)
@@ -1229,7 +1229,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
             }
             else if (!typeName.empty() && typeName != "Unknown")
             {
-                // Component type not found — create MissingComponent to preserve data
+                // Component type not found - create MissingComponent to preserve data
                 auto* missing = new MissingComponent();
                 missing->m_TypeName = typeName;
                 missing->m_ClassName = classHint;
@@ -1954,7 +1954,7 @@ void Scene::CollectOverrides(const Object* instanceRoot, const Object* obj,
                 {
                     const PropertyInfo& prop = props[i];
 
-                    // Skip ObjectRef properties — IDs are remapped per-instance
+                    // Skip ObjectRef properties - IDs are remapped per-instance
                     // and cannot be meaningfully compared or stored as overrides
                     if (prop.type == PropertyType::ObjectRef)
                         continue;

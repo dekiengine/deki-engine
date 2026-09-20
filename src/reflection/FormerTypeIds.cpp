@@ -29,7 +29,7 @@ uint32_t LegacyComponentTypeId(uint32_t typeId)
     if (reg.GetMeta(typeId) != nullptr)
         return typeId;
 
-    // An id written before a rename — most often 0.16.0 moving every package
+    // An id written before a rename - most often 0.16.0 moving every package
     // component into a namespace, which changed every one of these hashes.
     // Unlike the "type" string beside it, a bare id carries no name to fall
     // back on, so without this the reference resolves to nothing and the dead

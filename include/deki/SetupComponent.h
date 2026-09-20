@@ -78,7 +78,7 @@ public:
     // A setup declares WHEN it runs, because the two answers are genuinely
     // different and the wrong one is a real cost:
     //
-    //   EditorLoad  — as soon as packages finish loading, and so on every
+    //   EditorLoad  - as soon as packages finish loading, and so on every
     //                 project open and every hot reload. Right for something
     //                 cheap and local that the editor itself may want live: a
     //                 clock source, registering a client object. Wrong for
@@ -86,7 +86,7 @@ public:
     //                 costs the user something, because the user has not asked
     //                 for the game to do anything yet.
     //
-    //   PlayStart   — when the user presses Play, which is the moment they
+    //   PlayStart   - when the user presses Play, which is the moment they
     //                 asked for the game to run. Right for anything with a
     //                 side effect the user would want to have consented to:
     //                 deki-gps geolocates by asking a third party where the

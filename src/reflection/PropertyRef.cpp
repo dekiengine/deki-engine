@@ -202,7 +202,7 @@ bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out, d
 
     if (type == PropertyType::Vector2)
     {
-        // "x, y" — a Vector2 target needs both axes, so a single number is a
+        // "x, y" - a Vector2 target needs both axes, so a single number is a
         // malformed literal rather than something to guess at.
         while (*end == ' ' || *end == ',')
             ++end;

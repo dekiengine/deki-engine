@@ -12,7 +12,7 @@
  *
  * Whichever platform integration package is loaded at runtime registers its
  * concrete display via Engine::SetDisplay(this, name). Engine-core owns
- * no concrete display logic — only the IDisplay* pointer and the
+ * no concrete display logic - only the IDisplay* pointer and the
  * lifecycle coordination around it.
  */
 

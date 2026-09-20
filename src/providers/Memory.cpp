@@ -25,7 +25,7 @@ struct AllocHeader
 {
     uint32_t size;
     uint32_t packed;    ///< headerSize in the low 8 bits, trackSlot in the top 24
-    uint32_t regionId;  ///< Memory::Region::id — where Free() returns it to
+    uint32_t regionId;  ///< Memory::Region::id - where Free() returns it to
     uint32_t magic;
 
     uint32_t HeaderSize() const { return packed & 0xFFu; }
@@ -133,8 +133,8 @@ bool Memory::Initialize()
     initialized = true;
 
     // What the board actually has, once, at startup. A project is sized
-    // against these two numbers — whether a full-screen bake fits, whether a
-    // particle pool has room — and without them the first out-of-memory line
+    // against these two numbers - whether a full-screen bake fits, whether a
+    // particle pool has room - and without them the first out-of-memory line
     // arrives with nothing to compare against. ESP-IDF prints its heap
     // regions, but not which of them Deki will treat as external.
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
@@ -161,7 +161,7 @@ size_t Memory::GetAvailableInternal()
 // ---------------------------------------------------------------------------
 //
 // No header. The pointer handed out is the one the heap returned, so these
-// allocations cost exactly what malloc costs — which is the point, since a
+// allocations cost exactly what malloc costs - which is the point, since a
 // std::string that outgrows its small-string buffer must not start paying 16
 // bytes of engine bookkeeping. The size needed to keep the total honest on
 // free comes from the heap instead (IMemoryProvider::GetRawBlockSize).
@@ -360,7 +360,7 @@ void Memory::SetBackend(IMemoryProvider* backend)
 // Two regions with the same id and different names would be indistinguishable:
 // a buffer allocated from one would be freed to the other, because the header
 // carries only the id. Two packages choosing the SAME name is fine and
-// intended — that is how they agree on a vocabulary without coordinating — but
+// intended - that is how they agree on a vocabulary without coordinating - but
 // two different names landing on one hash is a bug nobody would ever guess at.
 //
 // So the first time each id is seen, its name is remembered, and a later
@@ -383,7 +383,7 @@ static void CheckRegionIdentity(Deki::Memory::Region region)
         if (s_Seen[i].name == region.name || strcmp(s_Seen[i].name, region.name) == 0)
             return;  // same region, same name: nothing to say
         DEKI_LOG_ERROR("Memory: regions '%s' and '%s' hash to the same id (%u). "
-                       "One of them must be renamed — the allocation header "
+                       "One of them must be renamed - the allocation header "
                        "stores only the id, so blocks from one would be freed "
                        "to the other",
                        s_Seen[i].name, region.name, region.id);
@@ -432,7 +432,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     size_t total_size = size + header_size;
 
     // A board with no external RAM has exactly one region, so an External
-    // request resolves to Internal there. That is not a fallback — there is no
+    // request resolves to Internal there. That is not a fallback - there is no
     // second region to fall back to.
     const bool externalUsable = s_ExternalAvailable && s_ExternalEnabled;
     const Memory::Region placed =
@@ -484,11 +484,11 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // the difference between "this asset is too big for this board" and
         // "something else is holding memory it should have released". Only
         // computed on the failure path, so it costs nothing when allocating
-        // succeeds — and the region it reports is the one that was tried,
+        // succeeds - and the region it reports is the one that was tried,
         // since there is no fallback to the other.
         //
         // GetAvailable returns 0 when a provider does not
-        // implement it (the desktop one does not — the number is meaningless
+        // implement it (the desktop one does not - the number is meaningless
         // where the OS pages), so a zero is reported as unknown rather than
         // as an empty heap, which would send someone hunting a leak that is
         // not there.
@@ -513,7 +513,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u",
                            size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line());
 #else
-        // No call site was captured, so none is claimed — and the line says how
+        // No call site was captured, so none is claimed - and the line says how
         // to get one instead of spending its width on the no-fallback rule,
         // which is in docs/memory.md and does not change between runs. Someone
         // reading this on a board wants to know where to look next, and when
@@ -602,7 +602,7 @@ void Memory::Free(void* ptr, AllocContext ctx)
 #endif
 
     // The block says which region it came from, so this no longer has to ask
-    // the provider to recognise its own pointer — and an internal block goes
+    // the provider to recognise its own pointer - and an internal block goes
     // back through the provider that allocated it rather than through plain
     // free(), which was only correct because heap_caps and free happen to share
     // a heap on ESP-IDF.

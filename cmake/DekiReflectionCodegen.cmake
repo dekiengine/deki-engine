@@ -27,7 +27,7 @@
 # reflected headers each, paying the floor once per unit instead.
 #
 # Splitting a big package the other way (into parallel shards) is supported but off by
-# default — see the note on SHARD_MIN_HEADERS in the planner below for the measurements.
+# default - see the note on SHARD_MIN_HEADERS in the planner below for the measurements.
 #
 # Usage:
 #   include(DekiReflectionCodegen.cmake)
@@ -47,7 +47,7 @@
 #   )
 #
 # For each package tag the function sets, in the caller's scope:
-#   DEKI_RC_TARGETS_<c_identifier(tag)> — the codegen targets that package must
+#   DEKI_RC_TARGETS_<c_identifier(tag)> - the codegen targets that package must
 #   depend on (more than one when the package is sharded).
 
 function(deki_reflection_codegen)
@@ -188,7 +188,7 @@ function(deki_reflection_codegen)
       endforeach()
     else()
       # NOTE: test the LENGTH, never the list itself. A pack holding only package index 0
-      # is the string "0", and if(<string>) treats "0" as boolean false — which silently
+      # is the string "0", and if(<string>) treats "0" as boolean false - which silently
       # dropped the whole pack (and, for a single-package caller like the engine core
       # build, produced zero work units and generated nothing).
       list(LENGTH _pack_pkgs _pack_len)
@@ -222,7 +222,7 @@ function(deki_reflection_codegen)
   #
   # STALENESS IS CORRECTNESS here, not just speed: the .gch embeds the CONTENT of
   # the engine headers it includes, and GCC does NOT gracefully ignore a .gch whose
-  # headers changed on disk — it loads the old definitions and the TU's own fresh
+  # headers changed on disk - it loads the old definitions and the TU's own fresh
   # #include then redefines every type (a wall of "redefinition of 'struct
   # deki_refl::exported'" errors). So the .gch must be rebuilt whenever anything in
   # its include closure changes: the compile emits a depfile (-MD), the configure-
@@ -231,7 +231,7 @@ function(deki_reflection_codegen)
   # The host compiler's directory must come FIRST on PATH for every call below.
   #
   # g++ is only a driver: cc1plus lives in lib/gcc/... rather than beside it, so
-  # Windows resolves cc1plus's DLLs through PATH — and so does the generator
+  # Windows resolves cc1plus's DLLs through PATH - and so does the generator
   # this function builds and then runs. A firmware build runs inside ESP-IDF's
   # environment, whose PATH starts with the cross toolchains, and those ship
   # their own libstdc++-6.dll and libgcc_s_seh-1.dll from an older GCC. cc1plus
@@ -329,8 +329,8 @@ function(deki_reflection_codegen)
     if(EXISTS "${_pch_gch}")
       set(_pch_active TRUE)
       # Build-time regeneration (Ninja only: DEPFILE carries the full include
-      # closure), so the header-edit hot path — which regenerates codegen via the
-      # stamp custom command WITHOUT reconfiguring — never compiles against a stale
+      # closure), so the header-edit hot path - which regenerates codegen via the
+      # stamp custom command WITHOUT reconfiguring - never compiles against a stale
       # .gch. ONE rule per build tree: the .gch path is global (CMAKE_BINARY_DIR),
       # so the guard must be too. It was a DIRECTORY property, which let a second
       # caller in another directory scope (the package unit tests under tests/)
@@ -341,7 +341,7 @@ function(deki_reflection_codegen)
         # flag set (_pch_key above), and a single global boolean gave the first
         # one a rebuild rule and every other one none: those were then refreshed
         # only at configure time, so editing an engine reflection header and
-        # rebuilding left them stale. A stale .gch does not fail quietly — it
+        # rebuilding left them stale. A stale .gch does not fail quietly - it
         # surfaces as "redefinition of struct Deki::deki_refl::..." from the
         # header the .gch already contains. Keying by _pch_key keeps the
         # duplicate-rule protection the comment below describes while giving
@@ -521,8 +521,8 @@ function(deki_reflection_codegen)
     if(_stale)
       message(STATUS "Reflection codegen: regenerating ${_unitid}")
       # Capture what the compiler said. Without this a failure here reports only
-      # "generator compile failed", and the diagnostics that would explain it —
-      # a missing define, a header that needs the target's SDK — are lost, which
+      # "generator compile failed", and the diagnostics that would explain it -
+      # a missing define, a header that needs the target's SDK - are lost, which
       # leaves the reader guessing at the one thing the compiler already knew.
       execute_process(COMMAND ${_host_env} "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
                       RESULT_VARIABLE _rc

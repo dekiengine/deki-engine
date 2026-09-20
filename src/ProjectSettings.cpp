@@ -107,7 +107,7 @@ size_t SettingsValueSize(const PropertyInfo& prop)
 #ifdef DEKI_EDITOR
 // Append raw bytes to the output buffer. Write() used to take a caller-owned
 // uint8_t* with no capacity argument while emitting a variable-length v5 chunk
-// that grows with the settings registry — every call site guessed a stack array
+// that grows with the settings registry - every call site guessed a stack array
 // size (4096) smaller than what LoadFromFile would accept back (16384). Growing
 // a vector removes that whole class of mismatch.
 void Append(std::vector<uint8_t>& buf, const void* src, size_t n)
@@ -297,7 +297,7 @@ bool Load(const uint8_t* data, size_t size)
     // Validate magic
     if (header.magic != MAGIC)
     {
-        DEKI_LOG_ERROR("ProjectSettings::Load: bad magic 0x%08X (expected 0x%08X) — not a settings file",
+        DEKI_LOG_ERROR("ProjectSettings::Load: bad magic 0x%08X (expected 0x%08X) - not a settings file",
                        (unsigned)header.magic, (unsigned)MAGIC);
         return false;
     }
@@ -613,7 +613,7 @@ bool Load(const uint8_t* data, size_t size)
                             }
                             case PropertyType::Enum:
                             {
-                                // Read the value sized by the on-disk header — but
+                                // Read the value sized by the on-disk header - but
                                 // we don't have an enumSize byte in v5; fall back
                                 // to the matched property's enumSize, else 4.
                                 size_t valSize = matched ? SettingsValueSize(*matched) : 4;
@@ -660,7 +660,7 @@ bool Load(const uint8_t* data, size_t size)
                                 break;
                             }
                             default:
-                                // Unknown / unsupported tag — bail on this section
+                                // Unknown / unsupported tag - bail on this section
                                 // since we can't compute the value size.
                                 offset = sectionEnd;
                                 break;
@@ -804,7 +804,7 @@ std::vector<uint8_t> Write(int32_t displayWidth, int32_t displayHeight, uint8_t 
         Append(buf, &snameLen, sizeof(uint16_t));
         Append(buf, info.sectionName, snameLen);
 
-        // payloadSize placeholder — we patch this once we know the size.
+        // payloadSize placeholder - we patch this once we know the size.
         const size_t payloadSizeOffset = buf.size();
         uint32_t placeholder = 0;
         Append(buf, &placeholder, sizeof(uint32_t));

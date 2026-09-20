@@ -243,7 +243,7 @@ const std::string& AssetManager::LookupPath(const std::string& guid) const
     }
 
     // On embedded, all assets are stored as {cacheDir}/{guid} on the SD card.
-    // The filesystem handles "not found" — no need to validate here.
+    // The filesystem handles "not found" - no need to validate here.
     if (AssetLookupTable::IsLoaded())
     {
         return buildPath(guid);
@@ -342,7 +342,7 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     {
         // A reference to an asset that no longer exists (deleted, or never
         // imported) is a normal state, like a missing reference in Unity: it
-        // resolves to null and renders nothing. Keep it off the console — a
+        // resolves to null and renders nothing. Keep it off the console - a
         // ref re-resolves every frame, so a warning here would flood the log.
         // Opt back in via DEKI_LOG_INTERNAL_ENABLED when debugging.
         DEKI_LOG_INTERNAL("AssetManager: GUID not found in table: %s", guid.c_str());
@@ -361,7 +361,7 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     bool typeCacheable = regIt->second.cacheable;
 
     // Pointer cache: for naturally cacheable types (those registered with cacheable=true).
-    // Returns the same instance every time — no re-parsing, no re-allocation.
+    // Returns the same instance every time - no re-parsing, no re-allocation.
     if (typeCacheable)
     {
         auto& ptrCache = m_TypeCache[type];
@@ -435,7 +435,7 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     }
 
     // A missing file resolves to null silently. A deleted (or not-yet-present)
-    // asset is a normal "missing reference" — Unity-style — not an error: the
+    // asset is a normal "missing reference" - Unity-style - not an error: the
     // ref renders nothing and reconnects if the asset comes back. Probe here so
     // the per-type loaders never run for an absent file and each spam their own
     // "failed to open" error every frame. Valid assets hit the caches above and

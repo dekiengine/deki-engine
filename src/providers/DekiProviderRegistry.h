@@ -15,7 +15,7 @@
  *   auto* p = Deki::Location::GetProvider<BeaconDBLocationProvider>();   // typed
  *   auto* d = Deki::Location::GetDefault();                              // first registered
  *
- * No GetProviderById(const char*) is exposed — selection is always either
+ * No GetProviderById(const char*) is exposed - selection is always either
  * compile-time-checked (typed) or convention-driven (default). String-keyed
  * runtime lookups invite the "if A fails, try B" fallback pattern that the
  * project's NEVER USE FALLBACKS rule forbids.
@@ -58,7 +58,7 @@ public:
 
     /// First-registered provider, or nullptr if the registry is empty.
     /// Registration order is the order of calls to Register() at
-    /// DekiPlugin_RegisterComponents time — i.e. source-code order in the
+    /// DekiPlugin_RegisterComponents time - i.e. source-code order in the
     /// package that registers them. This is the only "default" knob.
     static Interface* GetDefault()
     {

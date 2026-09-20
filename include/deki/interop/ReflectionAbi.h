@@ -47,7 +47,7 @@ struct DekiReflectionAbi
     // therefore compiled into every package, and a package built against a
     // different engine revision reads the wrong offsets with no diagnostic.
     //
-    // Computed from each translation unit's own view of the header — never from
+    // Computed from each translation unit's own view of the header - never from
     // a helper defined in the engine's .cpp, which would link every caller to
     // the engine's answer and agree unconditionally.
     uint32_t sizeofDekiObject;
@@ -70,7 +70,7 @@ struct DekiReflectionAbi
  *    build its own ABI fingerprint. That guard now lives where the struct does:
  *    NodeTypeRegistry::Register takes the caller's compiled sizeof through a
  *    default argument and refuses a meta that disagrees. This field shrinking
- *    is itself a layout change, hence the bump — `version` sits at offset 0 in
+ *    is itself a layout change, hence the bump - `version` sits at offset 0 in
  *    both the old and new struct, so a pre-bump DLL is rejected on it.
  *
  * 3: added sizeofDekiObject and sizeofDekiComponent. Until now the handshake
@@ -136,7 +136,7 @@ struct DekiReflectionAbi
  *
  * 11: Deki::IMemoryProvider gained AllocateDMA. Memory::Region::DMA promised a
  *    buffer a peripheral could read, and only the platform knows how to get
- *    one — on the ESP32 some internal RAM is not DMA-reachable, so
+ *    one - on the ESP32 some internal RAM is not DMA-reachable, so
  *    "internal and probably fine" was silent corruption waiting for a
  *    display driver. Adding the virtual moves every slot after it, so a
  *    provider DLL built at ABI 10 would call the wrong one. No struct grew,
@@ -147,15 +147,15 @@ struct DekiReflectionAbi
  *    the plain natural-alignment allocator the global operator new routes
  *    through, so every allocation on a device goes through the provider
  *    without paying for a bookkeeping header. Appended, so ABI 11's slots
- *    keep their indices — but 11 was published to master for a few hours and
+ *    keep their indices - but 11 was published to master for a few hours and
  *    package DLLs were built against it, and those would call into the
  *    provider past the end of the vtable they know. Two numbers inside one
  *    unreleased cycle is cheaper than one silent miscall.
  *
  * 13: Deki::Memory's allocating functions take a Deki::AllocContext instead of
  *    a const char*, so an allocation names itself without the caller writing
- *    a label. Nothing grew and no vtable moved — AllocContext is a single
- *    pointer in a release build, the same size the parameter always was — but
+ *    a label. Nothing grew and no vtable moved - AllocContext is a single
+ *    pointer in a release build, the same size the parameter always was - but
  *    the mangled names of Allocate, AllocateInternal and Free all changed, so
  *    a package DLL built at ABI 12 would not resolve them. The size
  *    fingerprint cannot see a parameter type change either, which is the
@@ -164,8 +164,8 @@ struct DekiReflectionAbi
  *    Also in 13: IMemoryProvider::AllocateDma is spelled AllocateDMA, and the
  *    placement virtuals (AllocateInternal, AllocateDMA, FreeInternal,
  *    GetAvailableInternalRAM) lost their default implementations. Neither
- *    moves a slot — a rename keeps its index and a pure virtual keeps its
- *    index — so both are source breaks rather than binary ones, and they ride
+ *    moves a slot - a rename keeps its index and a pure virtual keeps its
+ *    index - so both are source breaks rather than binary ones, and they ride
  *    along on a number this cycle had already bumped. Unlike 11, ABI 13 never
  *    reached master, so nothing was ever built against an earlier spelling of
  *    it.
@@ -188,8 +188,8 @@ struct DekiReflectionAbi
  * 17: packages moved their types into a namespace of their own, so every
  *    component is identified by a qualified name rather than a bare one and
  *    nothing of a package's sits at global scope. No layout moved, but the
- *    mangling of anything naming a package type did — IRenderSystem's
- *    SetRenderer and GetRenderer take DekiRendering::DekiRenderer now — so a
+ *    mangling of anything naming a package type did - IRenderSystem's
+ *    SetRenderer and GetRenderer take DekiRendering::DekiRenderer now - so a
  *    package built before this fails to resolve against the engine's symbols.
  *    The bump turns that into the loader's "rebuild it" path.
  */

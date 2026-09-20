@@ -5,11 +5,11 @@ time from the C++ headers themselves, using **C++26 static reflection**.
 
 ## Files
 
-- `reflection_codegen.cpp` — the generator. Compiled and run at configure/build
+- `reflection_codegen.cpp` - the generator. Compiled and run at configure/build
   time to emit the per-package `{Prefix}Reflection0.gen.cpp` (type entries,
   hash-switch deserialization, editor metadata) plus `{Prefix}Registration.gen.cpp`
   and, for the engine-core build, `CoreRegistration` + the aggregation files.
-- `../cmake/DekiReflectionCodegen.cmake` — the `deki_reflection_codegen()` helper
+- `../cmake/DekiReflectionCodegen.cmake` - the `deki_reflection_codegen()` helper
   that compiles the generator with a reflection-capable GCC and runs it over a
   package / the engine / the project plugin.
 

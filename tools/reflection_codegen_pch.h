@@ -4,7 +4,7 @@
 // identical across every package and the plugin. DekiReflectionCodegen.cmake precompiles
 // this once into a shared .gch and force-includes it (-include) so each per-package
 // generator compile skips re-parsing <meta> (the dominant fixed cost). The per-package
-// component headers are NOT here — they arrive via deki_codegen_includes.inc.
+// component headers are NOT here - they arrive via deki_codegen_includes.inc.
 //
 // This is a pure accelerator: reflection_codegen.cpp includes the same headers itself and
 // compiles fine without any PCH. Keep this list in sync with the stable includes at the

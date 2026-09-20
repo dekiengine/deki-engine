@@ -79,8 +79,8 @@ struct AssetRef : AssetRefBase
             ptr = mgr->LoadByGuidAndType(guid, T::AssetTypeName);
             // Only re-arm the retry when the asset system simply wasn't ready
             // yet (startup race, before the filesystem / GUID table are up). A
-            // genuine miss — a deleted or missing asset while the system IS
-            // ready — must NOT retry, or it re-opens the missing file every
+            // genuine miss - a deleted or missing asset while the system IS
+            // ready - must NOT retry, or it re-opens the missing file every
             // frame and floods the log. If the asset is later (re)imported,
             // InvalidateAsset bumps the epoch and the check above re-arms us.
             if (!ptr && !mgr->IsReady()) loadAttempted = false;

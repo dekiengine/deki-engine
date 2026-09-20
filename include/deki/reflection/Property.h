@@ -134,8 +134,8 @@ namespace deki_refl {
 #define DEKI_OBJECT_NAME(...)
 // Mark a std::string property as the literal VALUE written to / compared with
 // the field picked by a PropertyRef property of the same struct. The editor
-// then draws it typed to whatever that PropertyRef points at — a drag field for
-// a float, a checkbox for a bool, a dropdown for an enum — instead of raw text,
+// then draws it typed to whatever that PropertyRef points at - a drag field for
+// a float, a checkbox for a bool, a dropdown for an enum - instead of raw text,
 // and writes back the canonical text form (enums are stored as their index, so
 // no device-side name table is needed).
 //
@@ -243,7 +243,7 @@ enum class PropertyType : uint8_t {
 };
 
 /**
- * @brief Compact field descriptor — the ONE piece of reflection that exists on
+ * @brief Compact field descriptor - the ONE piece of reflection that exists on
  *        every platform, embedded included.
  *
  * PropertyInfo (below) is the editor's rich metadata: display names,
@@ -282,7 +282,7 @@ struct PropertyInfo {
     float maxValue;             // Max value for range (0 if no range)
     bool hasRange;              // True if minValue/maxValue are valid
 
-    // Asset type (for Asset properties) — must match a typeName registered with
+    // Asset type (for Asset properties) - must match a typeName registered with
     // AssetTypeRegistry by the owning package
     const char* assetType;
 
@@ -307,7 +307,7 @@ struct PropertyInfo {
 
     // Object-picker support. On an ObjectRef property: the component type the
     // picker filters by (from ObjectRef<T>). On a String property: set by
-    // DEKI_OBJECT_NAME, marking the field as an object NAME — non-null enables
+    // DEKI_OBJECT_NAME, marking the field as an object NAME - non-null enables
     // the picker, "" means no component filter.
     const char* componentRefType;
 
@@ -650,7 +650,7 @@ namespace deki_refl {
 // authored as a stack in the node's inspector (PlayMaker-style action lists),
 // serialized inside the parent's graph entry ({enabled, type, values} each),
 // and loaded at runtime into NodeGraphData::NodeInstance::children. Node types
-// matching a child category never appear in the canvas add-node menu — they
+// matching a child category never appear in the canvas add-node menu - they
 // exist only inside a parent's stack.
 #define DEKI_NODE_CHILDREN(Category) \
     public: \
@@ -686,7 +686,7 @@ namespace deki_refl {
 // FSM's Awake/Start/Update lifecycle entries): the domain's default content
 // seeds it, the editor ensures it exists when opening a graph, and it can
 // neither be added from the canvas menu nor deleted. Wire its outputs or
-// leave them unused — like a lifecycle hook you didn't override.
+// leave them unused - like a lifecycle hook you didn't override.
 #define DEKI_NODE_PERMANENT() \
     public: \
         static constexpr bool StaticNodePermanent = true;
@@ -694,7 +694,7 @@ namespace deki_refl {
 // Declare that this node's child stack (DEKI_NODE_CHILDREN) holds the graph's
 // VARIABLES rather than ordinary children. The convention each child type
 // follows: its DEKI_NODE_TITLE_PROPERTY is the variable's name, and its other
-// exported property is the initial value — whose reflected type IS the
+// exported property is the initial value - whose reflected type IS the
 // variable's type. So one child struct per type:
 //
 //   struct MyNumberVariable {

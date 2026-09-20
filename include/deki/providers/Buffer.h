@@ -16,8 +16,8 @@
 // 150 KB whether or not a project has a gradient, which on a part with a few
 // hundred KB of heap is half the memory held against a feature that may not
 // exist. Arenas pay off where there is headroom. Most allocations here are
-// long-lived and owned by something anyway — glyph tables, pixel data, particle
-// columns, framebuffers — which is what RAII serves and an arena does not.
+// long-lived and owned by something anyway - glyph tables, pixel data, particle
+// columns, framebuffers - which is what RAII serves and an arena does not.
 //
 // WHAT IS NOT AUTOMATED
 // Whether the memory was available. `if (!buf)` once, where the buffer is

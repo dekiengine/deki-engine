@@ -50,7 +50,7 @@ public:
      * @brief Does this board have `region` as a distinct place to put memory?
      *
      * A platform with one heap answers true for the regions it can satisfy and
-     * false for the rest — and answering true for "external" when there is no
+     * false for the rest - and answering true for "external" when there is no
      * PSRAM is not a lie if every allocation is equally fast, it is a statement
      * that the distinction does not exist here.
      *
@@ -63,7 +63,7 @@ public:
      * @param needsDma The caller requires a DMA engine to be able to read it.
      *                 Orthogonal to the region: a framebuffer must be reachable
      *                 whether it lives in internal RAM or in PSRAM.
-     * @return The block, or nullptr — including for a region this board does
+     * @return The block, or nullptr - including for a region this board does
      *         not serve. There is no substitution.
      *
      * One entry point rather than one virtual per region, because the set of

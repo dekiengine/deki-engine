@@ -27,7 +27,7 @@ constexpr uint16_t VERSION = 5;
 
 // Largest dproject.bin LoadFromFile will accept. The v5 packageSettings chunk
 // grows with every installed package, so this is a real bound, not a formality
-// — it must be the ONLY one. It was previously two numbers (a 16384 size check
+// - it must be the ONLY one. It was previously two numbers (a 16384 size check
 // guarding an 8192 stack buffer), which meant any file in between overflowed
 // the stack by up to 8 KB while passing the check.
 constexpr size_t MAX_FILE_SIZE = 16384;
@@ -143,7 +143,7 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
  *
  * Returns the bytes rather than filling a caller-supplied pointer. The v5
  * packageSettings chunk grows with the settings registry, so no call site can
- * know the size up front — the previous signature took a bare uint8_t* with no
+ * know the size up front - the previous signature took a bare uint8_t* with no
  * capacity argument and a doc comment claiming 256 bytes would do, while the
  * three call sites each guessed a 4096-byte stack array and LoadFromFile
  * accepted files up to MAX_FILE_SIZE (16384) back.

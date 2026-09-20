@@ -181,7 +181,7 @@ public:
      * @param asset Pointer to the loaded asset
      * @param guid The GUID that was used to load the asset
      *
-     * Components can override this to perform post-load processing —
+     * Components can override this to perform post-load processing -
      * e.g. inspecting whether the GUID resolves to a sub-asset and
      * deriving extra runtime state from it.
      */

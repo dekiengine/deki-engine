@@ -41,7 +41,7 @@ enum class ColorFormat
     RGB565 = 0,    // 16-bit: 2 bytes per pixel
     RGB888 = 1,    // 24-bit: 3 bytes per pixel
     ARGB8888 = 2,  // 32-bit: 4 bytes per pixel with alpha
-    RGB565A8 = 3   // 24-bit: 3 bytes per pixel — RGB565 (2 bytes) + A8 (1 byte)
+    RGB565A8 = 3   // 24-bit: 3 bytes per pixel - RGB565 (2 bytes) + A8 (1 byte)
 };
 
 /**
@@ -136,7 +136,7 @@ class Object;
  *
  * Holds the active scene graph via SceneSystem, drives the component
  * lifecycle (Awake, Start, Update) through LifecycleManager, and dispatches
- * to whichever render, input and display providers a package has installed —
+ * to whichever render, input and display providers a package has installed -
  * all four are optional, so a headless or editor-hosted engine is the same
  * class with null providers.
  */
