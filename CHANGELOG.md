@@ -6,6 +6,13 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Fixed
+- **A package whose directory name begins with another package's failed the
+  firmware build** ("source path matches two package tags"). The reflection
+  code generator matched a source file to its package by substring, so a
+  file in `deki-input-embedded/` also matched `deki-input`. A tag now has to
+  be a whole path component.
+
 ### Changed
 - The reflection code generator wraps its field tables in a scoped
   `-Winvalid-offsetof` suppression. Components have a vtable, so `offsetof`

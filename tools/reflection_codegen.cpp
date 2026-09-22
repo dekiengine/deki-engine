@@ -336,13 +336,31 @@ consteval bool is_node(m::info type)
 // Membership is "the package's tag appears in the type's source path" - the same rule the
 // single-package build has always used, just applied to every package in the unit.
 // -2 means the path matched two tags; the caller static_asserts on it.
+// A tag is a package's directory name, so it matches a path only as a whole
+// path component: "deki-input" is not in ".../deki-input-embedded/Keyboard.h".
+// A bare substring search said it was, and the unit then failed as matching
+// two packages.
+consteval bool path_has_component(std::string_view path, std::string_view tag)
+{
+    size_t pos = 0;
+    while ((pos = path.find(tag, pos)) != std::string_view::npos)
+    {
+        const bool starts = pos == 0 || path[pos - 1] == '/' || path[pos - 1] == '\\';
+        const size_t end = pos + tag.size();
+        const bool ends = end == path.size() || path[end] == '/' || path[end] == '\\';
+        if (starts && ends) return true;
+        ++pos;
+    }
+    return false;
+}
+
 consteval int package_index_of(m::info decl)
 {
     std::string_view f = m::source_location_of(decl).file_name();
     int found = -1;
     for (int i = 0; i < kPackageCount; ++i)
     {
-        if (f.find(kPackages[i].tag) != std::string_view::npos)
+        if (path_has_component(f, kPackages[i].tag))
         {
             if (found >= 0) return -2;
             found = i;
