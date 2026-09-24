@@ -267,6 +267,22 @@ struct Mat4
         r.m[3][3] = 1.0f;
         return r;
     }
+
+    /// OpenGL-style perspective: vertical field of view in radians.
+    static Mat4 Perspective(float fovYRadians, float aspect, float nearZ, float farZ)
+    {
+        Mat4 r;
+        const float t = std::tan(fovYRadians * 0.5f);
+        const float fn = (farZ - nearZ);
+        if (t == 0.0f || aspect == 0.0f || fn == 0.0f) return r;  // identity on degenerate
+        r.m[0][0] = 1.0f / (aspect * t);
+        r.m[1][1] = 1.0f / t;
+        r.m[2][2] = -(farZ + nearZ) / fn;
+        r.m[2][3] = -1.0f;
+        r.m[3][2] = -(2.0f * farZ * nearZ) / fn;
+        r.m[3][3] = 0.0f;
+        return r;
+    }
 };
 
 }  // namespace Deki

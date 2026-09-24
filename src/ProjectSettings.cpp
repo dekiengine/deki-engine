@@ -74,6 +74,25 @@ bool ReadFloatSettingByHash(const uint8_t* data, size_t start, size_t end,
     }
     return false;
 }
+
+// Same scan for a one-byte value: a Bool, or an Enum whose type is one byte
+// wide (ScreenFit is uint8_t, so it is written as one byte).
+bool ReadByteSettingByHash(const uint8_t* data, size_t start, size_t end,
+                           uint32_t keyHash, uint8_t& out)
+{
+    for (size_t p = start; p + 6 <= end; ++p)
+    {  // 4 (hash) + 1 (tag) + 1 (value)
+        uint32_t h;
+        memcpy(&h, data + p, sizeof(uint32_t));
+        if (h != keyHash) continue;
+        const uint8_t tag = data[p + 4];
+        if (tag != static_cast<uint8_t>(PropertyType::Bool) && tag != static_cast<uint8_t>(PropertyType::Enum))
+            continue;
+        out = data[p + 5];
+        return true;
+    }
+    return false;
+}
 #endif
 
 // Number of payload bytes for a property's value (excluding the keyHash + typeTag header).
@@ -473,6 +492,29 @@ bool Load(const uint8_t* data, size_t size)
                             DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache", (double)ppm);
                         }
                     }
+                    // The design area every camera fits to the screen
+                    // (DisplayProjectSettings' DEKI_SETTINGS_SECTION).
+                    if (sectionName == "Framebuffer")
+                    {
+                        EngineSettings& g = EngineSettings::Global();
+                        float v = 0.0f;
+                        if (ReadFloatSettingByHash(data, sectionStart, sectionEnd,
+                                                   HashStringLen("designWidth", 11), v) && v > 0.0f)
+                            g.designWidth = v;
+                        if (ReadFloatSettingByHash(data, sectionStart, sectionEnd,
+                                                   HashStringLen("designHeight", 12), v) && v > 0.0f)
+                            g.designHeight = v;
+                        uint8_t b = 0;
+                        if (ReadByteSettingByHash(data, sectionStart, sectionEnd,
+                                                  HashStringLen("screenFit", 9), b))
+                            g.screenFit = static_cast<ScreenFit>(b);
+                        if (ReadByteSettingByHash(data, sectionStart, sectionEnd,
+                                                  HashStringLen("pixelPerfect", 12), b))
+                            g.pixelPerfect = b != 0;
+                        DEKI_LOG_INTERNAL("ProjectSettings: design area %.3f x %.3f m, fit %u, pixel perfect %u",
+                                          (double)g.designWidth, (double)g.designHeight,
+                                          (unsigned)g.screenFit, (unsigned)g.pixelPerfect);
+                    }
 #endif
 
                     Component* inst = SettingsRegistry::Instance().GetByName(sectionName.c_str());
@@ -714,7 +756,7 @@ bool LoadFromFile(const char* path)
 }
 
 #ifdef DEKI_EDITOR
-std::vector<uint8_t> Write(int32_t displayWidth, int32_t displayHeight, uint8_t colorFormat,
+std::vector<uint8_t> Write(uint8_t colorFormat,
                            int32_t targetFPS, const char* startupScene,
                            const char* rendererName, const char* const* passNames, int passCount)
 {
@@ -729,8 +771,8 @@ std::vector<uint8_t> Write(int32_t displayWidth, int32_t displayHeight, uint8_t 
 
     // Write display settings
     DisplaySettings display;
-    display.targetWidth = displayWidth;
-    display.targetHeight = displayHeight;
+    display.reserved0 = 0;
+    display.reserved5 = 0;
     display.colorFormat = colorFormat;
     display.reserved1 = 0;
     display.reserved2 = 0;

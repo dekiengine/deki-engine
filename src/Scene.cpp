@@ -17,6 +17,7 @@
 #include "reflection/FormerTypeIds.h"
 #include <deki/Time.h>
 #include <deki/assets/AssetManager.h>
+#include <deki/SceneMigration.h>
 
 #ifdef DEKI_EDITOR
 #include <fstream>
@@ -144,7 +145,34 @@ std::vector<std::pair<std::string, std::string>>& LegacyPropsLog()
     static std::vector<std::pair<std::string, std::string>> log;
     return log;
 }
+
+std::vector<ComponentsMigration>& ComponentsMigrations()
+{
+    static std::vector<ComponentsMigration> list;
+    return list;
+}
 }  // namespace
+
+void RegisterComponentsMigration(ComponentsMigration migration)
+{
+    auto& list = ComponentsMigrations();
+    if (migration && std::find(list.begin(), list.end(), migration) == list.end())
+        list.push_back(migration);
+}
+
+void UnregisterComponentsMigration(ComponentsMigration migration)
+{
+    auto& list = ComponentsMigrations();
+    list.erase(std::remove(list.begin(), list.end(), migration), list.end());
+}
+
+void RunComponentsMigrations(nlohmann::json& components)
+{
+    if (!components.is_array())
+        return;
+    for (ComponentsMigration m : ComponentsMigrations())
+        m(components);
+}
 
 #endif
 
@@ -1141,11 +1169,13 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         return obj;
     }
 
-    // Load components
+    // Load components, after any registered format migration has rewritten them
     auto& registry = ComponentRegistry::Instance();
     if (json.contains("components"))
     {
-        for (const auto& compJson : json["components"])
+        nlohmann::json components = json["components"];
+        RunComponentsMigrations(components);
+        for (const auto& compJson : components)
         {
             std::string typeName = compJson.value("type", "");
             std::string classHint = compJson.value("class", "");

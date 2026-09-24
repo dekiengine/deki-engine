@@ -168,23 +168,13 @@ bool Engine::Initialize(const EngineHost& host)
     // Display and input backends are installed by SetupComponents in the boot
     // scene on device, and by play mode in the editor.
 
-    // Setup the rendering system (if rendering package is loaded)
-    if (engine.m_Renderer)
-    {
-#if !defined(DEKI_SCREEN_WIDTH) || !defined(DEKI_SCREEN_HEIGHT) || !defined(DEKI_DEFAULT_COLOR_FORMAT)
-#error "The engine is built for a target, and the target's build says what its screen is: define DEKI_SCREEN_WIDTH, DEKI_SCREEN_HEIGHT and DEKI_DEFAULT_COLOR_FORMAT on deki-engine-core. There is no default."
+    // The framebuffer's format comes from the target's build; its size comes
+    // from the display, which a boot-scene SetupComponent (device) or play mode
+    // (editor) installs after this. SetDisplay allocates it then.
+#if !defined(DEKI_DEFAULT_COLOR_FORMAT)
+#error "The engine is built for a target, and the target's build says what colour format its screen uses: define DEKI_DEFAULT_COLOR_FORMAT on deki-engine-core. There is no default."
 #endif
-        const int32_t width = DEKI_SCREEN_WIDTH;
-        const int32_t height = DEKI_SCREEN_HEIGHT;
-        const ColorFormat format = DEKI_DEFAULT_COLOR_FORMAT;
-
-        if (!engine.m_Renderer->Setup(width, height, format))
-        {
-            DEKI_LOG_ERROR("Failed to setup GameEngine render buffer");
-            if (engine.m_Display) engine.m_Display->Shutdown();
-            return false;
-        }
-    }
+    engine.m_FrameFormat = DEKI_DEFAULT_COLOR_FORMAT;
 
     // Setup the scene system
     if (!engine.m_SceneSystem->Setup())
@@ -195,6 +185,10 @@ bool Engine::Initialize(const EngineHost& host)
     }
 
     engine.m_Initialized = true;
+    // A display installed before initialization (a host that sets it up first)
+    // is sized now that the render system exists.
+    if (engine.m_Display && engine.m_Renderer)
+        engine.SizeFramebufferToDisplay();
     DEKI_LOG_INTERNAL("DekiEngine initialized (%s%s)",
                       host.ownsMainLoop ? "device" : "hosted",
                       engine.m_Renderer ? "" : ", headless");
@@ -334,6 +328,19 @@ void Engine::Render()
 {
     if (!m_Initialized || !m_Renderer || !m_SceneSystem || !m_SceneSystem->HasRootScene())
     {
+        return;
+    }
+    if (m_Renderer->GetScreenWidth() <= 0 || m_Renderer->GetScreenHeight() <= 0)
+    {
+        // Without a display there is no size to render at, and the engine never
+        // guesses one. The first frames run before the boot scene's setup has
+        // installed the display, so this is only said once it is overdue.
+        if (!m_NoFramebufferLogged && ++m_FramesWithoutFramebuffer == kFramesBeforeNoDisplayError)
+        {
+            DEKI_LOG_ERROR("Nothing is rendered: no display has given the framebuffer a size. "
+                           "The target's boot scene must set up a display.");
+            m_NoFramebufferLogged = true;
+        }
         return;
     }
     m_Renderer->Render(m_SceneSystem->GetRootScene());
@@ -598,15 +605,40 @@ void Engine::SetDisplay(IDisplay* display, const std::string& name)
 
     DEKI_LOG_INTERNAL("DekiEngine: display set to '%s'", name.c_str());
 
-    // Re-initialize render system to pick up display's DMA buffer if available
-    // (renderer->Setup() was called before display was ready during engine init).
-    if (m_Initialized && m_Renderer)
-    {
-        m_Renderer->Setup(m_Renderer->GetScreenWidth(), m_Renderer->GetScreenHeight(), m_Renderer->GetColorFormat());
-    }
+    // The framebuffer takes the display's size (and its DMA buffer, where the
+    // display offers one of that size).
+    if (m_Initialized && m_Renderer && m_Display)
+        SizeFramebufferToDisplay();
     // Whatever the new display shows, it is not this framebuffer yet.
     if (m_Renderer)
         m_Renderer->MarkAllDirty();
+}
+
+bool Engine::SizeFramebufferToDisplay()
+{
+    if (!m_Renderer || !m_Display)
+        return false;
+    int32_t width = 0, height = 0;
+    m_Display->GetDisplaySize(&width, &height);
+    if (width <= 0 || height <= 0)
+    {
+        DEKI_LOG_ERROR("Display '%s' reports no size (%dx%d); nothing can be rendered",
+                       m_DisplayName.c_str(), (int)width, (int)height);
+        return false;
+    }
+    if (!m_Renderer->Setup(width, height, m_FrameFormat))
+    {
+        DEKI_LOG_ERROR("The %dx%d framebuffer for display '%s' needs %u bytes, which could not be "
+                       "allocated; nothing will be rendered",
+                       (int)width, (int)height, m_DisplayName.c_str(),
+                       (unsigned)FrameBufferBytes(m_FrameFormat, width, height));
+        return false;
+    }
+    m_NoFramebufferLogged = false;
+    m_FramesWithoutFramebuffer = 0;
+    DEKI_LOG_INTERNAL("DekiEngine: framebuffer %dx%d from display '%s'", (int)width, (int)height,
+                      m_DisplayName.c_str());
+    return true;
 }
 
 }  // namespace Deki

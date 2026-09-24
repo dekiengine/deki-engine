@@ -192,8 +192,14 @@ struct DekiReflectionAbi
  *    SetRenderer and GetRenderer take DekiRendering::DekiRenderer now - so a
  *    package built before this fails to resolve against the engine's symbols.
  *    The bump turns that into the loader's "rebuild it" path.
+ *
+ * 18: one camera for every screen. ICamera's pixels per meter is resolved per
+ *    buffer size from the project's design area (GetPixelsPerMeter(w, h)),
+ *    and it gained zoom, a fixed scale for the scene view, and the projection
+ *    (field of view, clip planes). Engine grew the framebuffer format and the
+ *    display-sized setup, and EngineSettings the design area.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 17;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 18;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

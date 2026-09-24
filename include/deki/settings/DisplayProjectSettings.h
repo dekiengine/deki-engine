@@ -5,19 +5,17 @@
 #include <deki/reflection/Property.h>
 
 /**
- * @brief The framebuffer contract: logical render resolution and color format.
+ * @brief The design area: how much world the player sees, on any screen.
  *
- * Registered under the "Framebuffer" section - this is exactly the triple passed
- * to IRenderSystem::Setup(width, height, format), so it is renderer-agnostic
- * and dictated by the target hardware rather than chosen by a renderer. The editor's
- * Project Settings panel renders these fields via reflection; persistence goes
- * through Project::Save/Load (deki.json) and ProjectSettings::Write/Load
- * (dproject.bin) for the runtime device.
+ * Registered under the "Framebuffer" section (the name is the settings file,
+ * settings/framebuffer.json, so it stays). Every target renders at its own
+ * display's native size; nothing here sizes a buffer. The design area is in
+ * meters, so the inspector shows it in px or m like any other length: 80 x 45 m
+ * at 16 px/m reads as 1280 x 720 px.
  *
- * targetWidth / targetHeight is the **logical resolution** - what the engine
- * renders into. On embedded the panel size matches this exactly. On desktop
- * preview, SDL3 handles the integer-multiple upscale via
- * SDL_SetRenderLogicalPresentation with nearest-neighbor sampling.
+ * ApplyToGlobalCache() copies the values into EngineSettings::Global(), which
+ * the cameras read through ResolveScreenPixelsPerMeter (ScreenScale.h). The
+ * device reads them back from dproject.bin's settings chunk.
  */
 
 namespace Deki
@@ -29,19 +27,37 @@ class DisplayProjectSettings : public Component
 {
 public:
 
-    DEKI_TOOLTIP("Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.")
-    DEKI_RANGE(1, 4096)
+    DEKI_TOOLTIP("Width of the design area: how much world the player sees across. Every screen shows this much or more; see Screen Fit.")
+    DEKI_UNIT(Distance)
+    DEKI_RANGE(0.01f, 100000.0f)
     DEKI_EXPORT
-    int32_t targetWidth = 320;
+    float designWidth = 20.0f;
 
-    DEKI_TOOLTIP("Logical render height in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.")
-    DEKI_RANGE(1, 4096)
+    DEKI_TOOLTIP("Height of the design area: how much world the player sees top to bottom. Every screen shows this much or more; see Screen Fit.")
+    DEKI_UNIT(Distance)
+    DEKI_RANGE(0.01f, 100000.0f)
     DEKI_EXPORT
-    int32_t targetHeight = 240;
+    float designHeight = 15.0f;
+
+    DEKI_TOOLTIP("What a screen of another shape does. Show All keeps the whole design area visible and shows extra world on the longer side. Fill covers the screen and crops the design area's edges.")
+    DEKI_EXPORT
+    ScreenFit screenFit = ScreenFit::ShowAll;
+
+    DEKI_TOOLTIP("For pixel art. Scales by whole numbers only, so every art pixel is the same size on screen, and snaps positions to the art-pixel grid. Screens smaller than the design area stay at 1x and crop.")
+    DEKI_EXPORT
+    bool pixelPerfect = false;
 
     DEKI_TOOLTIP("Framebuffer pixel format. RGB565 (default) is the smallest and fastest - typical for embedded displays. RGB888 gives full 8-bit color but uses 50% more memory. ARGB8888 adds an alpha channel and uses 100% more memory.")
     DEKI_EXPORT
     ColorFormat colorFormat = ColorFormat::RGB565;
+
+    void ApplyToGlobalCache() const
+    {
+        EngineSettings::Global().designWidth = designWidth;
+        EngineSettings::Global().designHeight = designHeight;
+        EngineSettings::Global().screenFit = screenFit;
+        EngineSettings::Global().pixelPerfect = pixelPerfect;
+    }
 };
 
 

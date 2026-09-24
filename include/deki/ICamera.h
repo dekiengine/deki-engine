@@ -1,17 +1,15 @@
 #pragma once
 
 #include <cstdint>
-#include <deki/Vector.h>  // for Mat4 (passive forward-compat type)
+#include <deki/Vector.h>  // for Mat4
 
 /**
- * @brief Camera projection mode (forward-compat hook).
+ * @brief How a camera projects the world.
  *
- * Orthographic is the only path used by the 2D software renderer today;
- * Perspective is reserved for future 3D / external renderers. Standard2DRenderer
- * does NOT consume the projection matrix - it calls ICamera::WorldToScreen
- * directly. The enum + GetProjectionMatrix() exist only so that future 3D
- * code, debug tools, or third-party renderers can ask the camera for a matrix
- * without us having to retrofit the API later.
+ * Orthographic shows the project's design area, scaled by the camera's zoom.
+ * Perspective shows a field of view on the design shape; 3D passes (deki-3d)
+ * draw through it. Sprites keep drawing flat through the orthographic mapping
+ * under either mode until they can be placed in 3D.
  */
 
 namespace Deki
@@ -21,6 +19,19 @@ enum class ProjectionMode : uint8_t
 {
     Orthographic = 0,
     Perspective = 1,
+};
+
+/**
+ * @brief What a screen whose shape differs from the design area shows.
+ *
+ * ShowAll keeps the whole design area visible and shows extra world along the
+ * screen's longer side. Fill covers the whole screen and crops the design
+ * area's edges instead. On a screen of the design shape the two are the same.
+ */
+enum class ScreenFit : uint8_t
+{
+    ShowAll = 0,
+    Fill = 1,
 };
 
 /**
@@ -59,11 +70,11 @@ enum class TemperatureUnit : uint8_t
  *
  * Coordinate model:
  *   world (meters, float) → screen pixels (float) via:
- *     screen = (world * pixelsPerMeter) + buffer_center
- *   The camera's pixelsPerMeter directly drives screen scale. Setting it
- *   equal to the project's pixelsPerMeter yields 1:1 visualization; larger
- *   values zoom in, smaller zoom out. The optional pixel-snap step lives
- *   in the renderer, not in the camera.
+ *     screen = (world - camera) * pixelsPerMeter + buffer_center
+ *   pixelsPerMeter is resolved per target size: the project's design area is
+ *   fitted to the buffer (Deki::ResolveScreenPixelsPerMeter, ScreenScale.h)
+ *   and multiplied by the camera's zoom. The same camera therefore shows the
+ *   same world on every screen, whatever its resolution.
  */
 class ICamera
 {
@@ -83,31 +94,32 @@ public:
     virtual void GetClearColor(uint8_t& r, uint8_t& g, uint8_t& b) const = 0;
     virtual void SetClearColor(uint8_t r, uint8_t g, uint8_t b) = 0;
 
-    // Framebuffer pixels per world meter. The single knob controlling
-    // world→screen scale. Implementations may resolve a sentinel (e.g. 0)
-    // to the project's default at runtime.
-    virtual float GetPixelsPerMeter() const = 0;
-    virtual void SetPixelsPerMeter(float pixelsPerMeter) = 0;
+    // Framebuffer pixels per world meter for a buffer of this size: the design
+    // area fitted to the buffer, times zoom (or the fixed value set below).
+    virtual float GetPixelsPerMeter(int bufferWidth, int bufferHeight) const = 0;
 
-    // Projection mode (forward-compat hook). Standard2DRenderer ignores this
-    // and uses WorldToScreen directly; future 3D / external renderers can
-    // request a matrix.
-    virtual ProjectionMode GetProjectionMode() const { return ProjectionMode::Orthographic; }
-    virtual void SetProjectionMode(ProjectionMode /*mode*/) { /* default no-op */ }
+    // Orthographic zoom. 1 shows the project's design area; 2 is twice as close.
+    virtual float GetZoom() const = 0;
+    virtual void SetZoom(float zoom) = 0;
 
-    /// Build a projection matrix for the requested logical-buffer size.
-    /// Default returns an orthographic matrix matching the camera's
-    /// pixelsPerMeter. Perspective is the camera implementor's job (returns
-    /// identity by default). NOT consumed by Standard2DRenderer.
-    virtual Mat4 GetProjectionMatrix(int bufferWidth, int bufferHeight) const
-    {
-        const float effective = GetPixelsPerMeter();
-        if (effective <= 0.0f || bufferWidth <= 0 || bufferHeight <= 0)
-            return Mat4::Identity();
-        const float halfW = (static_cast<float>(bufferWidth) * 0.5f) / effective;
-        const float halfH = (static_cast<float>(bufferHeight) * 0.5f) / effective;
-        return Mat4::Ortho(-halfW, halfW, -halfH, halfH, -1.0f, 1.0f);
-    }
+    // A fixed pixels-per-meter that replaces the design-area fit; 0 clears it.
+    // For views that are not a screen, such as the editor's scene view, which
+    // shows the world at the project's own pixels per meter at any panel size.
+    virtual void SetFixedPixelsPerMeter(float pixelsPerMeter) = 0;
+
+    virtual ProjectionMode GetProjectionMode() const = 0;
+    virtual void SetProjectionMode(ProjectionMode mode) = 0;
+
+    // Perspective: vertical field of view in degrees on the design shape, and
+    // the clip planes in meters. The fit decides what other shapes see.
+    virtual float GetFieldOfView() const = 0;
+    virtual float GetNearPlane() const = 0;
+    virtual float GetFarPlane() const = 0;
+
+    /// Projection matrix for a buffer of this size, orthographic or
+    /// perspective per GetProjectionMode(), with the screen fit applied.
+    /// Standard2DRenderer does not use it; it maps through WorldToScreen.
+    virtual Mat4 GetProjectionMatrix(int bufferWidth, int bufferHeight) const = 0;
 
     virtual ~ICamera() = default;
 };

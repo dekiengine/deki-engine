@@ -402,8 +402,10 @@ static bool DekiGen_Deki_DisplayProjectSettings_Deserialize(::Deki::Component* _
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
-            case ::Deki::HashString("targetWidth"): { int32_t v; if (parser.ReadInt(v)) self.targetWidth = static_cast<decltype(self.targetWidth)>(v); break; }
-            case ::Deki::HashString("targetHeight"): { int32_t v; if (parser.ReadInt(v)) self.targetHeight = static_cast<decltype(self.targetHeight)>(v); break; }
+            case ::Deki::HashString("designWidth"): { float v; if (parser.ReadFloat(v)) self.designWidth = v; break; }
+            case ::Deki::HashString("designHeight"): { float v; if (parser.ReadFloat(v)) self.designHeight = v; break; }
+            case ::Deki::HashString("screenFit"): { int32_t v; if (parser.ReadInt(v)) self.screenFit = static_cast<decltype(self.screenFit)>(v); break; }
+            case ::Deki::HashString("pixelPerfect"): { bool v; if (parser.ReadBool(v)) self.pixelPerfect = v; break; }
             case ::Deki::HashString("colorFormat"): { int32_t v; if (parser.ReadInt(v)) self.colorFormat = static_cast<decltype(self.colorFormat)>(v); break; }
             default: parser.SkipValue(); break;
         }
@@ -437,8 +439,10 @@ static_assert(sizeof(Deki::DisplayProjectSettings) <= 0xFFFF,
     "Hold the bulk of the data behind a pointer or a Deki::Buffer instead of "
     "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_DisplayProjectSettings_Fields[] = {
-    { ::Deki::HashString("targetWidth"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetWidth), (uint8_t)::Deki::PropertyType::Int32, 0 },
-    { ::Deki::HashString("targetHeight"), (uint16_t)offsetof(Deki::DisplayProjectSettings, targetHeight), (uint8_t)::Deki::PropertyType::Int32, 0 },
+    { ::Deki::HashString("designWidth"), (uint16_t)offsetof(Deki::DisplayProjectSettings, designWidth), (uint8_t)::Deki::PropertyType::Float, 0 },
+    { ::Deki::HashString("designHeight"), (uint16_t)offsetof(Deki::DisplayProjectSettings, designHeight), (uint8_t)::Deki::PropertyType::Float, 0 },
+    { ::Deki::HashString("screenFit"), (uint16_t)offsetof(Deki::DisplayProjectSettings, screenFit), (uint8_t)::Deki::PropertyType::Enum, 1 },
+    { ::Deki::HashString("pixelPerfect"), (uint16_t)offsetof(Deki::DisplayProjectSettings, pixelPerfect), (uint8_t)::Deki::PropertyType::Bool, 0 },
     { ::Deki::HashString("colorFormat"), (uint16_t)offsetof(Deki::DisplayProjectSettings, colorFormat), (uint8_t)::Deki::PropertyType::Enum, 4 },
 };
 
@@ -448,6 +452,11 @@ static const ::Deki::FieldRef DekiGen_Deki_DisplayProjectSettings_Fields[] = {
 
 #ifdef DEKI_EDITOR
 
+#ifndef DEKI_GEN_ENUM_ScreenFit
+#define DEKI_GEN_ENUM_ScreenFit
+static const char* const s_ScreenFit_Values[] = { "ShowAll", "Fill" };
+static const int32_t s_ScreenFit_Ints[] = { 0, 1 };
+#endif
 #ifndef DEKI_GEN_ENUM_ColorFormat
 #define DEKI_GEN_ENUM_ColorFormat
 static const char* const s_ColorFormat_Values[] = { "RGB565", "RGB888", "ARGB8888", "RGB565A8" };
@@ -455,9 +464,11 @@ static const int32_t s_ColorFormat_Ints[] = { 0, 1, 2, 3 };
 #endif
 
 static const ::Deki::PropertyInfo DekiGen_Deki_DisplayProjectSettings_Props[] = {
-    { "targetWidth", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetWidth),
-      "Logical render width in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "targetHeight", nullptr, ::Deki::PropertyType::Int32, offsetof(Deki::DisplayProjectSettings, targetHeight),
-      "Logical render height in pixels. The engine renders into this resolution; the device or desktop preview upscales to the actual display.", 1.0, 4096.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "colorFormat", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::DisplayProjectSettings, colorFormat),
+    { "designWidth", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::DisplayProjectSettings, designWidth),
+      "Width of the design area: how much world the player sees across. Every screen shows this much or more; see Screen Fit.", 0.01, 100000.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::Distance },    { "designHeight", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::DisplayProjectSettings, designHeight),
+      "Height of the design area: how much world the player sees top to bottom. Every screen shows this much or more; see Screen Fit.", 0.01, 100000.0, true, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::Distance },    { "screenFit", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::DisplayProjectSettings, screenFit),
+      "What a screen of another shape does. Show All keeps the whole design area visible and shows extra world on the longer side. Fill covers the screen and crops the design area's edges.", 0, 0, false, nullptr, s_ScreenFit_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_ScreenFit_Ints },    { "pixelPerfect", nullptr, ::Deki::PropertyType::Bool, offsetof(Deki::DisplayProjectSettings, pixelPerfect),
+      "For pixel art. Scales by whole numbers only, so every art pixel is the same size on screen, and snaps positions to the art-pixel grid. Screens smaller than the design area stay at 1x and crop.", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None },    { "colorFormat", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::DisplayProjectSettings, colorFormat),
       "Framebuffer pixel format. RGB565 (default) is the smallest and fastest - typical for embedded displays. RGB888 gives full 8-bit color but uses 50% more memory. ARGB8888 adds an alpha channel and uses 100% more memory.", 0, 0, false, nullptr, s_ColorFormat_Values, 4, 4, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_ColorFormat_Ints }
 };
 
@@ -479,7 +490,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_DisplayProjectSettings_TypeInfo = {
     &DekiGen_Deki_DisplayProjectSettings_Deserialize,
     &DekiGen_Deki_DisplayProjectSettings_ResolveObjectRefs,
     &DekiGen_Deki_DisplayProjectSettings_RemapObjectRefs,
-    DekiGen_Deki_DisplayProjectSettings_Fields, 3,
+    DekiGen_Deki_DisplayProjectSettings_Fields, 5,
 #ifdef DEKI_EDITOR
     &DekiGen_Deki_DisplayProjectSettings_Meta
 #else
@@ -501,7 +512,7 @@ const ::Deki::ComponentMeta DekiGen_Deki_DisplayProjectSettings_Meta = {
     false,   // platformSceneOnly
     sizeof(Deki::DisplayProjectSettings),
     DekiGen_Deki_DisplayProjectSettings_TypeInfo.create,
-    DekiGen_Deki_DisplayProjectSettings_Props, 3,
+    DekiGen_Deki_DisplayProjectSettings_Props, 5,
     {}, false,
     nullptr,   // displayNameOverride
     "Framebuffer",   // settingsSection (DEKI_SETTINGS_SECTION)

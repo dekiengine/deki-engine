@@ -8,10 +8,9 @@
  * @brief Engine-core project settings that are not tied to a specific subsystem.
  *
  * Registered under the "Core" section. Frame pacing lives here rather than with
- * the framebuffer: `targetWidth`/`targetHeight`/`colorFormat` are the contract
- * handed to `IRenderSystem::Setup()` and are dictated by the target hardware,
- * while capping is a property of the engine's frame loop. Nothing passes these to
- * a renderer, and they still apply with no rendering package installed at all.
+ * the design area in "Framebuffer": capping is a property of the engine's frame
+ * loop. Nothing passes these to a renderer, and they still apply with no
+ * rendering package installed at all.
  */
 
 namespace Deki

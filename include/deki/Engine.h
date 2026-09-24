@@ -85,10 +85,17 @@ struct DEKI_ENGINE_API EngineSettings
     // pixelsPerMeter for display when inspectorUnit == Pixels.
     UnitMode inspectorUnit = UnitMode::Pixels;
 
-    // World scale: how many framebuffer pixels render one meter of world.
-    // Drives camera default zoom (CameraComponent::pixelsPerMeter sentinel)
-    // and inspector px↔m conversions.
+    // Art density: how many pixels of art make one meter of world. Sizes
+    // sprites, converts the inspector's px display, and is the scale at which
+    // the design area is drawn 1:1.
     float pixelsPerMeter = 16.0f;
+
+    // The design area: how much world the player sees, in meters, and what a
+    // screen of another shape does with it. See ScreenScale.h.
+    float designWidth = 20.0f;
+    float designHeight = 15.0f;
+    ScreenFit screenFit = ScreenFit::ShowAll;
+    bool pixelPerfect = false;
 
     // Inspector display only; stored temperatures are always Celsius.
     TemperatureUnit temperatureUnit = TemperatureUnit::Celsius;
@@ -163,6 +170,17 @@ private:
     // old static DekiDisplay facade.
     IDisplay* m_Display = nullptr;
     std::string m_DisplayName;
+
+    // The framebuffer's colour format, fixed by the target's build. Its size is
+    // not: it is whatever the display reports once one is set.
+    ColorFormat m_FrameFormat = ColorFormat::RGB565;
+    bool m_NoFramebufferLogged = false;
+    uint32_t m_FramesWithoutFramebuffer = 0;
+    static constexpr uint32_t kFramesBeforeNoDisplayError = 120;  // ~2 s at 60 fps
+
+    // Size the render system's framebuffer to the display. Logs and returns
+    // false when there is no display, it reports no size, or the allocation fails.
+    bool SizeFramebufferToDisplay();
 
     // Update callbacks
     std::vector<UpdateCallback> m_UpdateCallbacks;
@@ -341,9 +359,9 @@ public:
      * @brief Register the active display (called by SDL3Display, LovyanGFXDisplay,
      *        EditorDisplay, etc. at package load).
      *
-     * The package owns the display instance's lifetime. Engine-core only stores
-     * the pointer + a name (for diagnostics) and re-runs the render system's
-     * Setup() so it can pick up a display-owned DMA buffer if available.
+     * The package owns the display instance's lifetime. Engine-core stores the
+     * pointer + a name (for diagnostics) and sizes the framebuffer to the size
+     * the display reports: every target renders at its own native resolution.
      */
     void SetDisplay(IDisplay* display, const std::string& name = "");
 

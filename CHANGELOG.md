@@ -6,6 +6,34 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Added
+- **Design area and screen fit.** `EngineSettings` carries the project's design
+  area (`designWidth`, `designHeight`, meters), `screenFit` (`ShowAll`, `Fill`)
+  and `pixelPerfect`. `<deki/ScreenScale.h>` turns them into pixels per meter
+  for a screen (`ResolveScreenPixelsPerMeter`) and a field of view for a
+  perspective camera (`ResolveVerticalFieldOfView`). A device reads them from
+  `dproject.bin`'s Framebuffer section.
+- `<deki/SceneMigration.h>`: `RegisterComponentsMigration` rewrites an object's
+  saved components before they load (editor JSON only; device scenes are
+  compiled from it). `ComponentsMigrationRegistrar` unregisters when a hot
+  reload unloads the package.
+- `Mat4::Perspective`.
+
+### Changed
+- **The framebuffer is the display's size.** `Engine::SetDisplay` sizes it from
+  `IDisplay::GetDisplaySize()`; the engine no longer reads `DEKI_SCREEN_WIDTH`/
+  `HEIGHT` and needs only `DEKI_DEFAULT_COLOR_FORMAT` from the target. With no
+  display, or one that reports no size, nothing is rendered and the log says
+  so; a failed allocation names the size and the bytes it needed.
+- **`ICamera`** (reflection ABI 18): `GetPixelsPerMeter(bufferWidth,
+  bufferHeight)` is resolved per buffer size; `SetPixelsPerMeter` became
+  `GetZoom`/`SetZoom` plus `SetFixedPixelsPerMeter` for views that are not a
+  screen; the projection, field of view and clip planes joined it, and
+  `GetProjectionMatrix` builds either kind.
+- `DisplayProjectSettings` holds the design area in meters; `ProjectSettings::
+  Write` no longer takes a display size, and the two `DisplaySettings` size
+  fields in `dproject.bin` are reserved (the layout is unchanged).
+
 ### Fixed
 - **A package whose directory name begins with another package's failed the
   firmware build** ("source path matches two package tags"). The reflection
