@@ -171,14 +171,11 @@ private:
     IDisplay* m_Display = nullptr;
     std::string m_DisplayName;
 
-    // The framebuffer's colour format, fixed by the target's build. Its size is
-    // not: it is whatever the display reports once one is set.
-    ColorFormat m_FrameFormat = ColorFormat::RGB565;
     bool m_NoFramebufferLogged = false;
     uint32_t m_FramesWithoutFramebuffer = 0;
     static constexpr uint32_t kFramesBeforeNoDisplayError = 120;  // ~2 s at 60 fps
 
-    // Size the render system's framebuffer to the display. Logs and returns
+    // Size and format the render system's framebuffer to the display. Logs and returns
     // false when there is no display, it reports no size, or the allocation fails.
     bool SizeFramebufferToDisplay();
 

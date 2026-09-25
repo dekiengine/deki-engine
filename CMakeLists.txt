@@ -243,7 +243,6 @@ if(DEKI_EDITOR)
         GENERATOR_SRC "${CMAKE_CURRENT_SOURCE_DIR}/tools/reflection_codegen.cpp" GXX "${DEKI_GXX16}"
         INCLUDE_DIRS ${_RC_INCS}
         DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_DEKI_TRANSFORM_DEFINES}
-                "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
     add_custom_target(generate_properties)  # reflection function registered its own build-time target
 
@@ -262,7 +261,6 @@ if(DEKI_EDITOR)
     # that target is the editor itself. No package defines: the engine tests
     # none, and naming packages is not its business.
     target_compile_definitions(deki-engine-core PUBLIC
-        "DEKI_DEFAULT_COLOR_FORMAT=Deki::ColorFormat::RGB565"
         "DEKI_ENABLE_TRANSPARENCY=true"
 
         "DEKI_FAST_ATTR="

@@ -168,13 +168,9 @@ bool Engine::Initialize(const EngineHost& host)
     // Display and input backends are installed by SetupComponents in the boot
     // scene on device, and by play mode in the editor.
 
-    // The framebuffer's format comes from the target's build; its size comes
-    // from the display, which a boot-scene SetupComponent (device) or play mode
-    // (editor) installs after this. SetDisplay allocates it then.
-#if !defined(DEKI_DEFAULT_COLOR_FORMAT)
-#error "The engine is built for a target, and the target's build says what colour format its screen uses: define DEKI_DEFAULT_COLOR_FORMAT on deki-engine-core. There is no default."
-#endif
-    engine.m_FrameFormat = DEKI_DEFAULT_COLOR_FORMAT;
+    // The framebuffer's size and format come from the display, which a
+    // boot-scene SetupComponent (device) or play mode (editor) installs after
+    // this. SetDisplay allocates it then.
 
     // Setup the scene system
     if (!engine.m_SceneSystem->Setup())
@@ -626,18 +622,19 @@ bool Engine::SizeFramebufferToDisplay()
                        m_DisplayName.c_str(), (int)width, (int)height);
         return false;
     }
-    if (!m_Renderer->Setup(width, height, m_FrameFormat))
+    const ColorFormat format = m_Display->GetColorFormat();
+    if (!m_Renderer->Setup(width, height, format))
     {
-        DEKI_LOG_ERROR("The %dx%d framebuffer for display '%s' needs %u bytes, which could not be "
-                       "allocated; nothing will be rendered",
-                       (int)width, (int)height, m_DisplayName.c_str(),
-                       (unsigned)FrameBufferBytes(m_FrameFormat, width, height));
+        DEKI_LOG_ERROR("The %dx%d framebuffer (format %d) for display '%s' needs %u bytes, which could "
+                       "not be allocated; nothing will be rendered",
+                       (int)width, (int)height, (int)format, m_DisplayName.c_str(),
+                       (unsigned)FrameBufferBytes(format, width, height));
         return false;
     }
     m_NoFramebufferLogged = false;
     m_FramesWithoutFramebuffer = 0;
-    DEKI_LOG_INTERNAL("DekiEngine: framebuffer %dx%d from display '%s'", (int)width, (int)height,
-                      m_DisplayName.c_str());
+    DEKI_LOG_INTERNAL("DekiEngine: framebuffer %dx%d, format %d, from display '%s'", (int)width, (int)height,
+                      (int)format, m_DisplayName.c_str());
     return true;
 }
 

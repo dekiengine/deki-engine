@@ -7,6 +7,9 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Added
+- `IDisplay::GetColorFormat()`: the display's pixel format, which the engine
+  gives the framebuffer along with its size (reflection ABI 19). Nothing
+  compiles a format in: `DEKI_DEFAULT_COLOR_FORMAT` is gone.
 - **Design area and screen fit.** `EngineSettings` carries the project's design
   area (`designWidth`, `designHeight`, meters), `screenFit` (`ShowAll`, `Fill`)
   and `pixelPerfect`. `<deki/ScreenScale.h>` turns them into pixels per meter

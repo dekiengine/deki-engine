@@ -756,8 +756,7 @@ bool LoadFromFile(const char* path)
 }
 
 #ifdef DEKI_EDITOR
-std::vector<uint8_t> Write(uint8_t colorFormat,
-                           int32_t targetFPS, const char* startupScene,
+std::vector<uint8_t> Write(int32_t targetFPS, const char* startupScene,
                            const char* rendererName, const char* const* passNames, int passCount)
 {
     std::vector<uint8_t> buf;
@@ -773,7 +772,7 @@ std::vector<uint8_t> Write(uint8_t colorFormat,
     DisplaySettings display;
     display.reserved0 = 0;
     display.reserved5 = 0;
-    display.colorFormat = colorFormat;
+    display.reserved6 = 0;
     display.reserved1 = 0;
     display.reserved2 = 0;
     display.reserved3 = 0;

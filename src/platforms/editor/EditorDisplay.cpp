@@ -24,6 +24,44 @@ EditorDisplay::EditorDisplay()
 {
 }
 
+namespace
+{
+// One row of the framebuffer to RGBA for GL. RGB565 never comes here: GL takes
+// it as it is. ARGB8888 is a 0xAARRGGBB word per pixel, so its bytes in memory
+// are B, G, R, A; RGB565A8 is [565 lo, 565 hi, coverage], shown opaque.
+void RowToRgba(ColorFormat format, const uint8_t* src, uint8_t* dst, int32_t count)
+{
+    for (int32_t x = 0; x < count; ++x)
+    {
+        uint8_t* d = dst + x * 4;
+        switch (format)
+        {
+            case ColorFormat::RGB888:
+                d[0] = src[x * 3 + 0];
+                d[1] = src[x * 3 + 1];
+                d[2] = src[x * 3 + 2];
+                break;
+            case ColorFormat::ARGB8888:
+                d[0] = src[x * 4 + 2];
+                d[1] = src[x * 4 + 1];
+                d[2] = src[x * 4 + 0];
+                break;
+            case ColorFormat::RGB565A8:
+            default:
+            {
+                const uint16_t v = static_cast<uint16_t>(src[x * 3] | (src[x * 3 + 1] << 8));
+                const uint8_t r5 = (v >> 11) & 0x1F, g6 = (v >> 5) & 0x3F, b5 = v & 0x1F;
+                d[0] = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+                d[1] = static_cast<uint8_t>((g6 << 2) | (g6 >> 4));
+                d[2] = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
+                break;
+            }
+        }
+        d[3] = 255;
+    }
+}
+}  // namespace
+
 EditorDisplay::~EditorDisplay()
 {
     Shutdown();
@@ -107,24 +145,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, C
         glBindTexture(GL_TEXTURE_2D, 0);
         return;
     }
-    else if (format == ColorFormat::RGB888)  // RGB888
-    {
-        const uint8_t* src = framebuffer;
-        size_t pixelCount = width * height;
-
-        for (size_t i = 0; i < pixelCount; i++)
-        {
-            dst[i * 4 + 0] = src[i * 3 + 0];
-            dst[i * 4 + 1] = src[i * 3 + 1];
-            dst[i * 4 + 2] = src[i * 3 + 2];
-            dst[i * 4 + 3] = 255;
-        }
-    }
-    else if (format == ColorFormat::ARGB8888)  // ARGB8888
-    {
-        // Just copy directly
-        memcpy(dst, framebuffer, width * height * 4);
-    }
+    RowToRgba(format, framebuffer, dst, width * height);
 
     // Upload to texture
     glBindTexture(GL_TEXTURE_2D, m_GlTextureId);
@@ -171,22 +192,8 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
             for (int32_t y = r.top; y < r.bottom; ++y)
             {
                 uint8_t* dst = m_RgbaBuffer + (static_cast<size_t>(y) * width + r.left) * 4;
-                if (format == ColorFormat::RGB888)  // RGB888
-                {
-                    const uint8_t* src = framebuffer + (static_cast<size_t>(y) * width + r.left) * 3;
-                    for (int32_t x = 0; x < r.Width(); ++x)
-                    {
-                        dst[x * 4 + 0] = src[x * 3 + 0];
-                        dst[x * 4 + 1] = src[x * 3 + 1];
-                        dst[x * 4 + 2] = src[x * 3 + 2];
-                        dst[x * 4 + 3] = 255;
-                    }
-                }
-                else  // ARGB8888
-                {
-                    const uint8_t* src = framebuffer + (static_cast<size_t>(y) * width + r.left) * 4;
-                    memcpy(dst, src, static_cast<size_t>(r.Width()) * 4);
-                }
+                const size_t bpp = FrameBufferBytes(format, 1, 1);
+                RowToRgba(format, framebuffer + (static_cast<size_t>(y) * width + r.left) * bpp, dst, r.Width());
             }
             const uint8_t* src = m_RgbaBuffer + (static_cast<size_t>(r.top) * width + r.left) * 4;
             glTexSubImage2D(GL_TEXTURE_2D, 0, r.left, r.top, r.Width(), r.Height(),

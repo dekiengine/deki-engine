@@ -198,8 +198,11 @@ struct DekiReflectionAbi
  *    and it gained zoom, a fixed scale for the scene view, and the projection
  *    (field of view, clip planes). Engine grew the framebuffer format and the
  *    display-sized setup, and EngineSettings the design area.
+ *
+ * 19: IDisplay::GetColorFormat. The framebuffer takes the display's pixel
+ *    format as well as its size; no target compiles one in any more.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 18;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 19;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

@@ -25,6 +25,7 @@ private:
 
     int32_t m_DisplayWidth;
     int32_t m_DisplayHeight;
+    ColorFormat m_Format = ColorFormat::RGB565;
     bool initialized;
 
 public:
@@ -39,6 +40,7 @@ public:
     void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
                         const Rect* rects, int32_t count) override;
     void GetDisplaySize(int32_t* width, int32_t* height) const override;
+    ColorFormat GetColorFormat() const override { return m_Format; }
     bool IsInitialized() const override;
     void RequestFullRefresh() override;
     bool ProcessEvents() override;
@@ -55,6 +57,10 @@ public:
 
     // Editor-specific methods
     uint32_t GetTextureId() const { return m_GlTextureId; }
+
+    // The format the play view previews in: the screen being emulated. Set
+    // before Initialize; the engine formats the framebuffer to it.
+    void SetColorFormat(ColorFormat format) { m_Format = format; }
 };
 
 #endif  // DEKI_EDITOR

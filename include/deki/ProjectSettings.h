@@ -49,7 +49,7 @@ struct DisplaySettings
 {
     int32_t reserved0;    // Was targetWidth; the framebuffer is the display's own size since 0.18
     int32_t reserved5;    // Was targetHeight
-    uint8_t colorFormat;  // 0=RGB565, 1=RGB888, 2=ARGB8888
+    uint8_t reserved6;    // Was colorFormat; the framebuffer takes the display's format since 0.18
     uint8_t reserved1;    // Was pixelPerfect, kept for binary compat
     uint8_t reserved2;    // Was dirtyRectMaxCount, kept for binary compat
     uint8_t reserved3;    // Was dirtyRectEnabled, kept for binary compat
@@ -148,13 +148,11 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
  * three call sites each guessed a 4096-byte stack array and LoadFromFile
  * accepted files up to MAX_FILE_SIZE (16384) back.
  *
- * @param colorFormat Color format (0=RGB565, 1=RGB888, 2=ARGB8888)
  * @param targetFPS Target FPS (0 = no limit)
  * @param startupScene Startup scene path (can be nullptr)
  * @return The serialized image; empty only if nothing could be written
  */
-std::vector<uint8_t> Write(uint8_t colorFormat,
-                           int32_t targetFPS = 0, const char* startupScene = nullptr,
+std::vector<uint8_t> Write(int32_t targetFPS = 0, const char* startupScene = nullptr,
                            const char* rendererName = nullptr,
                            const char* const* passNames = nullptr, int passCount = 0);
 #endif

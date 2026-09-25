@@ -84,6 +84,15 @@ public:
     virtual void GetDisplaySize(int32_t* width, int32_t* height) const = 0;
 
     /**
+     * @brief The pixel format this display takes.
+     *
+     * With GetDisplaySize, what the engine sizes and formats the framebuffer
+     * to when the display is set: every target renders in its own screen's
+     * format, so Present never has to convert.
+     */
+    virtual ColorFormat GetColorFormat() const = 0;
+
+    /**
      * @brief Check if the display is initialized
      */
     virtual bool IsInitialized() const = 0;
