@@ -160,6 +160,7 @@ bool IsSupportedSettingsType(PropertyType t)
 
 static int32_t s_TargetFPS = 0;
 static std::string s_StartupScene;
+static Storage::Location s_AssetStorage = Storage::Internal;
 
 // The v5 packageSettings chunk of the last Load(), kept so a package can ask
 // for its own settings on device (ReadPackageSetting*), where the settings
@@ -274,6 +275,10 @@ int32_t GetTargetFPS()
 {
     return s_TargetFPS;
 }
+Storage::Location GetAssetStorage()
+{
+    return s_AssetStorage;
+}
 const char* GetStartupScene()
 {
     return s_StartupScene.c_str();
@@ -336,6 +341,8 @@ bool Load(const uint8_t* data, size_t size)
     s_PassCount = 0;
     s_PassNames.clear();
     s_PackageChunkSize = 0;
+    s_AssetStorage = header.version < 6 || (header.flags & FLAG_ASSETS_EXTERNAL) ? Storage::External
+                                                                                 : Storage::Internal;
 
     // Version 3+: read runtime settings (targetFPS + startup scene)
     if (header.version >= 3)
@@ -756,7 +763,7 @@ bool LoadFromFile(const char* path)
 }
 
 #ifdef DEKI_EDITOR
-std::vector<uint8_t> Write(int32_t targetFPS, const char* startupScene,
+std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, const char* startupScene,
                            const char* rendererName, const char* const* passNames, int passCount)
 {
     std::vector<uint8_t> buf;
@@ -765,7 +772,7 @@ std::vector<uint8_t> Write(int32_t targetFPS, const char* startupScene,
     FileHeader header;
     header.magic = MAGIC;
     header.version = VERSION;
-    header.flags = 0;
+    header.flags = assetStorage == Storage::External ? FLAG_ASSETS_EXTERNAL : 0;
     Append(buf, &header, sizeof(FileHeader));
 
     // Write display settings

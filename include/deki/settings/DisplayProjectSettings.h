@@ -16,7 +16,7 @@
  *
  * ApplyToGlobalCache() copies the values into EngineSettings::Global(), which
  * the cameras read through ResolveScreenPixelsPerMeter (ScreenScale.h). The
- * device reads them back from dproject.bin's settings chunk.
+ * device reads them back from project_data.bin's settings chunk.
  */
 
 namespace Deki

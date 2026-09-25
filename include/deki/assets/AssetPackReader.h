@@ -73,7 +73,7 @@ struct LoadedPack
 struct PackIndexEntry
 {
     char guid[37];      // Asset GUID
-    char packPath[48];  // Pack file path on SD card (e.g., "S:/{guid}.pack")
+    char packPath[48];  // Pack file name, in the index's own folder ("{guid}.pack")
     char padding[3];
 };
 #pragma pack(pop)

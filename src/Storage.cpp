@@ -11,8 +11,19 @@ const char* GetPrefix(Location location)
 {
     switch (location)
     {
-        case Flash: return "F:/";
-        case SDCard: return "S:/";
+        case Internal: return "F:/";
+        case External: return "S:/";
+        case Default: return "";
+    }
+    return "";
+}
+
+const char* AssetRoot(Location location)
+{
+    switch (location)
+    {
+        case Internal: return "F:/assets/";
+        case External: return "S:/";
         case Default: return "";
     }
     return "";

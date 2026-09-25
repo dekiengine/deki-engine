@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
+#include <deki/Storage.h>
 #ifdef DEKI_EDITOR
 #include <vector>  // editor-only: the runtime half of this header stays allocation-free
 #endif
 
 /**
- * @brief Runtime project settings loaded from dproject.bin
+ * @brief Runtime project settings loaded from project_data.bin
  *
  * This file is exported by the editor alongside scenes and contains
  * project-wide settings that affect engine behavior at runtime.
@@ -20,12 +21,15 @@ namespace ProjectSettings
 {
 
 // File format constants
-constexpr const char* FILENAME = "F:/dproject.bin";      // Runtime virtual path (ESP32: F:/ -> /sdcard/)
-constexpr const char* EXPORT_FILENAME = "dproject.bin";  // Plain filename for editor export
+constexpr const char* FILENAME = "F:/project_data.bin";      // Runtime virtual path (internal storage)
+constexpr const char* EXPORT_FILENAME = "project_data.bin";  // Plain filename for editor export
 constexpr uint32_t MAGIC = 0x444B5052;                   // "DKPR" in little-endian
-constexpr uint16_t VERSION = 5;
+constexpr uint16_t VERSION = 6;
 
-// Largest dproject.bin LoadFromFile will accept. The v5 packageSettings chunk
+// FileHeader::flags (version 6+)
+constexpr uint16_t FLAG_ASSETS_EXTERNAL = 1u << 0;  // the assets are on external storage
+
+// Largest project_data.bin LoadFromFile will accept. The v5 packageSettings chunk
 // grows with every installed package, so this is a real bound, not a formality
 // - it must be the ONLY one. It was previously two numbers (a 16384 size check
 // guarding an 8192 stack buffer), which meant any file in between overflowed
@@ -39,7 +43,7 @@ struct FileHeader
 {
     uint32_t magic;    // MAGIC constant
     uint16_t version;  // Format version
-    uint16_t flags;    // Reserved for future use
+    uint16_t flags;    // FLAG_* (version 6+; 0 before)
 };
 
 /**
@@ -92,6 +96,13 @@ bool Load(const uint8_t* data, size_t size);
 int32_t GetTargetFPS();
 
 /**
+ * @brief Where this build's assets are: internal or external storage
+ * (version 6+). Before version 6 the assets were always on the SD card, so an
+ * older file reads as External.
+ */
+Storage::Location GetAssetStorage();
+
+/**
  * @brief Get the startup scene path from loaded project settings
  * @return Startup scene path (empty if not set)
  */
@@ -118,7 +129,7 @@ const char* GetPassName(int index);
 
 /**
  * @brief Load project settings from filesystem
- * @param path Path to dproject.bin file (optional, uses FILENAME if nullptr)
+ * @param path Path to project_data.bin file (optional, uses FILENAME if nullptr)
  * @return true if loaded successfully
  */
 bool LoadFromFile(const char* path = nullptr);
@@ -139,7 +150,7 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
 
 #ifdef DEKI_EDITOR
 /**
- * @brief Serialize project settings to a dproject.bin image (editor only)
+ * @brief Serialize project settings to a project_data.bin image (editor only)
  *
  * Returns the bytes rather than filling a caller-supplied pointer. The v5
  * packageSettings chunk grows with the settings registry, so no call site can
@@ -152,8 +163,8 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
  * @param startupScene Startup scene path (can be nullptr)
  * @return The serialized image; empty only if nothing could be written
  */
-std::vector<uint8_t> Write(int32_t targetFPS = 0, const char* startupScene = nullptr,
-                           const char* rendererName = nullptr,
+std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS = 0,
+                           const char* startupScene = nullptr, const char* rendererName = nullptr,
                            const char* const* passNames = nullptr, int passCount = 0);
 #endif
 

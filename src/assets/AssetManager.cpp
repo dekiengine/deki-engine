@@ -11,6 +11,7 @@
 #include <deki/providers/IFileSystem.h>
 #include <deki/assets/AssetLookupTable.h>
 #include <deki/assets/AssetPackReader.h>
+#include <deki/providers/Buffer.h>
 #include <deki/Scene.h>
 
 #include <deki/LogSystem.h>
@@ -288,6 +289,52 @@ std::string AssetManager::LookupGuidByKey(const std::string& key) const
 bool AssetManager::LoadAssetLookupTable(const uint8_t* data, size_t size)
 {
     return AssetLookupTable::Load(data, size);
+}
+
+bool AssetManager::LoadAssetRoot(const char* root)
+{
+    const std::string tablePath = std::string(root) + "asset_table.bin";
+    IFileSystem* fs = FileSystem::GetFileSystemForPath(tablePath.c_str());
+    if (!fs)
+    {
+        DEKI_LOG_ERROR("AssetManager: no filesystem for %s", tablePath.c_str());
+        return false;
+    }
+    IFileSystem::FileHandle handle = fs->OpenFile(tablePath.c_str(), IFileSystem::OpenMode::READ_BINARY);
+    if (!handle)
+    {
+        DEKI_LOG_ERROR("AssetManager: %s is missing; the build's assets are not there", tablePath.c_str());
+        return false;
+    }
+    const long size = fs->GetFileSize(handle);
+    if (size <= 0)
+    {
+        fs->CloseFile(handle);
+        DEKI_LOG_ERROR("AssetManager: %s is empty", tablePath.c_str());
+        return false;
+    }
+
+    // The lookup table points into this block, so it lives as long as the
+    // table does. External: it is read on a lookup by key, not per frame.
+    static Buffer<uint8_t> s_Table;
+    if (!s_Table.Allocate(static_cast<size_t>(size), Memory::External))
+    {
+        fs->CloseFile(handle);
+        DEKI_LOG_ERROR("AssetManager: no room for %s (%ld bytes)", tablePath.c_str(), size);
+        return false;
+    }
+    const size_t read = fs->ReadFile(handle, s_Table.Data(), static_cast<size_t>(size));
+    fs->CloseFile(handle);
+    if (read != static_cast<size_t>(size) || !AssetLookupTable::Load(s_Table.Data(), read))
+    {
+        DEKI_LOG_ERROR("AssetManager: could not load %s", tablePath.c_str());
+        return false;
+    }
+
+    SetCacheDirectory(root);
+    AssetPackReader::Instance().LoadPackIndex((std::string(root) + "pack_index.bin").c_str());
+    DEKI_LOG_INFO("Assets: %u in %s", AssetLookupTable::GetEntryCount(), root);
+    return true;
 }
 
 bool AssetManager::LoadGuidTable(const std::string& path)

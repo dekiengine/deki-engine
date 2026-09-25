@@ -62,6 +62,10 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         return false;
     }
 
+    // Packs sit next to their index, wherever the build's assets are.
+    const std::string indexPath(path);
+    const std::string folder = indexPath.substr(0, indexPath.find_last_of('/') + 1);
+
     // Read entries
     for (uint32_t i = 0; i < entryCount; i++)
     {
@@ -82,7 +86,7 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         std::string guid = FixedFieldToString(entry.guid, sizeof(entry.guid));
         if (guid.empty())
             continue;
-        m_GuidToPackPath[guid] = FixedFieldToString(entry.packPath, sizeof(entry.packPath));
+        m_GuidToPackPath[guid] = folder + FixedFieldToString(entry.packPath, sizeof(entry.packPath));
     }
 
     fs->CloseFile(file);

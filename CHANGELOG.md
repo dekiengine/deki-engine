@@ -15,12 +15,21 @@ and package DLLs has its own numbered history in
   and `pixelPerfect`. `<deki/ScreenScale.h>` turns them into pixels per meter
   for a screen (`ResolveScreenPixelsPerMeter`) and a field of view for a
   perspective camera (`ResolveVerticalFieldOfView`). A device reads them from
-  `dproject.bin`'s Framebuffer section.
+  `project_data.bin`'s Framebuffer section.
 - `<deki/SceneMigration.h>`: `RegisterComponentsMigration` rewrites an object's
   saved components before they load (editor JSON only; device scenes are
   compiled from it). `ComponentsMigrationRegistrar` unregisters when a hot
   reload unloads the package.
 - `Mat4::Perspective`.
+- **A build's assets can live in internal storage.** `project_data.bin`
+  (version 6) records where a build keeps its assets
+  (`ProjectSettings::GetAssetStorage()`, header flag `FLAG_ASSETS_EXTERNAL`;
+  older files read as external, where they always were).
+  `AssetManager::LoadAssetRoot(root)` loads a build's `asset_table.bin`,
+  `pack_index.bin` and assets from one folder, `Storage::AssetRoot()` names
+  it: `F:/assets/` inside, `S:/` on a card. `Engine::Initialize` loads the
+  internal one, and fails if a build that keeps its assets there has none;
+  the package that mounts external storage loads that one.
 
 ### Changed
 - **The framebuffer is the display's size.** `Engine::SetDisplay` sizes it from
@@ -35,7 +44,15 @@ and package DLLs has its own numbered history in
   `GetProjectionMatrix` builds either kind.
 - `DisplayProjectSettings` holds the design area in meters; `ProjectSettings::
   Write` no longer takes a display size, and the two `DisplaySettings` size
-  fields in `dproject.bin` are reserved (the layout is unchanged).
+  fields in `project_data.bin` are reserved (the layout is unchanged).
+- **`dproject.bin` is `project_data.bin`**, named like the other exported
+  files (`asset_table.bin`, `pack_index.bin`). `ProjectSettings::Write` takes
+  the asset storage first.
+- `Storage::Flash` and `Storage::SDCard` are `Storage::Internal` and
+  `Storage::External` (same values).
+- A pack index names each pack by file name; the runtime finds it next to the
+  index, on whichever storage the assets are. It held `S:/<guid>.pack`, which
+  is on the card and, with `F:/assets/`, would not fit its 48 bytes.
 
 ### Fixed
 - **A package whose directory name begins with another package's failed the

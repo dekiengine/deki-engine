@@ -1,5 +1,7 @@
 #include <deki/Engine.h>
 #include <deki/ProjectSettings.h>
+#include <deki/Storage.h>
+#include <deki/assets/AssetManager.h>
 #include "LifecycleManager.h"
 
 #include <deki/providers/FileSystem.h>
@@ -132,6 +134,7 @@ bool Engine::Initialize(const EngineHost& host)
     LogSystem::Initialize();
     Time::Initialize();
 
+    bool settingsLoaded = false;
     if (host.initializeProviders)
     {
         if (!FileSystem::Initialize())
@@ -140,7 +143,8 @@ bool Engine::Initialize(const EngineHost& host)
             return false;
         }
         // Load project settings from storage
-        if (ProjectSettings::LoadFromFile())
+        settingsLoaded = ProjectSettings::LoadFromFile();
+        if (settingsLoaded)
         {
             DEKI_LOG_INTERNAL("Project settings loaded successfully");
             int32_t fps = ProjectSettings::GetTargetFPS();
@@ -162,6 +166,16 @@ bool Engine::Initialize(const EngineHost& host)
     if (host.initializeProviders && !Memory::Initialize())
     {
         DEKI_LOG_ERROR("Failed to initialize DekiMemory");
+        return false;
+    }
+
+    // Assets kept in internal storage are there from the start. On external
+    // storage, the package that mounts it (deki-sdcard) loads them once the
+    // card is up.
+    if (settingsLoaded && ProjectSettings::GetAssetStorage() == Storage::Internal &&
+        !AssetManager::Get()->LoadAssetRoot(Storage::AssetRoot(Storage::Internal)))
+    {
+        DEKI_LOG_ERROR("This build keeps its assets in internal storage, and they are not there");
         return false;
     }
 

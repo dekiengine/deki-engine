@@ -10,7 +10,7 @@ int Deki::Main()
     }
 
     Deki::Engine& deki = Deki::Engine::GetInstance();
-    deki.GetSceneSystem().LoadBootScene("boot.scene", Deki::Storage::Flash);
+    deki.GetSceneSystem().LoadBootScene("boot.scene", Deki::Storage::Internal);
     deki.RunMainLoop();
     deki.Shutdown();
     return 0;

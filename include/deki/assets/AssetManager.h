@@ -227,6 +227,15 @@ public:
     bool LoadAssetLookupTable(const uint8_t* data, size_t size);
 
     /**
+     * @brief Find a build's exported assets under `root` (Storage::AssetRoot):
+     * loads root/asset_table.bin and root/pack_index.bin and loads every asset
+     * from root. The engine calls it at startup for internal storage; the
+     * package that mounts external storage calls it once the card is up.
+     * @return false, with the reason logged, when the table cannot be read
+     */
+    bool LoadAssetRoot(const char* root);
+
+    /**
      * @brief Register a GUID-to-path mapping (for editor use)
      * @param guid The asset GUID
      * @param path The resolved filesystem path
