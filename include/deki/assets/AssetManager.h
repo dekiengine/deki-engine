@@ -12,6 +12,7 @@
 #pragma once
 
 #include <string>
+#include <deki/providers/Buffer.h>
 #include <vector>
 #include <unordered_map>
 #include <cstring>
@@ -292,6 +293,14 @@ public:
     /// Read a whole file through the filesystem provider. False when the file
     /// cannot be opened or read in full (out is then empty).
     static bool ReadWholeFile(const std::string& path, std::vector<uint8_t>& out);
+
+    /**
+     * @brief Read a whole file into a Buffer in `region`, through the engine's
+     * filesystem. For anything big (a mesh, a texture): a std::vector would
+     * land on the internal heap and abort the board when it does not fit,
+     * where this names the size in the log and returns false.
+     */
+    static bool ReadWholeFile(const std::string& path, Buffer<uint8_t>& out, Memory::Region region);
 
 private:
     AssetManager() = default;

@@ -209,6 +209,26 @@ bool AssetManager::ReadWholeFile(const std::string& path, std::vector<uint8_t>& 
     return ok;
 }
 
+bool AssetManager::ReadWholeFile(const std::string& path, Buffer<uint8_t>& out, Memory::Region region)
+{
+    IFileSystem* fs = FileSystem::GetFileSystemForPath(path.c_str());
+    if (!fs) return false;
+    IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::READ_BINARY);
+    if (!file) return false;
+    const long size = fs->GetFileSize(file);
+    bool ok = false;
+    if (size > 0)
+    {
+        if (!out.Allocate(static_cast<size_t>(size), region))
+            DEKI_LOG_ERROR("AssetManager: no room to read %s (%ld bytes)", path.c_str(), size);
+        else
+            ok = fs->ReadFile(file, out.Data(), out.Count()) == out.Count();
+    }
+    fs->CloseFile(file);
+    if (!ok) out.Reset();
+    return ok;
+}
+
 const std::string& AssetManager::LookupPath(const std::string& guid) const
 {
     static const std::string kEmpty;

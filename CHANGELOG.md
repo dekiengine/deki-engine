@@ -21,6 +21,10 @@ and package DLLs has its own numbered history in
   compiled from it). `ComponentsMigrationRegistrar` unregisters when a hot
   reload unloads the package.
 - `Mat4::Perspective`.
+- `AssetManager::ReadWholeFile(path, Buffer<uint8_t>&, Memory::Region)`: a
+  whole file into a Buffer through the filesystem, for anything big a loader
+  reads (a mesh): a std::vector would land on the internal heap and abort the
+  board when it does not fit, where this logs the size and returns false.
 - **A build's assets can live in internal storage.** `project_data.bin`
   (version 6) records where a build keeps its assets
   (`ProjectSettings::GetAssetStorage()`, header flag `FLAG_ASSETS_EXTERNAL`;
