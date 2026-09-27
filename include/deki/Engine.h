@@ -86,16 +86,9 @@ struct DEKI_ENGINE_API EngineSettings
     UnitMode inspectorUnit = UnitMode::Pixels;
 
     // Art density: how many pixels of art make one meter of world. Sizes
-    // sprites, converts the inspector's px display, and is the scale at which
-    // the design area is drawn 1:1.
+    // sprites, converts the inspector's px display, and is the grid a
+    // pixel-perfect camera scales by.
     float pixelsPerMeter = 16.0f;
-
-    // The design area: how much world the player sees, in meters, and what a
-    // screen of another shape does with it. See ScreenScale.h.
-    float designWidth = 20.0f;
-    float designHeight = 15.0f;
-    ScreenFit screenFit = ScreenFit::ShowAll;
-    bool pixelPerfect = false;
 
     // Inspector display only; stored temperatures are always Celsius.
     TemperatureUnit temperatureUnit = TemperatureUnit::Celsius;

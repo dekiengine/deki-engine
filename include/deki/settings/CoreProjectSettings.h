@@ -7,9 +7,8 @@
 /**
  * @brief Engine-core project settings that are not tied to a specific subsystem.
  *
- * Registered under the "Core" section. Frame pacing lives here rather than with
- * the design area in "Framebuffer": capping is a property of the engine's frame
- * loop. Nothing passes these to a renderer, and they still apply with no
+ * Registered under the "Core" section. Frame pacing lives here, not with the
+ * display: capping is a property of the engine's frame loop. Nothing passes these to a renderer, and they still apply with no
  * rendering package installed at all.
  */
 

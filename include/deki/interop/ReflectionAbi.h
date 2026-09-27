@@ -201,8 +201,12 @@ struct DekiReflectionAbi
  *
  * 19: IDisplay::GetColorFormat. The framebuffer takes the display's pixel
  *    format as well as its size; no target compiles one in any more.
+ *
+ * 20: the camera frames the world. ICamera's zoom became an ortho height (the
+ *    world it shows top to bottom), and EngineSettings lost the design area,
+ *    screen fit and pixel perfect, which moved onto the camera.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 19;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 20;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()

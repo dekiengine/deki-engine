@@ -92,7 +92,6 @@ list(APPEND DEKI_CORE_SOURCES
     src/providers/DekiProviderRegistryBase.cpp
     src/providers/Power.cpp
     src/settings/CoreProjectSettings.cpp
-    src/settings/DisplayProjectSettings.cpp
     src/settings/UnitProjectSettings.cpp
     src/PlatformSetupComponent.cpp
     src/SetupComponent.cpp

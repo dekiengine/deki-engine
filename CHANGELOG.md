@@ -10,12 +10,12 @@ and package DLLs has its own numbered history in
 - `IDisplay::GetColorFormat()`: the display's pixel format, which the engine
   gives the framebuffer along with its size (reflection ABI 19). Nothing
   compiles a format in: `DEKI_DEFAULT_COLOR_FORMAT` is gone.
-- **Design area and screen fit.** `EngineSettings` carries the project's design
-  area (`designWidth`, `designHeight`, meters), `screenFit` (`ShowAll`, `Fill`)
-  and `pixelPerfect`. `<deki/ScreenScale.h>` turns them into pixels per meter
-  for a screen (`ResolveScreenPixelsPerMeter`) and a field of view for a
-  perspective camera (`ResolveVerticalFieldOfView`). A device reads them from
-  `project_data.bin`'s Framebuffer section.
+- **The camera frames the world.** `<deki/ScreenScale.h>`'s
+  `OrthoPixelsPerMeter(screenHeight, orthoHeight, pixelPerfect, art)` gives a
+  screen's pixels per meter for a camera that shows `orthoHeight` meters top
+  to bottom: a bigger screen of the same shape shows the same world, drawn
+  bigger, and a wider one shows more at the sides. Pixel perfect rounds down to
+  a whole multiple of the art density, never below 1x.
 - `<deki/SceneMigration.h>`: `RegisterComponentsMigration` rewrites an object's
   saved components before they load (editor JSON only; device scenes are
   compiled from it). `ComponentsMigrationRegistrar` unregisters when a hot
@@ -41,14 +41,15 @@ and package DLLs has its own numbered history in
   `HEIGHT` and needs only `DEKI_DEFAULT_COLOR_FORMAT` from the target. With no
   display, or one that reports no size, nothing is rendered and the log says
   so; a failed allocation names the size and the bytes it needed.
-- **`ICamera`** (reflection ABI 18): `GetPixelsPerMeter(bufferWidth,
+- **`ICamera`** (reflection ABI 18, then 20): `GetPixelsPerMeter(bufferWidth,
   bufferHeight)` is resolved per buffer size; `SetPixelsPerMeter` became
-  `GetZoom`/`SetZoom` plus `SetFixedPixelsPerMeter` for views that are not a
-  screen; the projection, field of view and clip planes joined it, and
-  `GetProjectionMatrix` builds either kind.
-- `DisplayProjectSettings` holds the design area in meters; `ProjectSettings::
-  Write` no longer takes a display size, and the two `DisplaySettings` size
-  fields in `project_data.bin` are reserved (the layout is unchanged).
+  `GetOrthoHeight`/`SetOrthoHeight` plus `SetFixedPixelsPerMeter` for views
+  that are not a screen; the projection, field of view and clip planes joined
+  it, and `GetProjectionMatrix` builds either kind.
+- The Framebuffer settings section (`DisplayProjectSettings`) is gone: nothing
+  about the screen is a project setting any more. `ProjectSettings::Write` no
+  longer takes a display size, and the two `DisplaySettings` size fields in
+  `project_data.bin` are reserved (the layout is unchanged).
 - **`dproject.bin` is `project_data.bin`**, named like the other exported
   files (`asset_table.bin`, `pack_index.bin`). `ProjectSettings::Write` takes
   the asset storage first.

@@ -6,9 +6,9 @@
 /**
  * @brief How a camera projects the world.
  *
- * Orthographic shows the project's design area, scaled by the camera's zoom.
- * Perspective shows a field of view on the design shape; 3D passes (deki-3d)
- * draw through it. Sprites keep drawing flat through the orthographic mapping
+ * Orthographic shows a fixed height of world (the camera's ortho height);
+ * the width follows the screen's shape. Perspective shows a vertical field of
+ * view; 3D passes (deki-3d) draw through it. Sprites keep drawing flat through the orthographic mapping
  * under either mode until they can be placed in 3D.
  */
 
@@ -19,19 +19,6 @@ enum class ProjectionMode : uint8_t
 {
     Orthographic = 0,
     Perspective = 1,
-};
-
-/**
- * @brief What a screen whose shape differs from the design area shows.
- *
- * ShowAll keeps the whole design area visible and shows extra world along the
- * screen's longer side. Fill covers the whole screen and crops the design
- * area's edges instead. On a screen of the design shape the two are the same.
- */
-enum class ScreenFit : uint8_t
-{
-    ShowAll = 0,
-    Fill = 1,
 };
 
 /**
@@ -71,10 +58,10 @@ enum class TemperatureUnit : uint8_t
  * Coordinate model:
  *   world (meters, float) → screen pixels (float) via:
  *     screen = (world - camera) * pixelsPerMeter + buffer_center
- *   pixelsPerMeter is resolved per target size: the project's design area is
- *   fitted to the buffer (Deki::ResolveScreenPixelsPerMeter, ScreenScale.h)
- *   and multiplied by the camera's zoom. The same camera therefore shows the
- *   same world on every screen, whatever its resolution.
+ *   pixelsPerMeter is resolved per target size: the buffer's height over the
+ *   camera's ortho height (Deki::OrthoPixelsPerMeter, ScreenScale.h). The same
+ *   camera therefore shows the same height of world on every screen, whatever
+ *   its resolution; a wider screen shows more at the sides.
  */
 class ICamera
 {
@@ -94,15 +81,15 @@ public:
     virtual void GetClearColor(uint8_t& r, uint8_t& g, uint8_t& b) const = 0;
     virtual void SetClearColor(uint8_t r, uint8_t g, uint8_t b) = 0;
 
-    // Framebuffer pixels per world meter for a buffer of this size: the design
-    // area fitted to the buffer, times zoom (or the fixed value set below).
+    // Framebuffer pixels per world meter for a buffer of this size: the
+    // buffer's height over the ortho height (or the fixed value set below).
     virtual float GetPixelsPerMeter(int bufferWidth, int bufferHeight) const = 0;
 
-    // Orthographic zoom. 1 shows the project's design area; 2 is twice as close.
-    virtual float GetZoom() const = 0;
-    virtual void SetZoom(float zoom) = 0;
+    // Orthographic: how much world the camera shows top to bottom, in meters.
+    virtual float GetOrthoHeight() const = 0;
+    virtual void SetOrthoHeight(float meters) = 0;
 
-    // A fixed pixels-per-meter that replaces the design-area fit; 0 clears it.
+    // A fixed pixels-per-meter that replaces the ortho height; 0 clears it.
     // For views that are not a screen, such as the editor's scene view, which
     // shows the world at the project's own pixels per meter at any panel size.
     virtual void SetFixedPixelsPerMeter(float pixelsPerMeter) = 0;
@@ -110,14 +97,14 @@ public:
     virtual ProjectionMode GetProjectionMode() const = 0;
     virtual void SetProjectionMode(ProjectionMode mode) = 0;
 
-    // Perspective: vertical field of view in degrees on the design shape, and
-    // the clip planes in meters. The fit decides what other shapes see.
+    // Perspective: vertical field of view in degrees, and the clip planes in
+    // meters. A wider screen sees more at the sides.
     virtual float GetFieldOfView() const = 0;
     virtual float GetNearPlane() const = 0;
     virtual float GetFarPlane() const = 0;
 
     /// Projection matrix for a buffer of this size, orthographic or
-    /// perspective per GetProjectionMode(), with the screen fit applied.
+    /// perspective per GetProjectionMode().
     /// Standard2DRenderer does not use it; it maps through WorldToScreen.
     virtual Mat4 GetProjectionMatrix(int bufferWidth, int bufferHeight) const = 0;
 
