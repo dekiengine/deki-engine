@@ -616,8 +616,11 @@ void Engine::SetDisplay(IDisplay* display, const std::string& name)
     DEKI_LOG_INTERNAL("DekiEngine: display set to '%s'", name.c_str());
 
     // The framebuffer takes the display's size (and its DMA buffer, where the
-    // display offers one of that size).
-    if (m_Initialized && m_Renderer && m_Display)
+    // display offers one of that size). Not only once Initialize has run: the
+    // editor hosts the engine without it, and play mode sets a display of the
+    // Play view's screen - which, skipped here, left the framebuffer at its
+    // old size and play refused to start on any other screen.
+    if (m_Renderer && m_Display)
         SizeFramebufferToDisplay();
     // Whatever the new display shows, it is not this framebuffer yet.
     if (m_Renderer)

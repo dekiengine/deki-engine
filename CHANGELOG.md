@@ -59,6 +59,10 @@ and package DLLs has its own numbered history in
   is on the card and, with `F:/assets/`, would not fit its 48 bytes.
 
 ### Fixed
+- **`SetDisplay` sizes the framebuffer whether or not `Initialize` has run.**
+  It waited for `Initialize`, which the editor never calls, so play mode
+  kept the framebuffer at its old size and refused to start on any other
+  screen ("Play mode could not get a 320x240 framebuffer").
 - **A package whose directory name begins with another package's failed the
   firmware build** ("source path matches two package tags"). The reflection
   code generator matched a source file to its package by substring, so a
