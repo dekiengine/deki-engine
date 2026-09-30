@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.17.0 - 2026-09-30
 
 ### Added
 - `IDisplay::GetColorFormat()`: the display's pixel format, which the engine
@@ -36,6 +36,11 @@ and package DLLs has its own numbered history in
   the package that mounts external storage loads that one.
 
 ### Changed
+- **0.16 packages are refused.** `DEKI_OLDEST_SUPPORTED_PACKAGE` is 0.17.0:
+  reflection ABI 20 and `ICamera`'s framing (`GetPixelsPerMeter(w, h)`,
+  `SetFixedPixelsPerMeter`) break every package, so a project on 0.16.0
+  packages is told to move to 0.17.0 rather than failing to compile
+  `deki-rendering`. Every package is released at 0.17.x alongside this.
 - **The framebuffer is the display's size.** `Engine::SetDisplay` sizes it from
   `IDisplay::GetDisplaySize()`; the engine no longer reads `DEKI_SCREEN_WIDTH`/
   `HEIGHT` and needs only `DEKI_DEFAULT_COLOR_FORMAT` from the target. With no
