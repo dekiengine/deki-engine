@@ -137,8 +137,12 @@ bool Memory::Initialize()
     // particle pool has room - and without them the first out-of-memory line
     // arrives with nothing to compare against. ESP-IDF prints its heap
     // regions, but not which of them Deki will treat as external.
+    // A host heap (editor, desktop simulator) reports 0 for "not measured",
+    // which printed as "0 bytes free".
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
-    if (s_ExternalAvailable)
+    if (freeInternal == 0)
+        DEKI_LOG_INFO("Memory: host heap, free space not measured");
+    else if (s_ExternalAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
                       "(only Deki::Memory::External goes external; everything else "
                       "stays internal)",

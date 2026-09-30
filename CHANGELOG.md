@@ -4,6 +4,12 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Fixed
+- The boot memory line no longer says "0 bytes free" on a host heap (editor,
+  desktop simulator), which does not measure free space. It says so instead.
+
 ## 0.17.0 - 2026-09-30
 
 ### Added
