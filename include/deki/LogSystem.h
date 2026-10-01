@@ -26,6 +26,12 @@
 namespace Deki
 {
 
+// Which level a line belongs to:
+//   Info    - what the user did or needs to know (export finished, board memory).
+//   Editor  - one line per editor milestone or state change, for Editor.log.
+//             Not per item, and not when a check found nothing to do.
+//   Debug   - per-item tracing (each asset, each registration). Editor.log
+//             keeps it only with the editorLog.verbose preference on.
 enum class LogLevel
 {
     Editor,    // Internal editor logging (hidden by default, not printed to stdout)

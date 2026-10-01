@@ -48,7 +48,7 @@ void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* me
     m_ByTypeId[meta->typeId] = idx;
     m_EngineTypeIds.insert(meta->typeId);
 
-    DEKI_LOG(LogLevel::Info, "[SettingsRegistry] Registered '%s' (%d properties)",
+    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered '%s' (%d properties)",
              sectionName, meta->propertyCount);
 #endif
 }
@@ -82,7 +82,7 @@ void SettingsRegistry::RegisterPlugin(const char* sectionName, const ComponentMe
     m_ByTypeId[meta->typeId] = idx;
     m_PluginTypeIds.insert(meta->typeId);
 
-    DEKI_LOG(LogLevel::Info, "[SettingsRegistry] Registered plugin '%s' (%d properties)",
+    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered plugin '%s' (%d properties)",
              sectionName, meta->propertyCount);
 #endif
 }

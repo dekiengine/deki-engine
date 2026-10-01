@@ -141,7 +141,7 @@ bool Memory::Initialize()
     // which printed as "0 bytes free".
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
     if (freeInternal == 0)
-        DEKI_LOG_INFO("Memory: host heap, free space not measured");
+        DEKI_LOG_EDITOR("Memory: host heap, free space not measured");
     else if (s_ExternalAvailable)
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
                       "(only Deki::Memory::External goes external; everything else "
