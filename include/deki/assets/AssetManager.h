@@ -333,7 +333,9 @@ private:
     // Raw byte cache: path -> file bytes
     // Used for non-cacheable types (Scene) when cache=true is requested.
     // Bytes are pinned in RAM; each load creates a fresh instance from the cached bytes.
-    std::unordered_map<std::string, std::vector<uint8_t>> m_ByteCache;
+    // Whole asset files pinned in memory, in External: a std::vector the size
+    // of a file aborted a low-RAM board instead of failing the load.
+    std::unordered_map<std::string, Buffer<uint8_t>> m_ByteCache;
 
     // Ownership tracking for cleanup: typeName -> vector<void*>
     std::unordered_map<std::string, std::vector<void*>> m_LoadedAssets;

@@ -450,7 +450,7 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
         {
             // Byte cache hit: create fresh instance from pinned bytes
             DEKI_LOG_INTERNAL("AssetManager: Loading fresh %s from byte cache: %s", assetType, path.c_str());
-            void* asset = regIt->second.memLoader(byteCacheIt->second.data(), byteCacheIt->second.size());
+            void* asset = regIt->second.memLoader(byteCacheIt->second.Data(), byteCacheIt->second.Count());
             if (asset)
             {
                 m_LoadedAssets[type].push_back(asset);
@@ -463,13 +463,13 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
             // Through the filesystem provider, like every other engine read:
             // a raw fopen cannot resolve a mounted prefix such as "S:/" on a
             // device, so the byte cache silently never worked there.
-            std::vector<uint8_t> bytes;
-            if (ReadWholeFile(path, bytes) && !bytes.empty())
+            Buffer<uint8_t> bytes;
+            if (ReadWholeFile(path, bytes, Memory::External) && bytes.Count() > 0)
             {
                 m_ByteCache[path] = std::move(bytes);
                 auto& cached = m_ByteCache[path];
-                DEKI_LOG_INTERNAL("AssetManager: Pinned %s bytes in RAM (%zu bytes): %s", assetType, cached.size(), path.c_str());
-                void* asset = regIt->second.memLoader(cached.data(), cached.size());
+                DEKI_LOG_INTERNAL("AssetManager: Pinned %s bytes in RAM (%zu bytes): %s", assetType, cached.Count(), path.c_str());
+                void* asset = regIt->second.memLoader(cached.Data(), cached.Count());
                 if (asset)
                 {
                     m_LoadedAssets[type].push_back(asset);

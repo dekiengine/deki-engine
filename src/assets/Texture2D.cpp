@@ -94,11 +94,13 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Validate file size
-    size_t expected_size = sizeof(Texture2D::Header) + header.dataSize + header.metadataSize;
-    if (file_size < expected_size)
+    // Validate file size. In 64 bits: on a 32-bit board a corrupt dataSize
+    // plus metadataSize wrapped to a small number and passed this check.
+    const uint64_t expected_size =
+        uint64_t(sizeof(Texture2D::Header)) + uint64_t(header.dataSize) + uint64_t(header.metadataSize);
+    if (file_size < 0 || uint64_t(file_size) < expected_size)
     {
-        DEKI_LOG_ERROR("File size mismatch. Expected: %zu, Got: %ld", expected_size, file_size);
+        DEKI_LOG_ERROR("File size mismatch. Expected: %llu, Got: %ld", (unsigned long long)expected_size, file_size);
         fs->CloseFile(file);
         return nullptr;
     }
@@ -234,11 +236,13 @@ bool Texture2D::ValidateHeader(const Texture2D::Header& header)
         return false;
     }
 
-    // Validate data size
-    uint32_t expected_data_size = header.width * header.height * bytes_per_pixel;
-    if (header.dataSize != expected_data_size)
+    // Validate data size, in 64 bits: width * height * bpp wrapped in 32,
+    // so a huge corrupt image could match a small dataSize.
+    const uint64_t expected_data_size = uint64_t(header.width) * uint64_t(header.height) * bytes_per_pixel;
+    if (uint64_t(header.dataSize) != expected_data_size)
     {
-        DEKI_LOG_ERROR("Data size mismatch. Expected: %u, Got: %u", expected_data_size, header.dataSize);
+        DEKI_LOG_ERROR("Data size mismatch. Expected: %llu, Got: %u", (unsigned long long)expected_data_size,
+                       header.dataSize);
         return false;
     }
 

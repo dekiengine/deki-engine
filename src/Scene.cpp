@@ -2,6 +2,7 @@
 #include "AuthoredFormat.h"
 
 #include <algorithm>
+#include <new>
 #include <functional>
 #include <typeinfo>
 #include <cstring>
@@ -268,6 +269,20 @@ void Scene::ClearScene()
 // Static loading methods
 // =============================================================================
 
+namespace
+{
+// Whether `bytes` can be allocated right now, asked with the non-throwing new
+// (which returns null where the throwing one aborts the device).
+bool FitsInMemory(size_t bytes)
+{
+    void* probe = ::operator new(bytes ? bytes : 1, std::nothrow);
+    if (!probe)
+        return false;
+    ::operator delete(probe);
+    return true;
+}
+}  // namespace
+
 Scene* Scene::Load(const char* path, bool cache)
 {
     if (!path)
@@ -319,6 +334,16 @@ Scene* Scene::LoadInternal(const char* path)
     {
         fs->CloseFile(handle);
         DEKI_LOG_ERROR("Scene::LoadInternal: Invalid file size for '%s'", path);
+        return nullptr;
+    }
+
+    // The whole file is held for re-instantiation. Asked for without
+    // throwing first: on a device a failed std::vector allocation aborts, so a
+    // scene too big for the free RAM reset the board instead of failing to load.
+    if (!FitsInMemory(static_cast<size_t>(fileSize)))
+    {
+        fs->CloseFile(handle);
+        DEKI_LOG_ERROR("Scene::LoadInternal: '%s' (%ld bytes) does not fit in the free memory", path, fileSize);
         return nullptr;
     }
 
@@ -379,6 +404,12 @@ Scene* Scene::LoadFromMemory(const uint8_t* data, size_t size)
     }
 
     // Store data for potential re-instantiation
+    if (!FitsInMemory(size))
+    {
+        DEKI_LOG_ERROR("Scene::LoadFromMemory: a copy of the scene (%zu bytes) does not fit in the free memory", size);
+        delete scene;
+        return nullptr;
+    }
     scene->m_SceneData.resize(size);
     memcpy(scene->m_SceneData.data(), data, size);
     scene->m_IsLoaded = true;

@@ -1,6 +1,7 @@
 #include <deki/providers/Memory.h>
 #include <deki/LogSystem.h>
 #include <deki/providers/IMemoryProvider.h>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -421,6 +422,15 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     if (size == 0)
     {
         DEKI_LOG_WARNING("Attempted to allocate 0 bytes");
+        return nullptr;
+    }
+    // A size read from a corrupt file can be anything. Near SIZE_MAX the
+    // header and rounding below wrapped to a small total on a 32-bit board,
+    // and the caller then wrote its full size into that. The header also
+    // records the size in 32 bits.
+    if (size > UINT32_MAX || size > SIZE_MAX - 2 * CACHE_LINE_SIZE)
+    {
+        DEKI_LOG_ERROR("Refused to allocate %zu bytes: larger than any allocation can be (a corrupt size?)", size);
         return nullptr;
     }
 
