@@ -2187,7 +2187,26 @@ inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comp
             out << "extern void " << adapters[i] << "();\n";
     }
     out << "\nvoid " << fnName << "() {\n";
-    out << "    static bool done = false;\n    if (done) return;\n    done = true;\n";
+    // `done` alone is not enough: a shared library the platform did not really
+    // unload (dlclose is often a no-op for GCC-built objects) keeps it set
+    // across an editor reload that cleared the registries, and the package's
+    // components were then never registered again. Register again whenever the
+    // registries no longer hold this package's first type.
+    out << "    static bool done = false;\n";
+    if (comps.empty())
+    {
+        out << "    if (done) return;\n";
+    }
+    else
+    {
+        const std::string first = "DekiGen_" + comps.front().stem;
+        out << "    if (done && ::Deki::ComponentFactory::Instance().Find(" << first << "_TypeInfo.typeId)";
+        if (editorRegistries)
+            out << "\n#ifdef DEKI_EDITOR\n        && ::Deki::ComponentRegistry::Instance().GetMeta(" << first
+                << "_TypeInfo.typeId)\n#endif\n       ";
+        out << ")\n        return;\n";
+    }
+    out << "    done = true;\n";
     if (adapterCount > 0)
     {
         out << "    // Register interface adapters first (stripped by linker in static-lib builds)\n";

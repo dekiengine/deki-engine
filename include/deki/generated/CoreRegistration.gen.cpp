@@ -20,7 +20,12 @@ extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;
 
 void DekiCore_RegisterComponents() {
     static bool done = false;
-    if (done) return;
+    if (done && ::Deki::ComponentFactory::Instance().Find(DekiGen_Deki_CoreProjectSettings_TypeInfo.typeId)
+#ifdef DEKI_EDITOR
+        && ::Deki::ComponentRegistry::Instance().GetMeta(DekiGen_Deki_CoreProjectSettings_TypeInfo.typeId)
+#endif
+       )
+        return;
     done = true;
     auto& factory = ::Deki::ComponentFactory::Instance();
     factory.Register(&DekiGen_Deki_CoreProjectSettings_TypeInfo);
