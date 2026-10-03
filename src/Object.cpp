@@ -208,6 +208,9 @@ Object::~Object()
     // Delete all components
     for (auto* comp : components)
     {
+#ifdef DEKI_EDITOR
+        Internal::ForgetComponentData(comp);
+#endif
         delete comp;
     }
     components.clear();

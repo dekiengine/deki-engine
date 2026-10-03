@@ -41,6 +41,7 @@ void AttachComponent(Object& object, Component* component);
 Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
 int DetachComponent(Object& object, Component* component);
 void ReattachComponent(Object& object, Component* component, size_t index);
+void ForgetComponentData(const Component* component);
 #endif
 }  // namespace Internal
 

@@ -149,6 +149,12 @@ public:
     void ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides);
     void CollectOverrides(const Object* instanceRoot, const Object* obj,
                           nlohmann::json& overrides) const;
+    /// CollectOverrides, telling whether there was a source to diff against.
+    /// False when the source scene could not be found or loaded (a merge
+    /// conflict, saved by a newer editor, missing for a moment): `overrides`
+    /// is then left empty, and saving it would drop the instance's overrides.
+    bool TryCollectOverrides(const Object* instanceRoot, const Object* obj,
+                             nlohmann::json& overrides) const;
 
     /// Property keys found in a scene file that no component's current metadata
     /// recognises, as {component type name, key}.

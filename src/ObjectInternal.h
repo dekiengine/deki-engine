@@ -46,6 +46,15 @@ int DetachComponent(Object& object, Component* component);
 /// Put a detached component back at `index` (clamped to the end); the object
 /// owns it again.
 void ReattachComponent(Object& object, Component* component, size_t index);
+
+/**
+ * Drop what the scene loader keeps about a component (property keys its type
+ * no longer has, carried to the next save). Call it before deleting a
+ * component outside an Object: the record is keyed by address, and a new
+ * component allocated there used to inherit the dead one's keys, writing them
+ * into the scene on every save after. ~Object does this for its components.
+ */
+void ForgetComponentData(const Component* component);
 #endif
 
 }  // namespace Internal

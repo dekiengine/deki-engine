@@ -177,6 +177,11 @@ void RunComponentsMigrations(nlohmann::json& components)
 #endif
 
 #ifdef DEKI_EDITOR
+void Internal::ForgetComponentData(const Component* component)
+{
+    UnknownPropsTable().erase(component);
+}
+
 std::vector<std::pair<std::string, std::string>> Scene::CollectUnknownProperties()
 {
     return UnknownPropsLog();
@@ -845,7 +850,18 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
 
         // Collect overrides by diffing current state against source
         nlohmann::json overrides = nlohmann::json::array();
-        CollectOverrides(obj, obj, overrides);
+        if (!TryCollectOverrides(obj, obj, overrides))
+        {
+            // No source to diff against right now. Keep the overrides the
+            // instance was loaded with rather than writing none: saving used
+            // to drop every override of the instance, for good.
+            overrides = nlohmann::json::parse(obj->GetInstanceOverridesJson(), nullptr, false);
+            if (overrides.is_discarded() || !overrides.is_array())
+                overrides = nlohmann::json::array();
+            DEKI_LOG_WARNING("Scene: the source of instance '%s' (%s) could not be loaded; its overrides "
+                             "were saved as they were loaded",
+                             obj->GetName().c_str(), obj->GetSourceSceneGuid().c_str());
+        }
         if (!overrides.empty())
         {
             json["overrides"] = overrides;
@@ -1960,15 +1976,21 @@ Object* Scene::FindObjectByPath(Object* root, const std::string& path)
 void Scene::CollectOverrides(const Object* instanceRoot, const Object* obj,
                              nlohmann::json& overrides) const
 {
+    TryCollectOverrides(instanceRoot, obj, overrides);
+}
+
+bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
+                                nlohmann::json& overrides) const
+{
     if (!instanceRoot->IsSceneInstance() || !s_GuidToPathResolver)
-        return;
+        return false;
 
     // Load source scene for comparison
     std::string sourcePath = s_GuidToPathResolver(instanceRoot->GetSourceSceneGuid());
-    if (sourcePath.empty()) return;
+    if (sourcePath.empty()) return false;
 
     Scene sourceScene;
-    if (!sourceScene.LoadFromFile(sourcePath)) return;
+    if (!sourceScene.LoadFromFile(sourcePath)) return false;
 
     auto& registry = ComponentRegistry::Instance();
 
@@ -2078,6 +2100,7 @@ void Scene::CollectOverrides(const Object* instanceRoot, const Object* obj,
     {
         diffObjects(instanceRoot, sourceRoots[0]);
     }
+    return true;
 }
 
 std::string Scene::BuildObjectPath(Object* obj, Object* instanceRoot)
