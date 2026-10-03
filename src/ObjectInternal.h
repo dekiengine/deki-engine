@@ -32,6 +32,20 @@ void AttachComponent(Object& object, Component* component);
  * @return The new component, or nullptr when the class is not registered.
  */
 Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint = {});
+
+/**
+ * Take a component off its object WITHOUT destroying it: the editor's undo
+ * keeps the instance and puts the same one back, so every pointer other undo
+ * steps hold into it stays valid. Deleting it and creating a new one on undo
+ * left those steps writing into freed memory.
+ * @return Its index on the object, or -1 when the object does not have it.
+ *         The caller owns it until ReattachComponent (or deletes it).
+ */
+int DetachComponent(Object& object, Component* component);
+
+/// Put a detached component back at `index` (clamped to the end); the object
+/// owns it again.
+void ReattachComponent(Object& object, Component* component, size_t index);
 #endif
 
 }  // namespace Internal

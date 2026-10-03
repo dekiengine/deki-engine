@@ -513,22 +513,33 @@ Object* Scene::CreateDekiObject(const std::string& name)
     return obj;
 }
 
+#ifdef DEKI_EDITOR
+namespace
+{
+// Tell the scene's subscriber (editor selection, panel caches, undo history)
+// that `obj` and its subtree are about to be freed. Pre-order, so the callback
+// sees obj first, then its descendants.
+void AnnounceSubtreeDestroy(const Scene* scene, Object* obj)
+{
+    auto& destroyCallbacks = DestroyCallbackTable();
+    auto callbackIt = destroyCallbacks.find(scene);
+    if (callbackIt == destroyCallbacks.end() || !callbackIt->second)
+        return;
+    std::vector<Object*> dying;
+    VisitSubtree(obj, [&dying](Object* o)
+                 { dying.push_back(o); });
+    callbackIt->second(dying);
+}
+}  // namespace
+#endif
+
 void Scene::DestroyDekiObject(Object* obj)
 {
     if (!obj) return;
 
 #ifdef DEKI_EDITOR
-    // Notify subscribers (editor selection, panel caches) before pointers go invalid.
-    // Walk the subtree in pre-order so the callback sees obj first, then its descendants.
-    auto& destroyCallbacks = DestroyCallbackTable();
-    auto callbackIt = destroyCallbacks.find(this);
-    if (callbackIt != destroyCallbacks.end() && callbackIt->second)
-    {
-        std::vector<Object*> dying;
-        VisitSubtree(obj, [&dying](Object* o)
-                     { dying.push_back(o); });
-        callbackIt->second(dying);
-    }
+    // Notify subscribers before pointers go invalid.
+    AnnounceSubtreeDestroy(this, obj);
 #endif
 
     // Remove from parent if has one
@@ -1821,10 +1832,14 @@ void Scene::CollapseInstance(Object* instanceObj)
 {
     if (!instanceObj) return;
 
-    // Delete all children (they are expanded from source)
+    // Delete all children (they are expanded from source). Announced like any
+    // other destruction: the editor's undo history held pointers into them.
     auto children = instanceObj->GetChildren();  // copy
     for (auto* child : children)
     {
+#ifdef DEKI_EDITOR
+        AnnounceSubtreeDestroy(this, child);
+#endif
         instanceObj->RemoveChild(child);
         delete child;
     }

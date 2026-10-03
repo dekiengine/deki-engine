@@ -674,6 +674,31 @@ Component* Internal::AddComponentByName(Object& object, const std::string& typeN
     return object.AddComponent(typeName, classHint);
 }
 
+int Internal::DetachComponent(Object& object, Component* component)
+{
+    auto& comps = object.components;
+    for (size_t i = 0; i < comps.size(); ++i)
+    {
+        if (comps[i] == component)
+        {
+            comps.erase(comps.begin() + static_cast<std::ptrdiff_t>(i));
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+void Internal::ReattachComponent(Object& object, Component* component, size_t index)
+{
+    if (!component)
+        return;
+    component->SetOwner(&object);
+    auto& comps = object.components;
+    if (index > comps.size())
+        index = comps.size();
+    comps.insert(comps.begin() + static_cast<std::ptrdiff_t>(index), component);
+}
+
 Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)
 {
     auto& registry = ComponentRegistry::Instance();
