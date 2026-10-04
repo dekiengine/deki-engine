@@ -8,8 +8,6 @@
 namespace Deki
 {
 
-static int s_LogCount = 0;
-
 // Static callback member
 LogCallback LogSystem::s_LogCallback = nullptr;
 

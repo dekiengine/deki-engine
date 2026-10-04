@@ -8,11 +8,6 @@
 namespace Deki
 {
 
-namespace
-{
-
-}  // namespace
-
 uint32_t LegacyComponentTypeId(uint32_t typeId)
 {
     if (typeId == 0)
