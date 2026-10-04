@@ -64,12 +64,18 @@ struct PackageConfig
     int GetInt(const std::string& name, int defaultVal = 0) const
     {
         auto it = settings.find(name);
-        if (it == settings.end()) return defaultVal;
+        if (it == settings.end())
+        {
+            return defaultVal;
+        }
         // Use simple parsing without exceptions for embedded platforms
         const char* str = it->second.c_str();
         char* endPtr = nullptr;
         long val = std::strtol(str, &endPtr, 10);
-        if (endPtr == str || *endPtr != '\0') return defaultVal;
+        if (endPtr == str || *endPtr != '\0')
+        {
+            return defaultVal;
+        }
         return static_cast<int>(val);
     }
 
@@ -82,7 +88,10 @@ struct PackageConfig
     bool GetBool(const std::string& name, bool defaultVal = false) const
     {
         auto it = settings.find(name);
-        if (it == settings.end()) return defaultVal;
+        if (it == settings.end())
+        {
+            return defaultVal;
+        }
         return (it->second == "true" || it->second == "1" || it->second == "yes");
     }
 };

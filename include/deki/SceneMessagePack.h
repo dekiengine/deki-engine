@@ -112,14 +112,23 @@ private:
     {
     public:
         explicit DepthGuard(SceneMsgPackParser& p)
-            : m_Parser(p), m_Entered(false) {}
+            : m_Parser(p),
+              m_Entered(false)
+        {
+        }
         ~DepthGuard()
         {
-            if (m_Entered) --m_Parser.m_Depth;
+            if (m_Entered)
+            {
+                --m_Parser.m_Depth;
+            }
         }
         bool Enter()
         {
-            if (m_Parser.m_Depth >= kMaxDepth) return false;
+            if (m_Parser.m_Depth >= kMaxDepth)
+            {
+                return false;
+            }
             ++m_Parser.m_Depth;
             m_Entered = true;
             return true;

@@ -3,13 +3,10 @@
 namespace Deki
 {
 
-
-
 ComponentFactory& ComponentFactory::Instance()
 {
     static ComponentFactory instance;
     return instance;
 }
-
 
 }  // namespace Deki

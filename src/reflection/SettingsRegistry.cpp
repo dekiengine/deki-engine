@@ -9,7 +9,6 @@
 namespace Deki
 {
 
-
 SettingsRegistry& SettingsRegistry::Instance()
 {
     static SettingsRegistry instance;
@@ -18,7 +17,10 @@ SettingsRegistry& SettingsRegistry::Instance()
 
 void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* meta)
 {
-    if (!sectionName || !meta || !meta->createFunc) return;
+    if (!sectionName || !meta || !meta->createFunc)
+    {
+        return;
+    }
 
 #ifdef DEKI_EDITOR
     // Duplicate-section policy: log error + ignore second registration.
@@ -28,7 +30,8 @@ void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* me
     if (existing != m_ByName.end())
     {
         DEKI_LOG(LogLevel::Error,
-                 "[SettingsRegistry] Duplicate section '%s' (existing typeId=%u, new typeId=%u) - ignoring second registration",
+                 "[SettingsRegistry] Duplicate section '%s' (existing typeId=%u, new typeId=%u) - ignoring second "
+                 "registration",
                  sectionName, m_All[existing->second].meta->typeId, meta->typeId);
         return;
     }
@@ -48,21 +51,24 @@ void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* me
     m_ByTypeId[meta->typeId] = idx;
     m_EngineTypeIds.insert(meta->typeId);
 
-    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered '%s' (%d properties)",
-             sectionName, meta->propertyCount);
+    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered '%s' (%d properties)", sectionName, meta->propertyCount);
 #endif
 }
 
 void SettingsRegistry::RegisterPlugin(const char* sectionName, const ComponentMeta* meta)
 {
-    if (!sectionName || !meta || !meta->createFunc) return;
+    if (!sectionName || !meta || !meta->createFunc)
+    {
+        return;
+    }
 
 #ifdef DEKI_EDITOR
     auto existing = m_ByName.find(sectionName);
     if (existing != m_ByName.end())
     {
         DEKI_LOG(LogLevel::Error,
-                 "[SettingsRegistry] Duplicate plugin section '%s' (existing typeId=%u, new typeId=%u) - ignoring second registration",
+                 "[SettingsRegistry] Duplicate plugin section '%s' (existing typeId=%u, new typeId=%u) - ignoring "
+                 "second registration",
                  sectionName, m_All[existing->second].meta->typeId, meta->typeId);
         return;
     }
@@ -82,22 +88,30 @@ void SettingsRegistry::RegisterPlugin(const char* sectionName, const ComponentMe
     m_ByTypeId[meta->typeId] = idx;
     m_PluginTypeIds.insert(meta->typeId);
 
-    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered plugin '%s' (%d properties)",
-             sectionName, meta->propertyCount);
+    DEKI_LOG(LogLevel::Debug, "[SettingsRegistry] Registered plugin '%s' (%d properties)", sectionName,
+             meta->propertyCount);
 #endif
 }
 
 Component* SettingsRegistry::GetByName(const char* sectionName)
 {
-    if (!sectionName) return nullptr;
+    if (!sectionName)
+    {
+        return nullptr;
+    }
 #ifdef DEKI_EDITOR
     auto it = m_ByName.find(sectionName);
-    if (it != m_ByName.end()) return m_All[it->second].instance;
+    if (it != m_ByName.end())
+    {
+        return m_All[it->second].instance;
+    }
 #else
     for (auto& info : m_All)
     {
         if (info.sectionName && std::strcmp(info.sectionName, sectionName) == 0)
+        {
             return info.instance;
+        }
     }
 #endif
     return nullptr;
@@ -107,11 +121,17 @@ Component* SettingsRegistry::GetByTypeId(uint32_t typeId)
 {
 #ifdef DEKI_EDITOR
     auto it = m_ByTypeId.find(typeId);
-    if (it != m_ByTypeId.end()) return m_All[it->second].instance;
+    if (it != m_ByTypeId.end())
+    {
+        return m_All[it->second].instance;
+    }
 #else
     for (auto& info : m_All)
     {
-        if (info.meta && info.meta->typeId == typeId) return info.instance;
+        if (info.meta && info.meta->typeId == typeId)
+        {
+            return info.instance;
+        }
     }
 #endif
     return nullptr;
@@ -151,8 +171,14 @@ void SettingsRegistry::ClearPluginSettings()
             {
                 size_t idx = kept.size();
                 kept.push_back(info);
-                if (info.sectionName) m_ByName[info.sectionName] = idx;
-                if (info.meta) m_ByTypeId[info.meta->typeId] = idx;
+                if (info.sectionName)
+                {
+                    m_ByName[info.sectionName] = idx;
+                }
+                if (info.meta)
+                {
+                    m_ByTypeId[info.meta->typeId] = idx;
+                }
             }
         }
         m_All = std::move(kept);
@@ -164,7 +190,10 @@ void SettingsRegistry::ClearPluginSettings()
 void SettingsRegistry::Unregister(uint32_t typeId)
 {
     auto it = m_ByTypeId.find(typeId);
-    if (it == m_ByTypeId.end()) return;
+    if (it == m_ByTypeId.end())
+    {
+        return;
+    }
 
     size_t idx = it->second;
     auto& info = m_All[idx];
@@ -177,16 +206,29 @@ void SettingsRegistry::Unregister(uint32_t typeId)
     }
 
     // Remove from name lookup
-    if (info.sectionName) m_ByName.erase(info.sectionName);
+    if (info.sectionName)
+    {
+        m_ByName.erase(info.sectionName);
+    }
     m_ByTypeId.erase(typeId);
     m_PluginTypeIds.erase(typeId);
 
     // Erase + rebuild index map (all elements after idx shift down by one).
     m_All.erase(m_All.begin() + idx);
     for (auto& [name, i] : m_ByName)
-        if (i > idx) --i;
+    {
+        if (i > idx)
+        {
+            --i;
+        }
+    }
     for (auto& [tid, i] : m_ByTypeId)
-        if (i > idx) --i;
+    {
+        if (i > idx)
+        {
+            --i;
+        }
+    }
 }
 
 bool SettingsRegistry::IsPluginSetting(uint32_t typeId) const
@@ -243,9 +285,13 @@ void SaveProp(const Component* comp, const PropertyInfo& prop, nlohmann::json& o
                 default: enumValue = GetPropertyValue<int32_t>(comp, prop); break;
             }
             if (const char* enumName = EnumNameForValue(prop, enumValue))
+            {
                 out[prop.name] = enumName;
+            }
             else
+            {
                 out[prop.name] = enumValue;
+            }
             break;
         }
         default: break;
@@ -254,39 +300,70 @@ void SaveProp(const Component* comp, const PropertyInfo& prop, nlohmann::json& o
 
 void LoadProp(Component* comp, const PropertyInfo& prop, const nlohmann::json& in)
 {
-    if (!in.contains(prop.name)) return;
+    if (!in.contains(prop.name))
+    {
+        return;
+    }
     const auto& v = in[prop.name];
     switch (prop.type)
     {
         case PropertyType::Bool:
-            if (v.is_boolean()) SetPropertyValue<bool>(comp, prop, v.get<bool>());
+            if (v.is_boolean())
+            {
+                SetPropertyValue<bool>(comp, prop, v.get<bool>());
+            }
             break;
         case PropertyType::Int8:
-            if (v.is_number_integer()) SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
+            }
             break;
         case PropertyType::Int16:
-            if (v.is_number_integer()) SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
+            }
             break;
         case PropertyType::Int32:
-            if (v.is_number_integer()) SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
+            }
             break;
         case PropertyType::UInt8:
-            if (v.is_number_integer()) SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
+            }
             break;
         case PropertyType::UInt16:
-            if (v.is_number_integer()) SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
+            if (v.is_number_integer())
+            {
+                SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
+            }
             break;
         case PropertyType::UInt32:
             if (v.is_number_unsigned())
+            {
                 SetPropertyValue<uint32_t>(comp, prop, v.get<uint32_t>());
+            }
             else if (v.is_number_integer())
+            {
                 SetPropertyValue<uint32_t>(comp, prop, (uint32_t)v.get<int32_t>());
+            }
             break;
         case PropertyType::Float:
-            if (v.is_number()) SetPropertyValue<float>(comp, prop, v.get<float>());
+            if (v.is_number())
+            {
+                SetPropertyValue<float>(comp, prop, v.get<float>());
+            }
             break;
         case PropertyType::String:
-            if (v.is_string()) SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
+            if (v.is_string())
+            {
+                SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
+            }
             break;
         case PropertyType::Enum:
         {
@@ -295,7 +372,9 @@ void LoadProp(Component* comp, const PropertyInfo& prop, const nlohmann::json& i
             bool haveValue = false;
             int32_t intVal = 0;
             if (v.is_string())
+            {
                 haveValue = EnumValueForName(prop, v.get<std::string>().c_str(), intVal);
+            }
             else if (v.is_number_integer())
             {
                 intVal = v.get<int32_t>();
@@ -323,7 +402,10 @@ std::string SettingsRegistry::SnapshotPluginSettingsAsJson() const
     nlohmann::json root = nlohmann::json::object();
     for (const auto& info : m_All)
     {
-        if (!info.isPlugin || !info.instance || !info.meta) continue;
+        if (!info.isPlugin || !info.instance || !info.meta)
+        {
+            continue;
+        }
         nlohmann::json sectionJson = nlohmann::json::object();
         for (int i = 0; i < info.meta->propertyCount; ++i)
         {
@@ -336,7 +418,10 @@ std::string SettingsRegistry::SnapshotPluginSettingsAsJson() const
 
 void SettingsRegistry::RestoreFromJson(const std::string& snapshotJson)
 {
-    if (snapshotJson.empty()) return;
+    if (snapshotJson.empty())
+    {
+        return;
+    }
     nlohmann::json root;
     try
     {
@@ -347,19 +432,31 @@ void SettingsRegistry::RestoreFromJson(const std::string& snapshotJson)
         DEKI_LOG(LogLevel::Warning, "[SettingsRegistry] Snapshot parse failed: %s", e.what());
         return;
     }
-    if (!root.is_object()) return;
+    if (!root.is_object())
+    {
+        return;
+    }
     for (auto it = root.begin(); it != root.end(); ++it)
     {
         const std::string& section = it.key();
         const nlohmann::json& sectionJson = it.value();
         Component* inst = GetByName(section.c_str());
-        if (!inst) continue;  // package didn't reload yet - skip
+        if (!inst)
+        {
+            continue;  // package didn't reload yet - skip
+        }
         // Use the meta we own; safer than going through ComponentRegistry,
         // which mirrors the same pointer.
         auto byNameIt = m_ByName.find(section);
-        if (byNameIt == m_ByName.end()) continue;
+        if (byNameIt == m_ByName.end())
+        {
+            continue;
+        }
         const ComponentMeta* meta = m_All[byNameIt->second].meta;
-        if (!meta) continue;
+        if (!meta)
+        {
+            continue;
+        }
         for (int i = 0; i < meta->propertyCount; ++i)
         {
             LoadProp(inst, meta->properties[i], sectionJson);

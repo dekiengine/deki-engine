@@ -253,7 +253,8 @@ private:
     // store a type id and no name. See GetMetaByFormerTypeId.
     std::unordered_map<uint32_t, const ComponentMeta*> m_ByFormerTypeId;
     std::unordered_set<uint32_t> m_PluginTypeIds;
-    std::unordered_map<uint32_t, std::string> m_PluginTypeToName;  // typeId → serializedName for dereference-safe cleanup
+    std::unordered_map<uint32_t, std::string>
+        m_PluginTypeToName;  // typeId → serializedName for dereference-safe cleanup
     std::unordered_set<uint32_t> m_EngineTypeIds;
 
     // Frozen snapshots of engine-core state (captured by FreezeEngineComponents).

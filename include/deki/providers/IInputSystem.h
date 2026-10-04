@@ -4,7 +4,6 @@
 namespace Deki
 {
 
-
 class Scene;
 
 /**
@@ -25,8 +24,7 @@ public:
     virtual void Initialize() = 0;
     virtual void Shutdown() = 0;
 
-    virtual void DispatchInput(Scene* scene, float x, float y,
-                               bool down, bool move, bool up) = 0;
+    virtual void DispatchInput(Scene* scene, float x, float y, bool down, bool move, bool up) = 0;
 
     // Inject a keyboard key state change from the host (e.g. the editor's
     // play view forwarding keys, so game code can poll keys the same way it

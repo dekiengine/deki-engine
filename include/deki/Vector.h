@@ -17,9 +17,15 @@ struct Vector2
 
     // Constructors
     Vector2()
-        : x(0.0f), y(0.0f) {}
+        : x(0.0f),
+          y(0.0f)
+    {
+    }
     Vector2(float x_, float y_)
-        : x(x_), y(y_) {}
+        : x(x_),
+          y(y_)
+    {
+    }
 
     // Static constants
     static Vector2 Zero() { return Vector2(0.0f, 0.0f); }
@@ -73,7 +79,10 @@ struct Vector2
     Vector2 Normalized() const
     {
         float len = Length();
-        if (len > 0.0f) return *this / len;
+        if (len > 0.0f)
+        {
+            return *this / len;
+        }
         return Zero();
     }
 
@@ -126,11 +135,23 @@ struct Vector3
     float z;
 
     Vector3()
-        : x(0.0f), y(0.0f), z(0.0f) {}
+        : x(0.0f),
+          y(0.0f),
+          z(0.0f)
+    {
+    }
     Vector3(float x_, float y_, float z_)
-        : x(x_), y(y_), z(z_) {}
+        : x(x_),
+          y(y_),
+          z(z_)
+    {
+    }
     Vector3(const Vector2& v, float z_ = 0.0f)
-        : x(v.x), y(v.y), z(z_) {}
+        : x(v.x),
+          y(v.y),
+          z(z_)
+    {
+    }
 
     static Vector3 Zero() { return Vector3(0.0f, 0.0f, 0.0f); }
     static Vector3 One() { return Vector3(1.0f, 1.0f, 1.0f); }
@@ -190,7 +211,10 @@ struct Vector3
     Vector3 Normalized() const
     {
         float len = Length();
-        if (len > 0.0f) return *this / len;
+        if (len > 0.0f)
+        {
+            return *this / len;
+        }
         return Zero();
     }
 
@@ -205,18 +229,9 @@ struct Vector3
         }
     }
 
-    float Dot(const Vector3& o) const
-    {
-        return x * o.x + y * o.y + z * o.z;
-    }
+    float Dot(const Vector3& o) const { return x * o.x + y * o.y + z * o.z; }
 
-    Vector3 Cross(const Vector3& o) const
-    {
-        return Vector3(
-            y * o.z - z * o.y,
-            z * o.x - x * o.z,
-            x * o.y - y * o.x);
-    }
+    Vector3 Cross(const Vector3& o) const { return Vector3(y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x); }
 
     float DistanceTo(const Vector3& o) const { return (*this - o).Length(); }
     float DistanceSquaredTo(const Vector3& o) const { return (*this - o).LengthSquared(); }
@@ -244,20 +259,26 @@ struct Mat4
     Mat4()
     {
         for (int c = 0; c < 4; ++c)
+        {
             for (int r = 0; r < 4; ++r)
+            {
                 m[c][r] = (c == r) ? 1.0f : 0.0f;
+            }
+        }
     }
 
     static Mat4 Identity() { return Mat4{}; }
 
-    static Mat4 Ortho(float left, float right, float bottom, float top,
-                      float nearZ, float farZ)
+    static Mat4 Ortho(float left, float right, float bottom, float top, float nearZ, float farZ)
     {
         Mat4 r;
         const float rl = (right - left);
         const float tb = (top - bottom);
         const float fn = (farZ - nearZ);
-        if (rl == 0.0f || tb == 0.0f || fn == 0.0f) return r;  // identity on degenerate
+        if (rl == 0.0f || tb == 0.0f || fn == 0.0f)
+        {
+            return r;  // identity on degenerate
+        }
         r.m[0][0] = 2.0f / rl;
         r.m[1][1] = 2.0f / tb;
         r.m[2][2] = -2.0f / fn;
@@ -274,7 +295,10 @@ struct Mat4
         Mat4 r;
         const float t = std::tan(fovYRadians * 0.5f);
         const float fn = (farZ - nearZ);
-        if (t == 0.0f || aspect == 0.0f || fn == 0.0f) return r;  // identity on degenerate
+        if (t == 0.0f || aspect == 0.0f || fn == 0.0f)
+        {
+            return r;  // identity on degenerate
+        }
         r.m[0][0] = 1.0f / (aspect * t);
         r.m[1][1] = 1.0f / t;
         r.m[2][2] = -(farZ + nearZ) / fn;

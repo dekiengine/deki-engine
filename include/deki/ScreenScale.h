@@ -39,10 +39,14 @@ inline int PixelPerfectMultiple(float scale)
 inline float OrthoPixelsPerMeter(int screenHeight, float orthoHeight, bool pixelPerfect, float artPixelsPerMeter)
 {
     if (screenHeight <= 0 || orthoHeight <= 0.0f)
+    {
         return 0.0f;
+    }
     const float fit = static_cast<float>(screenHeight) / orthoHeight;
     if (!pixelPerfect || artPixelsPerMeter <= 0.0f)
+    {
         return fit;
+    }
     return artPixelsPerMeter * static_cast<float>(PixelPerfectMultiple(fit / artPixelsPerMeter));
 }
 

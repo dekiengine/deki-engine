@@ -78,8 +78,7 @@ enum class LogLevel
 #endif
 
 // Log callback type for editor integration
-using LogCallback = std::function<void(LogLevel level, const std::string& message,
-                                       const char* file, int line)>;
+using LogCallback = std::function<void(LogLevel level, const std::string& message, const char* file, int line)>;
 
 class DEKI_LOG_API LogSystem
 {

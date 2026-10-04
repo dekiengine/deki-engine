@@ -11,9 +11,10 @@
 namespace Deki
 {
 
-
 PlatformSetupComponent::PlatformSetupComponent()
-    : m_CurrentIndex(0), m_SetupComplete(false), m_SetupFailed(false)
+    : m_CurrentIndex(0),
+      m_SetupComplete(false),
+      m_SetupFailed(false)
 {
 }
 
@@ -32,8 +33,8 @@ void PlatformSetupComponent::Start()
     for (size_t i = 0; i < setupComponents.size(); i++)
     {
         SetupComponent* sc = setupComponents[i].Get();
-        DEKI_LOG_INTERNAL("  [%zu] id=%u ptr=%p name=%s", i, (unsigned)setupComponents[i].id,
-                          (void*)sc, sc ? sc->GetSetupName() : "NULL");
+        DEKI_LOG_INTERNAL("  [%zu] id=%u ptr=%p name=%s", i, (unsigned)setupComponents[i].id, (void*)sc,
+                          sc ? sc->GetSetupName() : "NULL");
     }
 
     DEKI_LOG_INTERNAL("  startup_scene='%s'", ProjectSettings::GetStartupScene());
@@ -72,12 +73,11 @@ void PlatformSetupComponent::StartNextSetup()
         return;
     }
 
-    DEKI_LOG_INTERNAL("Running '%s' (%d/%zu)", setupComp->GetSetupName(),
-                      m_CurrentIndex + 1, (int)setupComponents.size());
+    DEKI_LOG_INTERNAL("Running '%s' (%d/%zu)", setupComp->GetSetupName(), m_CurrentIndex + 1,
+                      (int)setupComponents.size());
 
     // Call Setup with callback
-    setupComp->Setup([this](bool success)
-                     { OnSetupComplete(success); });
+    setupComp->Setup([this](bool success) { OnSetupComplete(success); });
 }
 
 void PlatformSetupComponent::OnSetupComplete(bool success)

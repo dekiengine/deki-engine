@@ -84,7 +84,10 @@ extern "C"
 
 // Forward declaration for C++ struct
 #ifdef __cplusplus
-    namespace Deki { struct ComponentMeta; }
+    namespace Deki
+    {
+    struct ComponentMeta;
+    }
 #endif
 
     /**
@@ -116,14 +119,14 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      */
     DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void);
 
-// ============================================================================
-// Optional hooks
-// ============================================================================
-//
-// Resolved with GetProcAddress/dlsym and skipped when absent, so a package only
-// implements what it needs. Declared here so the signatures are pinned: the
-// loader casts the address it finds, and a mismatched signature is a silent
-// stack corruption rather than a load failure.
+    // ============================================================================
+    // Optional hooks
+    // ============================================================================
+    //
+    // Resolved with GetProcAddress/dlsym and skipped when absent, so a package only
+    // implements what it needs. Declared here so the signatures are pinned: the
+    // loader casts the address it finds, and a mismatched signature is a silent
+    // stack corruption rather than a load failure.
 
     /**
      * @brief Receive the editor's ImGui context.

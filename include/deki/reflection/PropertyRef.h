@@ -8,7 +8,6 @@
 namespace Deki
 {
 
-
 class Object;
 class Component;
 
@@ -149,8 +148,7 @@ struct PropertyBinding
  * null) then receives a short human-readable reason for the caller to log.
  * Does not touch out.number.
  */
-bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& out,
-                     const char** outError = nullptr);
+bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& out, const char** outError = nullptr);
 
 /**
  * @brief Parse an authored literal per the bound field's type.

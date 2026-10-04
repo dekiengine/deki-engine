@@ -31,10 +31,7 @@ struct AllocHeader
 
     uint32_t HeaderSize() const { return packed & 0xFFu; }
     uint32_t TrackSlot() const { return packed >> 8; }
-    void SetPacked(uint32_t headerSize, uint32_t trackSlot)
-    {
-        packed = (headerSize & 0xFFu) | (trackSlot << 8);
-    }
+    void SetPacked(uint32_t headerSize, uint32_t trackSlot) { packed = (headerSize & 0xFFu) | (trackSlot << 8); }
 };
 static_assert(sizeof(AllocHeader) == 16, "AllocHeader must be exactly 16 bytes");
 static constexpr size_t kInternalHeaderSize = sizeof(AllocHeader);
@@ -48,11 +45,17 @@ static constexpr uint32_t kNoTrackSlot = 0xFFFFFFu;  // 24 bits, not 32
 static const char* BaseName(const char* path)
 {
     if (!path)
+    {
         return "?";
+    }
     const char* last = path;
     for (const char* p = path; *p; ++p)
+    {
         if (*p == '/' || *p == '\\')
+        {
             last = p + 1;
+        }
+    }
     return last;
 }
 #endif
@@ -142,16 +145,22 @@ bool Memory::Initialize()
     // which printed as "0 bytes free".
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
     if (freeInternal == 0)
+    {
         DEKI_LOG_EDITOR("Memory: host heap, free space not measured");
+    }
     else if (s_ExternalAvailable)
+    {
         DEKI_LOG_INFO("Memory: %zu bytes free internal, %zu external "
                       "(only Deki::Memory::External goes external; everything else "
                       "stays internal)",
                       freeInternal, s_CurrentBackend->GetAvailable(Deki::Memory::External));
+    }
     else
+    {
         DEKI_LOG_INFO("Memory: %zu bytes free internal, no external RAM "
                       "(every region resolves to internal)",
                       freeInternal);
+    }
 
     return true;
 }
@@ -208,12 +217,16 @@ void* RawAllocate(size_t size)
     // Before Initialize() there is no backend, and static initialisers do
     // allocate. malloc is what the default provider would have used anyway.
     if (!Memory::s_CurrentBackend)
+    {
         return malloc(size);
+    }
 
     void* ptr = Memory::s_CurrentBackend->AllocateRaw(size);
 #if defined(DEKI_MEMORY_TRACK_RAW)
     if (ptr)
+    {
         s_RawAllocated += Memory::s_CurrentBackend->GetRawBlockSize(ptr);
+    }
 #endif
     return ptr;
 }
@@ -221,7 +234,9 @@ void* RawAllocate(size_t size)
 void RawFree(void* ptr)
 {
     if (!ptr)
+    {
         return;
+    }
     if (!Memory::s_CurrentBackend)
     {
         free(ptr);
@@ -255,15 +270,17 @@ void Memory::LogStats(const char* label)
     const size_t freeExternal = GetAvailableExternal();
 
     if (s_ExternalAvailable)
+    {
         DEKI_LOG_INFO("Memory%s%s: %u bytes allocated (%u internal, %u external); "
                       "%zu free internal, %zu free external",
-                      label ? " at " : "", label ? label : "",
-                      s.totalAllocated, s.internalRamAllocated, s.externalAllocated,
-                      freeInternal, freeExternal);
+                      label ? " at " : "", label ? label : "", s.totalAllocated, s.internalRamAllocated,
+                      s.externalAllocated, freeInternal, freeExternal);
+    }
     else
-        DEKI_LOG_INFO("Memory%s%s: %u bytes allocated; %zu free internal",
-                      label ? " at " : "", label ? label : "",
+    {
+        DEKI_LOG_INFO("Memory%s%s: %u bytes allocated; %zu free internal", label ? " at " : "", label ? label : "",
                       s.totalAllocated, freeInternal);
+    }
 
     // Reported separately because it is a different kind of number: the line
     // above is memory the engine placed and can account for exactly, this one
@@ -274,8 +291,8 @@ void Memory::LogStats(const char* label)
     // Said explicitly when it is off, rather than reporting a 0 that would
     // read as "no container memory" when it means "not counted".
 #if defined(DEKI_MEMORY_TRACK_RAW)
-    DEKI_LOG_INFO("Memory%s%s: %zu bytes in containers and scalar new",
-                  label ? " at " : "", label ? label : "", s_RawAllocated);
+    DEKI_LOG_INFO("Memory%s%s: %zu bytes in containers and scalar new", label ? " at " : "", label ? label : "",
+                  s_RawAllocated);
 #else
     DEKI_LOG_INFO("Memory%s%s: container and scalar-new bytes not counted "
                   "(build with DEKI_MEMORY_TRACK_RAW; it costs an allocator "
@@ -284,8 +301,7 @@ void Memory::LogStats(const char* label)
 #endif
 
 #ifdef DEBUG
-    DEKI_LOG_INFO("Memory%s%s: %u live allocations, peak %u",
-                  label ? " at " : "", label ? label : "",
+    DEKI_LOG_INFO("Memory%s%s: %u live allocations, peak %u", label ? " at " : "", label ? label : "",
                   s.activeAllocations, s.peakAllocations);
 #endif
 }
@@ -384,9 +400,13 @@ static void CheckRegionIdentity(Deki::Memory::Region region)
     for (int i = 0; i < s_Count; ++i)
     {
         if (s_Seen[i].id != region.id)
+        {
             continue;
+        }
         if (s_Seen[i].name == region.name || strcmp(s_Seen[i].name, region.name) == 0)
+        {
             return;  // same region, same name: nothing to say
+        }
         DEKI_LOG_ERROR("Memory: regions '%s' and '%s' hash to the same id (%u). "
                        "One of them must be renamed - the allocation header "
                        "stores only the id, so blocks from one would be freed "
@@ -395,7 +415,9 @@ static void CheckRegionIdentity(Deki::Memory::Region region)
         return;
     }
     if (s_Count < static_cast<int>(sizeof(s_Seen) / sizeof(s_Seen[0])))
-        s_Seen[s_Count++] = Seen{region.id, region.name};
+    {
+        s_Seen[s_Count++] = Seen{ region.id, region.name };
+    }
 }
 #endif
 
@@ -469,9 +491,13 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // not serve returns nullptr the same way a full one does, and the failure
     // below names it.
     if (s_CurrentBackend)
+    {
         raw_ptr = s_CurrentBackend->Allocate(placed, total_size, needsDma);
+    }
     else
+    {
         raw_ptr = malloc(total_size);  // host builds, before a backend is set
+    }
 
     if (raw_ptr)
     {
@@ -487,8 +513,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
         header->SetPacked(static_cast<uint32_t>(header_size),
-                          UpdateTracking(static_cast<int32_t>(size), usedExternal, user_ptr,
-                                         ctx.Name(), ctx.Line()));
+                          UpdateTracking(static_cast<int32_t>(size), usedExternal, user_ptr, ctx.Name(), ctx.Line()));
 
         return user_ptr;
     }
@@ -506,9 +531,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // where the OS pages), so a zero is reported as unknown rather than
         // as an empty heap, which would send someone hunting a leak that is
         // not there.
-        const size_t freeHere = s_CurrentBackend
-            ? s_CurrentBackend->GetAvailable(region)
-            : 0;
+        const size_t freeHere = s_CurrentBackend ? s_CurrentBackend->GetAvailable(region) : 0;
         // The region's own name, not a guess from a bool: a board that does
         // not serve "rtc" has to say "rtc", or the message sends a reader
         // looking at the wrong memory entirely.
@@ -519,13 +542,16 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // is printed once at startup rather than restated on every failure.
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
         if (freeHere > 0)
+        {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u "
                            "(%zu bytes free there)",
-                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line(),
-                           freeHere);
+                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line(), freeHere);
+        }
         else
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u",
-                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line());
+        {
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u", size, region_name, ctx.Name(),
+                           BaseName(ctx.File()), ctx.Line());
+        }
 #else
         // No call site was captured, so none is claimed - and the line says how
         // to get one instead of spending its width on the no-fallback rule,
@@ -534,13 +560,17 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // the caller passed no label at all ('?') that is the only lead there
         // is.
         if (freeHere > 0)
+        {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' "
                            "(%zu bytes free there); build with DEBUG for the call site",
                            size, region_name, ctx.Name(), freeHere);
+        }
         else
+        {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s'; "
                            "build with DEBUG for the call site",
                            size, region_name, ctx.Name());
+        }
 #endif
     }
 
@@ -549,7 +579,10 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
 
 void* Memory::AllocateInternal(size_t size, AllocContext ctx)
 {
-    if (size == 0) return nullptr;
+    if (size == 0)
+    {
+        return nullptr;
+    }
 
     void* ptr = nullptr;
     if (s_CurrentBackend)
@@ -568,8 +601,8 @@ void* Memory::AllocateInternal(size_t size, AllocContext ctx)
     else
     {
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
-        DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM for '%s' at %s:%u",
-                       size, ctx.Name(), BaseName(ctx.File()), ctx.Line());
+        DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM for '%s' at %s:%u", size, ctx.Name(),
+                       BaseName(ctx.File()), ctx.Line());
 #else
         DEKI_LOG_ERROR("Failed to allocate %zu bytes in internal RAM for '%s'; "
                        "build with DEBUG for the call site",
@@ -582,14 +615,21 @@ void* Memory::AllocateInternal(size_t size, AllocContext ctx)
 
 void Memory::FreeInternal(void* ptr)
 {
-    if (!ptr) return;
+    if (!ptr)
+    {
+        return;
+    }
     // Symmetric with AllocateInternal: the backend that handed the block out
     // frees it (heap_caps_free on the ESP32); plain free() was only correct
     // by luck of the backend's implementation.
     if (s_CurrentBackend)
+    {
         s_CurrentBackend->Free(Deki::Memory::Internal, ptr);
+    }
     else
+    {
         free(ptr);
+    }
 }
 
 void Memory::Free(void* ptr, AllocContext ctx)
@@ -603,8 +643,7 @@ void Memory::Free(void* ptr, AllocContext ctx)
     AllocHeader* header = HeaderOf(ptr);
     if (header->magic != kAllocMagic)
     {
-        DEKI_LOG_ERROR("DekiMemory::Free: %p was not allocated by DekiMemory::Allocate (%s)",
-                       ptr, ctx.Name());
+        DEKI_LOG_ERROR("DekiMemory::Free: %p was not allocated by DekiMemory::Allocate (%s)", ptr, ctx.Name());
         return;
     }
     header->magic = 0;  // double free shows up as the error above, not as heap corruption
@@ -623,13 +662,17 @@ void Memory::Free(void* ptr, AllocContext ctx)
     //
     // The name is not stored (it would cost a pointer per allocation); a
     // provider dispatches on the id, and only a failure would want the name.
-    const Memory::Region region{header->regionId, "?"};
+    const Memory::Region region{ header->regionId, "?" };
     const bool wasExternal = (header->regionId == Deki::Memory::External.id);
 
     if (s_CurrentBackend)
+    {
         s_CurrentBackend->Free(region, raw_ptr);
+    }
     else
+    {
         free(raw_ptr);
+    }
 
     // Always update tracking (both DEBUG and RELEASE builds)
     UpdateTracking(-static_cast<int32_t>(freed_size), wasExternal, ptr, ctx.Name(), ctx.Line());
@@ -648,8 +691,7 @@ MemoryStats Memory::GetStats()
     return stats;
 }
 
-uint32_t Memory::UpdateTracking(int32_t size, bool isExternal, void* ptr, const char* context,
-                                uint32_t line)
+uint32_t Memory::UpdateTracking(int32_t size, bool isExternal, void* ptr, const char* context, uint32_t line)
 {
     // Update global counters only - no subsystem overhead
     totalAllocated += size;
@@ -690,10 +732,12 @@ bool Memory::IsExternalAvailable()
 }
 
 #ifdef DEBUG
-uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
-                                 uint32_t line, bool isExternal)
+uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context, uint32_t line, bool isExternal)
 {
-    if (!s_AllocationRecords || !ptr) return kNoTrackSlot;
+    if (!s_AllocationRecords || !ptr)
+    {
+        return kNoTrackSlot;
+    }
 
     // Free slots are kept on a stack, so tracking is O(1) instead of a scan of
     // every record on every allocation (and every free, which searched by
@@ -714,7 +758,8 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
         if (!s_TrackingFullReported)
         {
             s_TrackingFullReported = true;
-            DEKI_LOG_WARNING("Allocation tracking full (%u records) - later allocations are not tracked; the leak report is now partial",
+            DEKI_LOG_WARNING("Allocation tracking full (%u records) - later allocations are not tracked; the leak "
+                             "report is now partial",
                              (unsigned)s_MaxAllocations);
         }
         return kNoTrackSlot;
@@ -734,8 +779,14 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context,
 
 void Memory::UntrackAllocation(void* ptr, uint32_t slot)
 {
-    if (!s_AllocationRecords || !ptr || slot == kNoTrackSlot || slot >= s_MaxAllocations) return;
-    if (s_AllocationRecords[slot].ptr != ptr) return;  // stale slot (tracking was reset)
+    if (!s_AllocationRecords || !ptr || slot == kNoTrackSlot || slot >= s_MaxAllocations)
+    {
+        return;
+    }
+    if (s_AllocationRecords[slot].ptr != ptr)
+    {
+        return;  // stale slot (tracking was reset)
+    }
 
     s_AllocationRecords[slot].ptr = nullptr;
     s_AllocationRecords[slot].size = 0;
@@ -743,7 +794,9 @@ void Memory::UntrackAllocation(void* ptr, uint32_t slot)
     s_AllocationRecords[slot].isExternal = false;
     activeAllocations--;
     if (s_FreeSlotCount < s_MaxAllocations)
+    {
         s_FreeSlots[s_FreeSlotCount++] = slot;
+    }
 }
 
 void Memory::CheckForLeaks()
@@ -765,9 +818,8 @@ void Memory::CheckForLeaks()
             leak_count++;
             const char* context = s_AllocationRecords[i].context ? s_AllocationRecords[i].context : "unknown";
             const char* location = s_AllocationRecords[i].isExternal ? "External" : "Internal";
-            DEKI_LOG_ERROR("  LEAK: %p - %zu bytes [%s] from %s:%u",
-                           s_AllocationRecords[i].ptr, s_AllocationRecords[i].size, location,
-                           context, s_AllocationRecords[i].line);
+            DEKI_LOG_ERROR("  LEAK: %p - %zu bytes [%s] from %s:%u", s_AllocationRecords[i].ptr,
+                           s_AllocationRecords[i].size, location, context, s_AllocationRecords[i].line);
         }
     }
 

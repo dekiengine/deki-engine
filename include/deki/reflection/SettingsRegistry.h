@@ -36,10 +36,10 @@ namespace Deki
 
 struct SettingsTypeInfo
 {
-    const char* sectionName;        // "Rendering", "Audio" - editor section header & registry key
+    const char* sectionName;    // "Rendering", "Audio" - editor section header & registry key
     const ComponentMeta* meta;  // component metadata (properties, factory, etc.)
     Component* instance;        // owned by registry, lifetime tied to plugin DLL
-    bool isPlugin;                  // true → cleared on plugin unload
+    bool isPlugin;              // true → cleared on plugin unload
 };
 
 /**
@@ -47,9 +47,9 @@ struct SettingsTypeInfo
  *
  * Packages declare settings types as ordinary components with a
  * DEKI_SETTINGS_SECTION("...") marker above the class; the reflection codegen
- * registers them here from the package's registration function. The editor's Project Settings panel iterates the registry and renders
- * each type's properties via the existing PropertyEditorFactory machinery -
- * tooltips, ranges, visibility conditions all work out of the box.
+ * registers them here from the package's registration function. The editor's Project Settings panel iterates the
+ * registry and renders each type's properties via the existing PropertyEditorFactory machinery - tooltips, ranges,
+ * visibility conditions all work out of the box.
  *
  * The registry **owns** the live instance (one per registered type), unlike
  * ComponentRegistry which only owns metadata. Plugin instances are deleted

@@ -32,7 +32,11 @@ DEKI_ENGINE_API void RunComponentsMigrations(nlohmann::json& components);
 
 struct ComponentsMigrationRegistrar
 {
-    explicit ComponentsMigrationRegistrar(ComponentsMigration m) : m_Migration(m) { RegisterComponentsMigration(m); }
+    explicit ComponentsMigrationRegistrar(ComponentsMigration m)
+        : m_Migration(m)
+    {
+        RegisterComponentsMigration(m);
+    }
     ~ComponentsMigrationRegistrar() { UnregisterComponentsMigration(m_Migration); }
     ComponentsMigrationRegistrar(const ComponentsMigrationRegistrar&) = delete;
     ComponentsMigrationRegistrar& operator=(const ComponentsMigrationRegistrar&) = delete;

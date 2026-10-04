@@ -25,9 +25,19 @@ public:
 
     // Constructors
     Color()
-        : r(0), g(0), b(0), a(255) {}
+        : r(0),
+          g(0),
+          b(0),
+          a(255)
+    {
+    }
     Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255)
-        : r(red), g(green), b(blue), a(alpha) {}
+        : r(red),
+          g(green),
+          b(blue),
+          a(alpha)
+    {
+    }
 
     // Create from packed formats
     static Color FromRGB565(uint16_t rgb565);
@@ -67,15 +77,9 @@ public:
     Color AdjustSaturation(float factor) const;
 
     // Comparison operators
-    bool operator==(const Color& other) const
-    {
-        return r == other.r && g == other.g && b == other.b && a == other.a;
-    }
+    bool operator==(const Color& other) const { return r == other.r && g == other.g && b == other.b && a == other.a; }
 
-    bool operator!=(const Color& other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const Color& other) const { return !(*this == other); }
 
     // Predefined colors (declared here, defined below after class is complete)
     static const Color Black;
@@ -221,11 +225,20 @@ inline void ColorToHex(const Color& c, char out[10])
 /// rather than turning into black.
 inline bool ColorFromHex(const char* text, Color& out)
 {
-    if (!text || *text != '#') return false;
+    if (!text || *text != '#')
+    {
+        return false;
+    }
     const char* p = text + 1;
     int digits = 0;
-    while (p[digits] && digits < 9) ++digits;
-    if (digits != 6 && digits != 8) return false;
+    while (p[digits] && digits < 9)
+    {
+        ++digits;
+    }
+    if (digits != 6 && digits != 8)
+    {
+        return false;
+    }
 
     uint8_t v[4] = { 0, 0, 0, 255 };
     for (int i = 0; i < digits / 2; ++i)
@@ -235,10 +248,22 @@ inline bool ColorFromHex(const char* text, Color& out)
         {
             const char ch = p[i * 2 + half];
             int d;
-            if (ch >= '0' && ch <= '9') d = ch - '0';
-            else if (ch >= 'a' && ch <= 'f') d = ch - 'a' + 10;
-            else if (ch >= 'A' && ch <= 'F') d = ch - 'A' + 10;
-            else return false;
+            if (ch >= '0' && ch <= '9')
+            {
+                d = ch - '0';
+            }
+            else if (ch >= 'a' && ch <= 'f')
+            {
+                d = ch - 'a' + 10;
+            }
+            else if (ch >= 'A' && ch <= 'F')
+            {
+                d = ch - 'A' + 10;
+            }
+            else
+            {
+                return false;
+            }
             byte = (byte << 4) | d;
         }
         v[i] = static_cast<uint8_t>(byte);

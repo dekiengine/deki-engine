@@ -37,8 +37,8 @@ public:
     void Shutdown() override;
     void Present(const uint8_t* framebuffer, int width, int height, ColorFormat format) override;
     bool SupportsPartialPresent() const override { return true; }
-    void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
-                        const Rect* rects, int32_t count) override;
+    void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format, const Rect* rects,
+                        int32_t count) override;
     void GetDisplaySize(int32_t* width, int32_t* height) const override;
     ColorFormat GetColorFormat() const override { return m_Format; }
     bool IsInitialized() const override;
@@ -47,10 +47,10 @@ public:
 
     // UI/Overlay support (not used in editor - ImGui handles overlays)
     void* CreateUIOverlay(int32_t width, int32_t height) override;
-    bool UpdateUIOverlay(
-        void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint32_t* pixels) override;
-    bool UpdateUIOverlayRGB565A8(
-        void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint8_t* rgb565a8_pixels) override;
+    bool UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                         const uint32_t* pixels) override;
+    bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                                 const uint8_t* rgb565a8_pixels) override;
     void DestroyUIOverlay(void* overlay) override;
     void SetActiveUIOverlay(void* overlay) override;
     void ClearActiveUIOverlay() override;

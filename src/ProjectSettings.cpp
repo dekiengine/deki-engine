@@ -16,7 +16,6 @@
 namespace Deki
 {
 
-
 namespace ProjectSettings
 {
 
@@ -60,15 +59,20 @@ namespace
 // stores no per-property length and writes enum values at their native width
 // (sometimes 1 byte), so a meta-less sequential walk can desync; matching on
 // the (keyHash, Float tag) pair is order- and enum-size-independent.
-bool ReadFloatSettingByHash(const uint8_t* data, size_t start, size_t end,
-                            uint32_t keyHash, float& out)
+bool ReadFloatSettingByHash(const uint8_t* data, size_t start, size_t end, uint32_t keyHash, float& out)
 {
     for (size_t p = start; p + 9 <= end; ++p)
     {  // 4 (hash) + 1 (tag) + 4 (float)
         uint32_t h;
         memcpy(&h, data + p, sizeof(uint32_t));
-        if (h != keyHash) continue;
-        if (data[p + 4] != static_cast<uint8_t>(PropertyType::Float)) continue;
+        if (h != keyHash)
+        {
+            continue;
+        }
+        if (data[p + 4] != static_cast<uint8_t>(PropertyType::Float))
+        {
+            continue;
+        }
         memcpy(&out, data + p + 5, sizeof(float));
         return true;
     }
@@ -83,24 +87,19 @@ size_t SettingsValueSize(const PropertyInfo& prop)
     {
         case PropertyType::Bool:
         case PropertyType::Int8:
-        case PropertyType::UInt8:
-            return 1;
+        case PropertyType::UInt8: return 1;
         case PropertyType::Int16:
-        case PropertyType::UInt16:
-            return 2;
+        case PropertyType::UInt16: return 2;
         case PropertyType::Int32:
         case PropertyType::UInt32:
-        case PropertyType::Float:
-            return 4;
-        case PropertyType::Enum:
-            return (prop.enumSize == 1 || prop.enumSize == 2) ? prop.enumSize : 4;
+        case PropertyType::Float: return 4;
+        case PropertyType::Enum: return (prop.enumSize == 1 || prop.enumSize == 2) ? prop.enumSize : 4;
         case PropertyType::String:
         {
             // Variable-length: caller handles string bytes.
             return 2;  // length prefix only; payload appended separately
         }
-        default:
-            return 0;
+        default: return 0;
     }
 }
 
@@ -130,10 +129,8 @@ bool IsSupportedSettingsType(PropertyType t)
         case PropertyType::UInt32:
         case PropertyType::Float:
         case PropertyType::Enum:
-        case PropertyType::String:
-            return true;
-        default:
-            return false;
+        case PropertyType::String: return true;
+        default: return false;
     }
 }
 
@@ -186,7 +183,9 @@ static void RetainPackageChunk(const uint8_t* data, size_t size)
 static bool FindPackageSetting(const char* section, const char* key, uint8_t typeTag, size_t valueSize, void* out)
 {
     if (!section || !key || !out || !s_PackageChunk || s_PackageChunkSize < sizeof(uint16_t))
+    {
         return false;
+    }
     const uint8_t* d = s_PackageChunk.Data();
     const size_t n = s_PackageChunkSize;
     const size_t sectionLen = strlen(section);
@@ -197,17 +196,26 @@ static bool FindPackageSetting(const char* section, const char* key, uint8_t typ
     size_t off = sizeof(uint16_t);
     for (uint16_t i = 0; i < count; ++i)
     {
-        if (off + sizeof(uint16_t) > n) return false;
+        if (off + sizeof(uint16_t) > n)
+        {
+            return false;
+        }
         uint16_t nameLen = 0;
         memcpy(&nameLen, d + off, sizeof(uint16_t));
         off += sizeof(uint16_t);
-        if (off + nameLen + sizeof(uint32_t) > n) return false;
+        if (off + nameLen + sizeof(uint32_t) > n)
+        {
+            return false;
+        }
         const char* name = reinterpret_cast<const char*>(d + off);
         off += nameLen;
         uint32_t payload = 0;
         memcpy(&payload, d + off, sizeof(uint32_t));
         off += sizeof(uint32_t);
-        if (off + payload > n) return false;
+        if (off + payload > n)
+        {
+            return false;
+        }
 
         if (nameLen == sectionLen && memcmp(name, section, sectionLen) == 0)
         {
@@ -216,7 +224,10 @@ static bool FindPackageSetting(const char* section, const char* key, uint8_t typ
             {
                 uint32_t h = 0;
                 memcpy(&h, d + p, sizeof(uint32_t));
-                if (h != keyHash || d[p + 4] != typeTag) continue;
+                if (h != keyHash || d[p + 4] != typeTag)
+                {
+                    continue;
+                }
                 memcpy(out, d + p + 5, valueSize);
                 return true;
             }
@@ -230,7 +241,10 @@ static bool FindPackageSetting(const char* section, const char* key, uint8_t typ
 bool ReadPackageSettingBool(const char* section, const char* key, bool& out)
 {
     uint8_t v = 0;
-    if (!FindPackageSetting(section, key, static_cast<uint8_t>(PropertyType::Bool), 1, &v)) return false;
+    if (!FindPackageSetting(section, key, static_cast<uint8_t>(PropertyType::Bool), 1, &v))
+    {
+        return false;
+    }
     out = (v != 0);
     return true;
 }
@@ -275,7 +289,9 @@ int GetPassCount()
 const char* GetPassName(int index)
 {
     if (index < 0 || index >= static_cast<int>(s_PassNames.size()))
+    {
         return "";
+    }
     return s_PassNames[index].c_str();
 }
 
@@ -290,8 +306,8 @@ bool Load(const uint8_t* data, size_t size)
     // message as a missing one.
     if (!data || size < sizeof(FileHeader) + V1_DISPLAY_SIZE)
     {
-        DEKI_LOG_ERROR("ProjectSettings::Load: file too small (%zu bytes, need at least %zu)",
-                       size, sizeof(FileHeader) + V1_DISPLAY_SIZE);
+        DEKI_LOG_ERROR("ProjectSettings::Load: file too small (%zu bytes, need at least %zu)", size,
+                       sizeof(FileHeader) + V1_DISPLAY_SIZE);
         return false;
     }
 
@@ -322,8 +338,8 @@ bool Load(const uint8_t* data, size_t size)
     s_PassCount = 0;
     s_PassNames.clear();
     s_PackageChunkSize = 0;
-    s_AssetStorage = header.version < 6 || (header.flags & FLAG_ASSETS_EXTERNAL) ? Storage::External
-                                                                                 : Storage::Internal;
+    s_AssetStorage =
+        header.version < 6 || (header.flags & FLAG_ASSETS_EXTERNAL) ? Storage::External : Storage::Internal;
 
     // Version 3+: read runtime settings (targetFPS + startup scene)
     if (header.version >= 3)
@@ -472,12 +488,13 @@ bool Load(const uint8_t* data, size_t size)
                     if (sectionName == "Units")  // UnitProjectSettings' DEKI_SETTINGS_SECTION
                     {
                         float ppm = 0.0f;
-                        if (ReadFloatSettingByHash(data, sectionStart, sectionEnd,
-                                                   HashStringLen("pixelsPerMeter", 14), ppm) &&
+                        if (ReadFloatSettingByHash(data, sectionStart, sectionEnd, HashStringLen("pixelsPerMeter", 14),
+                                                   ppm) &&
                             ppm > 0.0f)
                         {
                             EngineSettings::Global().pixelsPerMeter = ppm;
-                            DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache", (double)ppm);
+                            DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache",
+                                              (double)ppm);
                         }
                     }
 #endif
@@ -518,7 +535,10 @@ bool Load(const uint8_t* data, size_t size)
 
                     for (uint16_t pi = 0; pi < propCount && offset < sectionEnd; ++pi)
                     {
-                        if (offset + sizeof(uint32_t) + 1 > sectionEnd) break;
+                        if (offset + sizeof(uint32_t) + 1 > sectionEnd)
+                        {
+                            break;
+                        }
                         uint32_t keyHash = 0;
                         memcpy(&keyHash, data + offset, sizeof(uint32_t));
                         offset += sizeof(uint32_t);
@@ -550,7 +570,9 @@ bool Load(const uint8_t* data, size_t size)
                                 }
                                 uint8_t v = data[offset++];
                                 if (matched && matched->type == propType)
+                                {
                                     SetPropertyValue<bool>(inst, *matched, v != 0);
+                                }
                                 break;
                             }
                             case PropertyType::Int8:
@@ -565,9 +587,13 @@ bool Load(const uint8_t* data, size_t size)
                                 if (matched && matched->type == propType)
                                 {
                                     if (propType == PropertyType::Int8)
+                                    {
                                         SetPropertyValue<int8_t>(inst, *matched, (int8_t)v);
+                                    }
                                     else
+                                    {
                                         SetPropertyValue<uint8_t>(inst, *matched, v);
+                                    }
                                 }
                                 break;
                             }
@@ -585,9 +611,13 @@ bool Load(const uint8_t* data, size_t size)
                                 if (matched && matched->type == propType)
                                 {
                                     if (propType == PropertyType::Int16)
+                                    {
                                         SetPropertyValue<int16_t>(inst, *matched, (int16_t)v);
+                                    }
                                     else
+                                    {
                                         SetPropertyValue<uint16_t>(inst, *matched, v);
+                                    }
                                 }
                                 break;
                             }
@@ -606,9 +636,13 @@ bool Load(const uint8_t* data, size_t size)
                                 if (matched && matched->type == propType)
                                 {
                                     if (propType == PropertyType::Int32)
+                                    {
                                         SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw);
+                                    }
                                     else if (propType == PropertyType::UInt32)
+                                    {
                                         SetPropertyValue<uint32_t>(inst, *matched, raw);
+                                    }
                                     else
                                     {
                                         float f;
@@ -688,16 +722,22 @@ bool LoadFromFile(const char* path)
 
     // Use FileSystem if available
     if (!FileSystem::IsInitialized())
+    {
         return false;
+    }
 
     IFileSystem* fs = FileSystem::GetCurrentFileSystem();
     if (!fs)
+    {
         return false;
+    }
 
     // Open file
     IFileSystem::FileHandle handle = fs->OpenFile(filePath, IFileSystem::OpenMode::READ_BINARY);
     if (!handle)
+    {
         return false;
+    }
 
     // Get file size. MAX_FILE_SIZE is the one bound; the buffer below is sized
     // from fileSize itself, so the check and the allocation cannot disagree.
@@ -715,7 +755,9 @@ bool LoadFromFile(const char* path)
     fs->CloseFile(handle);
 
     if (bytesRead != buffer.size())
+    {
         return false;
+    }
 
     return Load(buffer.data(), bytesRead);
 }
@@ -749,7 +791,9 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
 
     uint16_t sceneLen = 0;
     if (startupScene)
+    {
         sceneLen = static_cast<uint16_t>(strlen(startupScene));
+    }
     Append(buf, &sceneLen, sizeof(uint16_t));
 
     if (sceneLen > 0)
@@ -770,14 +814,17 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
     // Pass count. The field is one byte, which is the only ceiling left, and
     // it is far beyond anything a real pipeline declares.
     if (passCount < 0)
+    {
         passCount = 0;
+    }
     if (passCount > 255)
     {
         // The caller writes whatever comes back without checking, so failing
         // here would produce an empty settings file. Say so loudly and keep
         // going instead.
         DEKI_LOG_ERROR("Render pipeline declares %d passes; the format stores at most 255. "
-                       "Writing the first 255.", passCount);
+                       "Writing the first 255.",
+                       passCount);
         passCount = 255;
     }
     uint8_t pc = static_cast<uint8_t>(passCount);
@@ -803,7 +850,10 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
 
     for (const auto& info : sections)
     {
-        if (!info.instance || !info.meta || !info.sectionName) continue;
+        if (!info.instance || !info.meta || !info.sectionName)
+        {
+            continue;
+        }
 
         // sectionNameLen + sectionName
         uint16_t snameLen = (uint16_t)strlen(info.sectionName);
@@ -820,14 +870,21 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         // Count supported properties first so we can write propertyCount up front.
         uint16_t propCount = 0;
         for (int i = 0; i < info.meta->propertyCount; ++i)
+        {
             if (IsSupportedSettingsType(info.meta->properties[i].type))
+            {
                 ++propCount;
+            }
+        }
         Append(buf, &propCount, sizeof(uint16_t));
 
         for (int i = 0; i < info.meta->propertyCount; ++i)
         {
             const PropertyInfo& prop = info.meta->properties[i];
-            if (!IsSupportedSettingsType(prop.type)) continue;
+            if (!IsSupportedSettingsType(prop.type))
+            {
+                continue;
+            }
 
             uint32_t keyHash = HashStringLen(prop.name, (uint16_t)strlen(prop.name));
             Append(buf, &keyHash, sizeof(uint32_t));
@@ -908,8 +965,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
                     }
                     break;
                 }
-                default:
-                    break;  // shouldn't reach (filtered by IsSupportedSettingsType)
+                default: break;  // shouldn't reach (filtered by IsSupportedSettingsType)
             }
         }
 

@@ -64,7 +64,8 @@ public:
      * reader learns what memory this list occupies.
      */
     explicit Vector(Memory::Region region, AllocContext ctx = {})
-        : m_Region(region), m_Context(ctx)
+        : m_Region(region),
+          m_Context(ctx)
     {
     }
 
@@ -115,16 +116,22 @@ public:
     bool Reserve(size_t count)
     {
         if (count <= m_Storage.Count())
+        {
             return true;
+        }
 
         Buffer<T> grown;
         if (!grown.Allocate(count, m_Region, m_Context))
+        {
             return false;
+        }
 
         // memcpy, not a loop of moves: T is trivially copyable, which is what
         // the static_asserts in Buffer are there to guarantee.
         if (m_Size > 0)
+        {
             memcpy(grown.Data(), m_Storage.Data(), m_Size * sizeof(T));
+        }
         m_Storage = std::move(grown);
         return true;
     }
@@ -145,9 +152,13 @@ public:
         {
             const size_t grown = m_Storage.Count() ? m_Storage.Count() * 2 : kFirstBlock;
             if (grown < m_Storage.Count())  // size_t is 32-bit on the device
+            {
                 return false;
+            }
             if (!Reserve(grown))
+            {
                 return false;
+            }
         }
         m_Storage[m_Size] = value;
         ++m_Size;
@@ -158,7 +169,9 @@ public:
     bool PopBack()
     {
         if (m_Size == 0)
+        {
             return false;
+        }
         --m_Size;
         return true;
     }
@@ -173,10 +186,14 @@ public:
     bool RemoveUnordered(size_t index)
     {
         if (index >= m_Size)
+        {
             return false;
+        }
         --m_Size;
         if (index != m_Size)
+        {
             m_Storage[index] = m_Storage[m_Size];
+        }
         return true;
     }
 

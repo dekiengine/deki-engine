@@ -35,7 +35,6 @@
 namespace Deki
 {
 
-
 class ISortableProvider
 {
 public:

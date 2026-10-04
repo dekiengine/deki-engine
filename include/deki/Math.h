@@ -7,7 +7,6 @@
 namespace Deki
 {
 
-
 namespace Math
 {
 constexpr float kPi = 3.14159265358979323846f;
@@ -18,8 +17,14 @@ constexpr float kRadToDeg = 180.0f / kPi;
 
 inline float Clamp(float v, float lo, float hi)
 {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
+    if (v < lo)
+    {
+        return lo;
+    }
+    if (v > hi)
+    {
+        return hi;
+    }
     return v;
 }
 

@@ -18,9 +18,12 @@
 namespace Deki
 {
 
-
 EditorDisplay::EditorDisplay()
-    : m_GlTextureId(0), m_RgbaBuffer(nullptr), m_DisplayWidth(0), m_DisplayHeight(0), initialized(false)
+    : m_GlTextureId(0),
+      m_RgbaBuffer(nullptr),
+      m_DisplayWidth(0),
+      m_DisplayHeight(0),
+      initialized(false)
 {
 }
 
@@ -161,7 +164,9 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
                                    const Rect* rects, int32_t count)
 {
     if (!initialized || !framebuffer || count <= 0)
+    {
         return;  // nothing changed: the texture already shows the frame
+    }
 
     glBindTexture(GL_TEXTURE_2D, m_GlTextureId);
     // Upload each rectangle straight out of the framebuffer: the row length
@@ -174,10 +179,13 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
         for (int32_t i = 0; i < count; ++i)
         {
             const Rect& r = rects[i];
-            if (r.Empty()) continue;
+            if (r.Empty())
+            {
+                continue;
+            }
             const uint8_t* src = framebuffer + (static_cast<size_t>(r.top) * width + r.left) * 2;
-            glTexSubImage2D(GL_TEXTURE_2D, 0, r.left, r.top, r.Width(), r.Height(),
-                            GL_RGB, GL_UNSIGNED_SHORT_5_6_5, src);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, r.left, r.top, r.Width(), r.Height(), GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
+                            src);
         }
     }
     else
@@ -188,7 +196,10 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
         for (int32_t i = 0; i < count; ++i)
         {
             const Rect& r = rects[i];
-            if (r.Empty()) continue;
+            if (r.Empty())
+            {
+                continue;
+            }
             for (int32_t y = r.top; y < r.bottom; ++y)
             {
                 uint8_t* dst = m_RgbaBuffer + (static_cast<size_t>(y) * width + r.left) * 4;
@@ -196,8 +207,7 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
                 RowToRgba(format, framebuffer + (static_cast<size_t>(y) * width + r.left) * bpp, dst, r.Width());
             }
             const uint8_t* src = m_RgbaBuffer + (static_cast<size_t>(r.top) * width + r.left) * 4;
-            glTexSubImage2D(GL_TEXTURE_2D, 0, r.left, r.top, r.Width(), r.Height(),
-                            GL_RGBA, GL_UNSIGNED_BYTE, src);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, r.left, r.top, r.Width(), r.Height(), GL_RGBA, GL_UNSIGNED_BYTE, src);
         }
     }
 
@@ -208,8 +218,14 @@ void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int he
 
 void EditorDisplay::GetDisplaySize(int32_t* width, int32_t* height) const
 {
-    if (width) *width = m_DisplayWidth;
-    if (height) *height = m_DisplayHeight;
+    if (width)
+    {
+        *width = m_DisplayWidth;
+    }
+    if (height)
+    {
+        *height = m_DisplayHeight;
+    }
 }
 
 bool EditorDisplay::IsInitialized() const
@@ -236,8 +252,8 @@ void* EditorDisplay::CreateUIOverlay(int32_t width, int32_t height)
     return nullptr;
 }
 
-bool EditorDisplay::UpdateUIOverlay(void* overlay, int32_t x, int32_t y,
-                                    int32_t width, int32_t height, const uint32_t* pixels)
+bool EditorDisplay::UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                                    const uint32_t* pixels)
 {
     (void)overlay;
     (void)x;
@@ -248,8 +264,8 @@ bool EditorDisplay::UpdateUIOverlay(void* overlay, int32_t x, int32_t y,
     return false;
 }
 
-bool EditorDisplay::UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y,
-                                            int32_t width, int32_t height, const uint8_t* rgb565a8_pixels)
+bool EditorDisplay::UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                                            const uint8_t* rgb565a8_pixels)
 {
     (void)overlay;
     (void)x;

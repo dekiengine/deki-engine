@@ -23,34 +23,44 @@
 namespace Deki
 {
 
-
 namespace SceneFormat
 {
 
 // Parser implementation - needed for both runtime and editor play mode
 
 SceneMsgPackParser::SceneMsgPackParser(const uint8_t* data, size_t size)
-    : m_Data(data), m_Size(size), m_Pos(0)
+    : m_Data(data),
+      m_Size(size),
+      m_Pos(0)
 {
 }
 
 bool SceneMsgPackParser::ReadByte(uint8_t& value)
 {
-    if (m_Pos >= m_Size) return false;
+    if (m_Pos >= m_Size)
+    {
+        return false;
+    }
     value = m_Data[m_Pos++];
     return true;
 }
 
 bool SceneMsgPackParser::PeekByte(uint8_t& value)
 {
-    if (m_Pos >= m_Size) return false;
+    if (m_Pos >= m_Size)
+    {
+        return false;
+    }
     value = m_Data[m_Pos];
     return true;
 }
 
 bool SceneMsgPackParser::ReadBytes(uint8_t* buffer, size_t count)
 {
-    if (m_Pos + count > m_Size) return false;
+    if (m_Pos + count > m_Size)
+    {
+        return false;
+    }
     memcpy(buffer, m_Data + m_Pos, count);
     m_Pos += count;
     return true;
@@ -59,7 +69,10 @@ bool SceneMsgPackParser::ReadBytes(uint8_t* buffer, size_t count)
 bool SceneMsgPackParser::ReadBE16(uint16_t& value)
 {
     uint8_t hi, lo;
-    if (!ReadByte(hi) || !ReadByte(lo)) return false;
+    if (!ReadByte(hi) || !ReadByte(lo))
+    {
+        return false;
+    }
     value = static_cast<uint16_t>((static_cast<uint32_t>(hi) << 8) | lo);
     return true;
 }
@@ -67,19 +80,24 @@ bool SceneMsgPackParser::ReadBE16(uint16_t& value)
 bool SceneMsgPackParser::ReadBE32(uint32_t& value)
 {
     uint8_t b3, b2, b1, b0;
-    if (!ReadByte(b3) || !ReadByte(b2) || !ReadByte(b1) || !ReadByte(b0)) return false;
+    if (!ReadByte(b3) || !ReadByte(b2) || !ReadByte(b1) || !ReadByte(b0))
+    {
+        return false;
+    }
     // Cast before shifting: uint8_t promotes to int, so b3 << 24 on a byte with
     // the high bit set is signed overflow.
-    value = (static_cast<uint32_t>(b3) << 24) | (static_cast<uint32_t>(b2) << 16) |
-            (static_cast<uint32_t>(b1) << 8) | static_cast<uint32_t>(b0);
+    value = (static_cast<uint32_t>(b3) << 24) | (static_cast<uint32_t>(b2) << 16) | (static_cast<uint32_t>(b1) << 8) |
+            static_cast<uint32_t>(b0);
     return true;
 }
 
-bool SceneMsgPackParser::ReadContainerSize(uint8_t fixPrefix, uint8_t tag16, uint8_t tag32,
-                                           uint32_t& size)
+bool SceneMsgPackParser::ReadContainerSize(uint8_t fixPrefix, uint8_t tag16, uint8_t tag32, uint32_t& size)
 {
     uint8_t b;
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     // Fixed-size form: the low nibble is the count.
     if ((b & 0xf0) == fixPrefix)
@@ -90,12 +108,17 @@ bool SceneMsgPackParser::ReadContainerSize(uint8_t fixPrefix, uint8_t tag16, uin
     if (b == tag16)
     {
         uint16_t v;
-        if (!ReadBE16(v)) return false;
+        if (!ReadBE16(v))
+        {
+            return false;
+        }
         size = v;
         return true;
     }
     if (b == tag32)
+    {
         return ReadBE32(size);
+    }
 
     return false;
 }
@@ -113,7 +136,10 @@ bool SceneMsgPackParser::ReadArraySize(uint32_t& size)
 bool SceneMsgPackParser::ReadInt(int32_t& value)
 {
     uint8_t b;
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     // Positive fixint (0x00-0x7f)
     if ((b & 0x80) == 0)
@@ -131,7 +157,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xcc)
     {
         uint8_t v;
-        if (!ReadByte(v)) return false;
+        if (!ReadByte(v))
+        {
+            return false;
+        }
         value = v;
         return true;
     }
@@ -139,7 +168,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xcd)
     {
         uint16_t v;
-        if (!ReadBE16(v)) return false;
+        if (!ReadBE16(v))
+        {
+            return false;
+        }
         value = v;
         return true;
     }
@@ -147,7 +179,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xce)
     {
         uint32_t v;
-        if (!ReadBE32(v)) return false;
+        if (!ReadBE32(v))
+        {
+            return false;
+        }
         value = static_cast<int32_t>(v);
         return true;
     }
@@ -155,7 +190,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xd0)
     {
         uint8_t v;
-        if (!ReadByte(v)) return false;
+        if (!ReadByte(v))
+        {
+            return false;
+        }
         value = (int8_t)v;
         return true;
     }
@@ -163,7 +201,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xd1)
     {
         uint16_t v;
-        if (!ReadBE16(v)) return false;
+        if (!ReadBE16(v))
+        {
+            return false;
+        }
         value = static_cast<int16_t>(v);
         return true;
     }
@@ -171,7 +212,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     if (b == 0xd2)
     {
         uint32_t v;
-        if (!ReadBE32(v)) return false;
+        if (!ReadBE32(v))
+        {
+            return false;
+        }
         value = static_cast<int32_t>(v);
         return true;
     }
@@ -182,7 +226,10 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
 bool SceneMsgPackParser::ReadFloat(float& value)
 {
     uint8_t b;
-    if (!PeekByte(b)) return false;
+    if (!PeekByte(b))
+    {
+        return false;
+    }
 
     // Try reading as int first and convert
     if (b != 0xca && b != 0xcb)
@@ -196,13 +243,19 @@ bool SceneMsgPackParser::ReadFloat(float& value)
         return false;
     }
 
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     // Float32
     if (b == 0xca)
     {
         uint32_t bits;
-        if (!ReadBE32(bits)) return false;
+        if (!ReadBE32(bits))
+        {
+            return false;
+        }
         memcpy(&value, &bits, sizeof(float));
         return true;
     }
@@ -210,7 +263,10 @@ bool SceneMsgPackParser::ReadFloat(float& value)
     if (b == 0xcb)
     {
         uint8_t bytes[8];
-        if (!ReadBytes(bytes, 8)) return false;
+        if (!ReadBytes(bytes, 8))
+        {
+            return false;
+        }
         // Big-endian to native
         uint64_t bits = 0;
         for (int i = 0; i < 8; i++)
@@ -229,7 +285,10 @@ bool SceneMsgPackParser::ReadFloat(float& value)
 bool SceneMsgPackParser::ReadBool(bool& value)
 {
     uint8_t b;
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     if (b == 0xc2)
     {
@@ -248,7 +307,10 @@ bool SceneMsgPackParser::ReadBool(bool& value)
 bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
 {
     uint8_t b;
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     // Fixstr (0xa0-0xbf)
     if ((b & 0xe0) == 0xa0)
@@ -262,7 +324,10 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
     if (b == 0xd9)
     {
         uint8_t len;
-        if (!ReadByte(len)) return false;
+        if (!ReadByte(len))
+        {
+            return false;
+        }
         length = len;
         str = (const char*)(m_Data + m_Pos);
         m_Pos += length;
@@ -272,7 +337,10 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
     if (b == 0xda)
     {
         uint8_t hi, lo;
-        if (!ReadByte(hi) || !ReadByte(lo)) return false;
+        if (!ReadByte(hi) || !ReadByte(lo))
+        {
+            return false;
+        }
         length = (hi << 8) | lo;
         str = (const char*)(m_Data + m_Pos);
         m_Pos += length;
@@ -291,19 +359,27 @@ bool SceneMsgPackParser::SkipValue()
     DepthGuard guard(*this);
     if (!guard.Enter())
     {
-        DEKI_LOG_ERROR("SceneMsgPackParser: nesting deeper than %d levels - refusing to parse",
-                       kMaxDepth);
+        DEKI_LOG_ERROR("SceneMsgPackParser: nesting deeper than %d levels - refusing to parse", kMaxDepth);
         return false;
     }
 
     uint8_t b;
-    if (!ReadByte(b)) return false;
+    if (!ReadByte(b))
+    {
+        return false;
+    }
 
     // Nil, false, true
-    if (b == 0xc0 || b == 0xc2 || b == 0xc3) return true;
+    if (b == 0xc0 || b == 0xc2 || b == 0xc3)
+    {
+        return true;
+    }
 
     // Positive fixint, negative fixint
-    if ((b & 0x80) == 0 || (b & 0xe0) == 0xe0) return true;
+    if ((b & 0x80) == 0 || (b & 0xe0) == 0xe0)
+    {
+        return true;
+    }
 
     // Fixstr
     if ((b & 0xe0) == 0xa0)
@@ -318,7 +394,10 @@ bool SceneMsgPackParser::SkipValue()
         uint32_t count = b & 0x0f;
         for (uint32_t i = 0; i < count * 2; i++)
         {
-            if (!SkipValue()) return false;
+            if (!SkipValue())
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -329,7 +408,10 @@ bool SceneMsgPackParser::SkipValue()
         uint32_t count = b & 0x0f;
         for (uint32_t i = 0; i < count; i++)
         {
-            if (!SkipValue()) return false;
+            if (!SkipValue())
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -340,14 +422,20 @@ bool SceneMsgPackParser::SkipValue()
         case 0xc4:
         {
             uint8_t len;
-            if (!ReadByte(len)) return false;
+            if (!ReadByte(len))
+            {
+                return false;
+            }
             m_Pos += len;
             break;
         }  // bin8
         case 0xc5:
         {
             uint8_t hi, lo;
-            if (!ReadByte(hi) || !ReadByte(lo)) return false;
+            if (!ReadByte(hi) || !ReadByte(lo))
+            {
+                return false;
+            }
             m_Pos += (hi << 8) | lo;
             break;
         }  // bin16
@@ -364,42 +452,58 @@ bool SceneMsgPackParser::SkipValue()
         case 0xd9:
         {
             uint8_t len;
-            if (!ReadByte(len)) return false;
+            if (!ReadByte(len))
+            {
+                return false;
+            }
             m_Pos += len;
             break;
         }  // str8
         case 0xda:
         {
             uint8_t hi, lo;
-            if (!ReadByte(hi) || !ReadByte(lo)) return false;
+            if (!ReadByte(hi) || !ReadByte(lo))
+            {
+                return false;
+            }
             m_Pos += (hi << 8) | lo;
             break;
         }  // str16
         case 0xdc:
         {  // array16
             uint8_t hi, lo;
-            if (!ReadByte(hi) || !ReadByte(lo)) return false;
+            if (!ReadByte(hi) || !ReadByte(lo))
+            {
+                return false;
+            }
             uint32_t count = (hi << 8) | lo;
             for (uint32_t i = 0; i < count; i++)
             {
-                if (!SkipValue()) return false;
+                if (!SkipValue())
+                {
+                    return false;
+                }
             }
             break;
         }
         case 0xde:
         {  // map16
             uint8_t hi, lo;
-            if (!ReadByte(hi) || !ReadByte(lo)) return false;
+            if (!ReadByte(hi) || !ReadByte(lo))
+            {
+                return false;
+            }
             uint32_t count = (hi << 8) | lo;
             for (uint32_t i = 0; i < count * 2; i++)
             {
-                if (!SkipValue()) return false;
+                if (!SkipValue())
+                {
+                    return false;
+                }
             }
             break;
         }
-        default:
-            DEKI_LOG_ERROR("SceneMsgPackParser: Unknown MessagePack type 0x%02x", b);
-            return false;
+        default: DEKI_LOG_ERROR("SceneMsgPackParser: Unknown MessagePack type 0x%02x", b); return false;
     }
 
     return m_Pos <= m_Size;
@@ -408,7 +512,10 @@ bool SceneMsgPackParser::SkipValue()
 bool SceneMsgPackParser::StringEquals(const char* msgpackStr, uint16_t length, const char* cstr)
 {
     size_t cstrLen = strlen(cstr);
-    if (length != cstrLen) return false;
+    if (length != cstrLen)
+    {
+        return false;
+    }
     return strncmp(msgpackStr, cstr, length) == 0;
 }
 
@@ -440,10 +547,14 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
         if (StringEquals(key, keyLen, Fields::VERSION))
         {
             int32_t version;
-            if (!ReadInt(version)) return false;
+            if (!ReadInt(version))
+            {
+                return false;
+            }
             if (version > SCENE_FORMAT_VERSION)
             {
-                DEKI_LOG_ERROR("SceneMsgPackParser: Scene version %d is newer than supported %d", version, SCENE_FORMAT_VERSION);
+                DEKI_LOG_ERROR("SceneMsgPackParser: Scene version %d is newer than supported %d", version,
+                               SCENE_FORMAT_VERSION);
                 return false;
             }
         }
@@ -452,7 +563,10 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
             // Scene name - skip it (stored externally)
             const char* name;
             uint16_t nameLen;
-            if (!ReadString(name, nameLen)) return false;
+            if (!ReadString(name, nameLen))
+            {
+                return false;
+            }
             // Ignore name
         }
         else if (StringEquals(key, keyLen, Fields::CLEAR_COLOR))
@@ -465,17 +579,26 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
                 return false;
             }
             int32_t r, g, b;
-            if (!ReadInt(r) || !ReadInt(g) || !ReadInt(b)) return false;
+            if (!ReadInt(r) || !ReadInt(g) || !ReadInt(b))
+            {
+                return false;
+            }
             // Ignore clear color (it's now in CameraComponent)
         }
         else if (StringEquals(key, keyLen, Fields::OBJECTS))
         {
-            if (!ParseObjects(scene)) return false;
+            if (!ParseObjects(scene))
+            {
+                return false;
+            }
         }
         else
         {
             // Skip unknown fields
-            if (!SkipValue()) return false;
+            if (!SkipValue())
+            {
+                return false;
+            }
         }
     }
 
@@ -497,17 +620,20 @@ bool SceneMsgPackParser::ParseObjects(Scene* scene)
     for (uint32_t i = 0; i < arrSize; i++)
     {
         Object* obj = nullptr;
-        if (!ParseObjectInternal(obj)) return false;
+        if (!ParseObjectInternal(obj))
+        {
+            return false;
+        }
         if (obj)
         {
-            DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: AddObject[%u]='%s' to scene=%p",
-                              i, obj->GetName().c_str(), (void*)scene);
+            DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: AddObject[%u]='%s' to scene=%p", i,
+                              obj->GetName().c_str(), (void*)scene);
             scene->AddObject(obj);
         }
     }
 
-    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: Done, scene=%p has %zu objects",
-                      (void*)scene, scene->GetObjects().size());
+    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: Done, scene=%p has %zu objects", (void*)scene,
+                      scene->GetObjects().size());
     return true;
 }
 
@@ -530,8 +656,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     DepthGuard guard(*this);
     if (!guard.Enter())
     {
-        DEKI_LOG_ERROR("SceneMsgPackParser: object tree deeper than %d levels - refusing to parse",
-                       kMaxDepth);
+        DEKI_LOG_ERROR("SceneMsgPackParser: object tree deeper than %d levels - refusing to parse", kMaxDepth);
         return false;
     }
 
@@ -565,9 +690,14 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         bool armed = true;
         ~PendingChildCleanup()
         {
-            if (!armed) return;
+            if (!armed)
+            {
+                return;
+            }
             for (Object* c : children)
+            {
                 delete c;
+            }
             children.clear();
         }
     } childCleanup{ pendingChildren };
@@ -576,85 +706,136 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     {
         const char* key;
         uint16_t keyLen;
-        if (!ReadString(key, keyLen)) return false;
+        if (!ReadString(key, keyLen))
+        {
+            return false;
+        }
 
         if (StringEquals(key, keyLen, Fields::OBJ_ID))
         {
             int32_t id;
-            if (!ReadInt(id)) return false;
+            if (!ReadInt(id))
+            {
+                return false;
+            }
             objectId = static_cast<uint32_t>(id);
         }
         else if (StringEquals(key, keyLen, Fields::OBJ_NAME))
         {
             const char* n;
             uint16_t nLen;
-            if (!ReadString(n, nLen)) return false;
+            if (!ReadString(n, nLen))
+            {
+                return false;
+            }
             name = std::string(n, nLen);
         }
         else if (StringEquals(key, keyLen, Fields::OBJ_ACTIVE))
         {
-            if (!ReadBool(active)) return false;
+            if (!ReadBool(active))
+            {
+                return false;
+            }
         }
         else if (StringEquals(key, keyLen, Fields::OBJ_SORT_ORDER))
         {
             int32_t order;
-            if (!ReadInt(order)) return false;
+            if (!ReadInt(order))
+            {
+                return false;
+            }
             sortOrder = order;
         }
         else if (StringEquals(key, keyLen, Fields::OBJ_TRANSFORM))
         {
             // Parse transform map
             uint32_t trMapSize;
-            if (!ReadMapSize(trMapSize)) return false;
+            if (!ReadMapSize(trMapSize))
+            {
+                return false;
+            }
 
             hasTransform = true;
             for (uint32_t j = 0; j < trMapSize; j++)
             {
                 const char* trKey;
                 uint16_t trKeyLen;
-                if (!ReadString(trKey, trKeyLen)) return false;
+                if (!ReadString(trKey, trKeyLen))
+                {
+                    return false;
+                }
 
                 if (StringEquals(trKey, trKeyLen, Fields::TR_X))
                 {
-                    if (!ReadFloat(x)) return false;
+                    if (!ReadFloat(x))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_Y))
                 {
-                    if (!ReadFloat(y)) return false;
+                    if (!ReadFloat(y))
+                    {
+                        return false;
+                    }
                 }
 #ifdef DEKI_TRANSFORM_3D
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_Z))
                 {
-                    if (!ReadFloat(z)) return false;
+                    if (!ReadFloat(z))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_X))
                 {
-                    if (!ReadFloat(rotationX)) return false;
+                    if (!ReadFloat(rotationX))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_Y))
                 {
-                    if (!ReadFloat(rotationY)) return false;
+                    if (!ReadFloat(rotationY))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_Z))
                 {
-                    if (!ReadFloat(scaleZ)) return false;
+                    if (!ReadFloat(scaleZ))
+                    {
+                        return false;
+                    }
                 }
 #endif
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION))
                 {
-                    if (!ReadFloat(rotation)) return false;
+                    if (!ReadFloat(rotation))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_X))
                 {
-                    if (!ReadFloat(scaleX)) return false;
+                    if (!ReadFloat(scaleX))
+                    {
+                        return false;
+                    }
                 }
                 else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_Y))
                 {
-                    if (!ReadFloat(scaleY)) return false;
+                    if (!ReadFloat(scaleY))
+                    {
+                        return false;
+                    }
                 }
                 else
                 {
-                    if (!SkipValue()) return false;
+                    if (!SkipValue())
+                    {
+                        return false;
+                    }
                 }
             }
         }
@@ -662,12 +843,18 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         {
             // Parse components array - collect type and data position for deferred creation
             uint32_t compArrSize;
-            if (!ReadArraySize(compArrSize)) return false;
+            if (!ReadArraySize(compArrSize))
+            {
+                return false;
+            }
 
             for (uint32_t c = 0; c < compArrSize; c++)
             {
                 uint32_t compMapSize;
-                if (!ReadMapSize(compMapSize)) return false;
+                if (!ReadMapSize(compMapSize))
+                {
+                    return false;
+                }
 
                 DeferredComponent deferred = {};
 
@@ -675,13 +862,19 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 {
                     const char* compKey;
                     uint16_t compKeyLen;
-                    if (!ReadString(compKey, compKeyLen)) return false;
+                    if (!ReadString(compKey, compKeyLen))
+                    {
+                        return false;
+                    }
 
                     if (StringEquals(compKey, compKeyLen, Fields::COMP_TYPE))
                     {
                         const char* typeStr;
                         uint16_t typeLen;
-                        if (!ReadString(typeStr, typeLen)) return false;
+                        if (!ReadString(typeStr, typeLen))
+                        {
+                            return false;
+                        }
                         // Hash the type name to get type ID
                         deferred.typeId = HashStringLen(typeStr, typeLen);
                         deferred.typeNamePtr = typeStr;
@@ -691,20 +884,32 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                     {
                         // Record position and size of data map for deferred deserialization
                         uint32_t dataMapSize;
-                        if (!ReadMapSize(dataMapSize)) return false;
+                        if (!ReadMapSize(dataMapSize))
+                        {
+                            return false;
+                        }
                         deferred.dataPos = m_Pos;
                         deferred.dataMapSize = dataMapSize;
                         // Skip the data for now - we'll deserialize later
                         for (uint32_t d = 0; d < dataMapSize; d++)
                         {
-                            if (!SkipValue()) return false;  // key
-                            if (!SkipValue()) return false;  // value
+                            if (!SkipValue())
+                            {
+                                return false;  // key
+                            }
+                            if (!SkipValue())
+                            {
+                                return false;  // value
+                            }
                         }
                         deferred.dataEndPos = m_Pos;
                     }
                     else
                     {
-                        if (!SkipValue()) return false;
+                        if (!SkipValue())
+                        {
+                            return false;
+                        }
                     }
                 }
 
@@ -718,11 +923,17 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         {
             // Parse children recursively
             uint32_t childArrSize;
-            if (!ReadArraySize(childArrSize)) return false;
+            if (!ReadArraySize(childArrSize))
+            {
+                return false;
+            }
             for (uint32_t ci = 0; ci < childArrSize; ci++)
             {
                 Object* child = nullptr;
-                if (!ParseObjectInternal(child)) return false;
+                if (!ParseObjectInternal(child))
+                {
+                    return false;
+                }
                 if (child)
                 {
                     pendingChildren.push_back(child);
@@ -732,11 +943,17 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         else if (StringEquals(key, keyLen, Fields::OBJ_INSTANCE))
         {
             // Instance field - path to nested scene (future feature)
-            if (!SkipValue()) return false;
+            if (!SkipValue())
+            {
+                return false;
+            }
         }
         else
         {
-            if (!SkipValue()) return false;
+            if (!SkipValue())
+            {
+                return false;
+            }
         }
     }
 
@@ -765,7 +982,12 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
 #else
     // No transform in this build. The map was consumed so the parse stays in
     // step with the file; the values are simply not kept.
-    (void)hasTransform; (void)x; (void)y; (void)rotation; (void)scaleX; (void)scaleY;
+    (void)hasTransform;
+    (void)x;
+    (void)y;
+    (void)rotation;
+    (void)scaleX;
+    (void)scaleY;
 #endif
 
     // Create components using factory and Deserialize
@@ -780,14 +1002,16 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
 
             if (!comp->Deserialize(*this, deferred.dataMapSize))
             {
-                DEKI_LOG_WARNING("SceneMsgPackParser: Failed to deserialize component '%.*s' (typeId: 0x%08x, mapSize: %u) on object '%s'",
-                                 (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, deferred.dataMapSize, name.c_str());
+                DEKI_LOG_WARNING("SceneMsgPackParser: Failed to deserialize component '%.*s' (typeId: 0x%08x, mapSize: "
+                                 "%u) on object '%s'",
+                                 (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, deferred.dataMapSize,
+                                 name.c_str());
             }
             m_Pos = savedPos;  // Restore position (already skipped past data)
 
             Internal::AttachComponent(*obj, comp);
-            DEKI_LOG_INTERNAL("SceneMsgPackParser: Added component (typeId: 0x%08x) to '%s'",
-                              deferred.typeId, name.c_str());
+            DEKI_LOG_INTERNAL("SceneMsgPackParser: Added component (typeId: 0x%08x) to '%s'", deferred.typeId,
+                              name.c_str());
         }
         else
         {
@@ -802,8 +1026,9 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 missing->m_RawData.assign(m_Data + deferred.dataPos, m_Data + deferred.dataEndPos);
             }
             Internal::AttachComponent(*obj, missing);
-            DEKI_LOG_WARNING("SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' - data preserved",
-                             (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, name.c_str());
+            DEKI_LOG_WARNING(
+                "SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' - data preserved",
+                (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, name.c_str());
         }
     }
 
@@ -926,7 +1151,9 @@ void SceneMsgPackWriter::WriteFloat(float value)
 void SceneMsgPackWriter::WriteString(const char* str)
 {
     if (!str)
+    {
         str = "";
+    }
     size_t len = strlen(str);
     if (len <= 31)
     {
@@ -988,7 +1215,10 @@ void SceneMsgPackWriter::WriteArraySize(uint32_t size)
 
 bool SceneMsgPackWriter::WriteScene(Scene* scene)
 {
-    if (!scene) return false;
+    if (!scene)
+    {
+        return false;
+    }
 
     m_Buffer.clear();
 
@@ -1037,12 +1267,18 @@ void SceneMsgPackWriter::WriteObject(Object* obj)
     uint32_t childCount = 0;
     for (Object* child : children)
     {
-        if (child && !child->IsEditorOnly()) childCount++;
+        if (child && !child->IsEditorOnly())
+        {
+            childCount++;
+        }
     }
 
     // 5 base fields + children (only if non-empty to keep leaf objects compact)
     uint32_t fieldCount = 5;
-    if (childCount > 0) fieldCount = 6;
+    if (childCount > 0)
+    {
+        fieldCount = 6;
+    }
     WriteMapSize(fieldCount);
 
     // ID (required for ObjectRef resolution at runtime)
@@ -1186,7 +1422,9 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
         while (current)
         {
             for (int i = 0; i < current->propertyCount; ++i)
+            {
                 allProps.push_back(&current->properties[i]);
+            }
             current = (current->baseTypeId != 0) ? registry.GetMeta(current->baseTypeId) : nullptr;
         }
     }
@@ -1202,21 +1440,11 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
 
             switch (prop.type)
             {
-                case PropertyType::Int8:
-                    WriteInt(static_cast<int32_t>(GetPropertyValue<int8_t>(comp, prop)));
-                    break;
-                case PropertyType::Int16:
-                    WriteInt(static_cast<int32_t>(GetPropertyValue<int16_t>(comp, prop)));
-                    break;
-                case PropertyType::Int32:
-                    WriteInt(GetPropertyValue<int32_t>(comp, prop));
-                    break;
-                case PropertyType::Int64:
-                    WriteInt(static_cast<int32_t>(GetPropertyValue<int64_t>(comp, prop)));
-                    break;
-                case PropertyType::UInt8:
-                    WriteInt(static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop)));
-                    break;
+                case PropertyType::Int8: WriteInt(static_cast<int32_t>(GetPropertyValue<int8_t>(comp, prop))); break;
+                case PropertyType::Int16: WriteInt(static_cast<int32_t>(GetPropertyValue<int16_t>(comp, prop))); break;
+                case PropertyType::Int32: WriteInt(GetPropertyValue<int32_t>(comp, prop)); break;
+                case PropertyType::Int64: WriteInt(static_cast<int32_t>(GetPropertyValue<int64_t>(comp, prop))); break;
+                case PropertyType::UInt8: WriteInt(static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop))); break;
                 case PropertyType::UInt16:
                     WriteInt(static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop)));
                     break;
@@ -1226,18 +1454,10 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                 case PropertyType::UInt64:
                     WriteInt(static_cast<int32_t>(GetPropertyValue<uint64_t>(comp, prop)));
                     break;
-                case PropertyType::Float:
-                    WriteFloat(GetPropertyValue<float>(comp, prop));
-                    break;
-                case PropertyType::Double:
-                    WriteFloat(static_cast<float>(GetPropertyValue<double>(comp, prop)));
-                    break;
-                case PropertyType::Bool:
-                    WriteBool(GetPropertyValue<bool>(comp, prop));
-                    break;
-                case PropertyType::String:
-                    WriteString(GetPropertyValue<std::string>(comp, prop));
-                    break;
+                case PropertyType::Float: WriteFloat(GetPropertyValue<float>(comp, prop)); break;
+                case PropertyType::Double: WriteFloat(static_cast<float>(GetPropertyValue<double>(comp, prop))); break;
+                case PropertyType::Bool: WriteBool(GetPropertyValue<bool>(comp, prop)); break;
+                case PropertyType::String: WriteString(GetPropertyValue<std::string>(comp, prop)); break;
                 case PropertyType::Color:
                     WriteInt((int32_t)GetPropertyRef<Deki::Color>(comp, prop).ToRGBA8888());
                     break;
@@ -1322,7 +1542,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     else
                     {
                         // Default: String list
-                        const std::vector<std::string>& stringList = GetPropertyRef<std::vector<std::string>>(comp, prop);
+                        const std::vector<std::string>& stringList =
+                            GetPropertyRef<std::vector<std::string>>(comp, prop);
                         WriteArraySize(static_cast<uint32_t>(stringList.size()));
                         for (const auto& str : stringList)
                         {
@@ -1353,8 +1574,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                         }
                     }
 
-                    DEKI_LOG_INTERNAL("SceneMsgPackWriter: AssetRef '%s' -> guid='%s', source='%s'",
-                                      prop.name, guidToWrite.c_str(), sourceToWrite.c_str());
+                    DEKI_LOG_INTERNAL("SceneMsgPackWriter: AssetRef '%s' -> guid='%s', source='%s'", prop.name,
+                                      guidToWrite.c_str(), sourceToWrite.c_str());
 
                     WriteMapSize(2);
                     WriteString("guid");
@@ -1364,8 +1585,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     break;
                 }
                 default:
-                    DEKI_LOG_ERROR("SceneMsgPackWriter: Unhandled property type %d for '%s' on '%s'",
-                                   (int)prop.type, prop.name, typeName);
+                    DEKI_LOG_ERROR("SceneMsgPackWriter: Unhandled property type %d for '%s' on '%s'", (int)prop.type,
+                                   prop.name, typeName);
                     WriteNil();
                     break;
             }

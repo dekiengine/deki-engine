@@ -29,7 +29,6 @@
 namespace Deki
 {
 
-
 using InterfaceAdapter = void* (*)(Component*);
 
 namespace ComponentInterfaceAdapters

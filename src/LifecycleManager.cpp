@@ -25,8 +25,12 @@ static void CollectPersistentComponents(std::vector<Component*>& components)
 {
     const auto& persistentObjects = Engine::GetInstance().GetSceneSystem().GetPersistentObjects();
     for (Object* obj : persistentObjects)
+    {
         for (Component* comp : obj->GetComponents())
+        {
             components.push_back(comp);
+        }
+    }
 }
 
 namespace
@@ -38,7 +42,8 @@ class ScratchSnapshot
 {
 public:
     ScratchSnapshot(std::vector<Component*>& shared, bool& inUse)
-        : m_InUse(inUse), m_Owned(!inUse)
+        : m_InUse(inUse),
+          m_Owned(!inUse)
     {
         if (m_Owned)
         {
@@ -53,7 +58,10 @@ public:
     }
     ~ScratchSnapshot()
     {
-        if (m_Owned) m_InUse = false;
+        if (m_Owned)
+        {
+            m_InUse = false;
+        }
     }
 
     std::vector<Component*>& Get() { return *m_Target; }
@@ -93,7 +101,10 @@ static void GetProfileName(char* buffer, size_t size, Component* component, cons
 void LifecycleManager::ProcessInternalAwake(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessInternalAwake");
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     char profileName[128];
 
@@ -125,16 +136,20 @@ void LifecycleManager::ProcessInternalAwake(Scene* scene)
             component->MarkRefsResolved();
 
             if (s_ProfileEnd)
+            {
                 s_ProfileEnd();
+            }
         }
     }
-
 }
 
 void LifecycleManager::ProcessAwake(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessAwake");
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     char profileName[128];
 
@@ -161,7 +176,9 @@ void LifecycleManager::ProcessAwake(Scene* scene)
             component->MarkAwoken();
 
             if (s_ProfileEnd)
+            {
                 s_ProfileEnd();
+            }
         }
     }
 }
@@ -169,7 +186,10 @@ void LifecycleManager::ProcessAwake(Scene* scene)
 void LifecycleManager::ProcessStart(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessStart");
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     char profileName[128];
 
@@ -196,7 +216,9 @@ void LifecycleManager::ProcessStart(Scene* scene)
             component->MarkStarted();
 
             if (s_ProfileEnd)
+            {
                 s_ProfileEnd();
+            }
         }
     }
 }
@@ -204,7 +226,10 @@ void LifecycleManager::ProcessStart(Scene* scene)
 void LifecycleManager::ProcessUpdate(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessUpdate");
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     char profileName[128];
 
@@ -222,7 +247,9 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
         // DeclaresUpdate() comes from the class declaration: no Update member,
         // no call. A data component is skipped here at the cost of one load.
         if (!component->DeclaresUpdate())
+        {
             continue;
+        }
         Object* owner = component->GetOwner();
         if (owner && owner->IsActiveInHierarchy() && component->HasStarted())
         {
@@ -238,7 +265,9 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
             LogSystem::ClearLogContext();
 
             if (s_ProfileEnd)
+            {
                 s_ProfileEnd();
+            }
         }
     }
 }
@@ -248,7 +277,10 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
 // runtime ticks component physics identically to play-in-editor.
 static void RuntimeUpdateRecursive(Object* obj, float deltaTime)
 {
-    if (!obj) return;
+    if (!obj)
+    {
+        return;
+    }
 
     for (Component* comp : obj->GetComponents())
     {
@@ -263,21 +295,30 @@ static void RuntimeUpdateRecursive(Object* obj, float deltaTime)
             comp->RuntimeUpdate(deltaTime);
 
             if (LifecycleManager::s_ProfileEnd)
+            {
                 LifecycleManager::s_ProfileEnd();
+            }
         }
     }
 
     for (Object* child : obj->GetChildren())
+    {
         RuntimeUpdateRecursive(child, deltaTime);
+    }
 }
 
 void LifecycleManager::ProcessRuntimeUpdate(Scene* scene, float deltaTime)
 {
     DEKI_PROFILE_SCOPE_N("ProcessRuntimeUpdate");
-    if (!scene) return;
+    if (!scene)
+    {
+        return;
+    }
 
     for (Object* obj : scene->GetObjects())
+    {
         RuntimeUpdateRecursive(obj, deltaTime);
+    }
 }
 
 void LifecycleManager::ResolveObjectRefs(Component* component, Scene* scene)
@@ -293,7 +334,9 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
 
     uint32_t typeId = component->GetType();
     if (s_NoMetaTypes.count(typeId))
+    {
         return;
+    }
 
     // Get component metadata
     const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(typeId);
@@ -305,31 +348,45 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
 
     auto* assetMgr = Deki::AssetManager::Get();
     if (!assetMgr)
+    {
         return;
+    }
 
     // Iterate through properties looking for AssetRef types
     for (int i = 0; i < meta->propertyCount; ++i)
     {
         const PropertyInfo& prop = meta->properties[i];
-        if (prop.type != PropertyType::AssetRef) continue;
-        if (!prop.assetType) continue;
+        if (prop.type != PropertyType::AssetRef)
+        {
+            continue;
+        }
+        if (!prop.assetType)
+        {
+            continue;
+        }
 
         // Skip non-cacheable asset types (e.g., Scene) during eager resolution.
         // These are loaded on-demand when the component calls AssetRef::Get().
-        if (!assetMgr->IsTypeCacheable(prop.assetType)) continue;
+        if (!assetMgr->IsTypeCacheable(prop.assetType))
+        {
+            continue;
+        }
 
         // Get the AssetRefBase at the property offset
-        Deki::AssetRefBase* ref = reinterpret_cast<Deki::AssetRefBase*>(
-            reinterpret_cast<char*>(component) + prop.offset);
+        Deki::AssetRefBase* ref =
+            reinterpret_cast<Deki::AssetRefBase*>(reinterpret_cast<char*>(component) + prop.offset);
 
         // Skip if already loaded, no GUID, or already attempted
-        if (ref->ptr || ref->guid.empty() || ref->loadAttempted) continue;
+        if (ref->ptr || ref->guid.empty() || ref->loadAttempted)
+        {
+            continue;
+        }
 
         // Mark as attempted before trying
         ref->loadAttempted = true;
 
-        DEKI_LOG_INTERNAL("ResolveAssetRefs: Loading '%s' GUID=%s type=%s",
-                          prop.name, ref->guid.c_str(), prop.assetType);
+        DEKI_LOG_INTERNAL("ResolveAssetRefs: Loading '%s' GUID=%s type=%s", prop.name, ref->guid.c_str(),
+                          prop.assetType);
 
         // Load the asset using unified AssetManager
         ref->ptr = assetMgr->LoadByGuidAndType(ref->guid, prop.assetType);
@@ -345,8 +402,8 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
         {
             // Allow AssetRef::Get() to retry later (e.g., editor fonts compiled on-demand)
             ref->loadAttempted = false;
-            DEKI_LOG_WARNING("AssetRef '%s' failed to load: GUID=%s, type=%s",
-                             prop.name, ref->guid.c_str(), prop.assetType);
+            DEKI_LOG_WARNING("AssetRef '%s' failed to load: GUID=%s, type=%s", prop.name, ref->guid.c_str(),
+                             prop.assetType);
         }
     }
 }

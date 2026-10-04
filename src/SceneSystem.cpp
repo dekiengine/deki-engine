@@ -14,9 +14,11 @@
 namespace Deki
 {
 
-
 SceneSystem::SceneSystem()
-    : m_RootScene(nullptr), m_OwnsRootScene(false) {}
+    : m_RootScene(nullptr),
+      m_OwnsRootScene(false)
+{
+}
 
 SceneSystem::~SceneSystem()
 {
@@ -54,16 +56,15 @@ void SceneSystem::Update(uint32_t deltaTime)
 
 void SceneSystem::SetRootScene(Scene* scene, bool takeOwnership)
 {
-    DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: scene=%p, objects=%zu, takeOwnership=%d",
-                      (void*)scene, scene ? scene->GetObjects().size() : 0, takeOwnership);
+    DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: scene=%p, objects=%zu, takeOwnership=%d", (void*)scene,
+                      scene ? scene->GetObjects().size() : 0, takeOwnership);
 
     // Queue old scene for deferred deletion (instead of immediate delete).
     // This prevents use-after-free when SetRootScene is called during
     // Start()/Update() while code is still executing on the old scene.
     if (m_RootScene && m_RootScene != scene && m_OwnsRootScene)
     {
-        DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: Queuing old scene %p for deferred deletion",
-                          (void*)m_RootScene);
+        DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: Queuing old scene %p for deferred deletion", (void*)m_RootScene);
         m_PendingDeletion.push_back(m_RootScene);
     }
 
@@ -76,7 +77,9 @@ void SceneSystem::SetRootScene(Scene* scene, bool takeOwnership)
     {
         auto* assetMgr = Deki::AssetManager::Get();
         if (assetMgr)
+        {
             assetMgr->ReleaseAssetTracking("Scene", scene);
+        }
     }
 }
 
@@ -143,7 +146,9 @@ bool SceneSystem::LoadBootScene(const char* path)
 void SceneSystem::MarkPersistent(Object* obj)
 {
     if (!obj)
+    {
         return;
+    }
 
     // Already marked?
     if (obj->IsPersistent())
@@ -152,7 +157,9 @@ void SceneSystem::MarkPersistent(Object* obj)
         for (Object* existing : persistentObjects)
         {
             if (existing == obj)
+            {
                 return;  // Already tracked
+            }
         }
     }
 
@@ -190,10 +197,12 @@ void SceneSystem::ClearPersistentObjects(bool deleteObjects)
 
 void SceneSystem::FlushPendingDeletions()
 {
-    if (m_PendingDeletion.empty()) return;
+    if (m_PendingDeletion.empty())
+    {
+        return;
+    }
 
-    DEKI_LOG_INTERNAL("SceneSystem: Flushing %zu pending scene deletions",
-                      m_PendingDeletion.size());
+    DEKI_LOG_INTERNAL("SceneSystem: Flushing %zu pending scene deletions", m_PendingDeletion.size());
     for (Scene* p : m_PendingDeletion)
     {
         delete p;

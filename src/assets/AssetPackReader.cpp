@@ -21,7 +21,9 @@ std::string FixedFieldToString(const char* field, size_t capacity)
 {
     size_t len = 0;
     while (len < capacity && field[len] != '\0')
+    {
         ++len;
+    }
     return std::string(field, len);
 }
 }  // namespace
@@ -74,8 +76,8 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         {
             // A short read used to `break` and then report success with the
             // full declared count, so a truncated index looked healthy.
-            DEKI_LOG_ERROR("[PACK] Pack index '%s' is truncated: %u of %u entries readable",
-                           path, (unsigned)i, (unsigned)entryCount);
+            DEKI_LOG_ERROR("[PACK] Pack index '%s' is truncated: %u of %u entries readable", path, (unsigned)i,
+                           (unsigned)entryCount);
             fs->CloseFile(file);
             m_GuidToPackPath.clear();
             return false;
@@ -85,7 +87,9 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         // than trusting a terminator to be present.
         std::string guid = FixedFieldToString(entry.guid, sizeof(entry.guid));
         if (guid.empty())
+        {
             continue;
+        }
         m_GuidToPackPath[guid] = folder + FixedFieldToString(entry.packPath, sizeof(entry.packPath));
     }
 
@@ -103,7 +107,9 @@ std::string AssetPackReader::GetPackPath(const std::string& guid) const
 {
     auto it = m_GuidToPackPath.find(guid);
     if (it != m_GuidToPackPath.end())
+    {
         return it->second;
+    }
     return "";
 }
 
@@ -112,15 +118,23 @@ bool AssetPackReader::LoadPack(const char* packPath)
     // Already loaded?
     auto it = m_LoadedPacks.find(packPath);
     if (it != m_LoadedPacks.end())
+    {
         return true;
+    }
 
     uint32_t t0 = Time::GetTime();
 
     IFileSystem* fs = FileSystem::GetFileSystemForPath(packPath);
-    if (!fs) return false;
+    if (!fs)
+    {
+        return false;
+    }
 
     IFileSystem::FileHandle file = fs->OpenFile(packPath, IFileSystem::OpenMode::READ_BINARY);
-    if (!file) return false;
+    if (!file)
+    {
+        return false;
+    }
 
     long fileSize = fs->GetFileSize(file);
     if (fileSize < static_cast<long>(sizeof(DPackHeader)))
@@ -164,12 +178,10 @@ bool AssetPackReader::LoadPack(const char* packPath)
     // The entry table must fit in the file. entryCount is a uint32 from the
     // file: compute in 64-bit so the multiply cannot wrap on the 32-bit
     // targets, where size_t is the same width as entryCount.
-    const uint64_t tableBytes =
-        static_cast<uint64_t>(header->entryCount) * sizeof(DPackEntry);
+    const uint64_t tableBytes = static_cast<uint64_t>(header->entryCount) * sizeof(DPackEntry);
     if (tableBytes > static_cast<uint64_t>(packSize - sizeof(DPackHeader)))
     {
-        DEKI_LOG_ERROR("[PACK] %s declares %u entries (%llu bytes) but is only %zu bytes",
-                       packPath, header->entryCount,
+        DEKI_LOG_ERROR("[PACK] %s declares %u entries (%llu bytes) but is only %zu bytes", packPath, header->entryCount,
                        static_cast<unsigned long long>(tableBytes), packSize);
         Memory::Free(data);
         return false;
@@ -193,9 +205,8 @@ bool AssetPackReader::LoadPack(const char* packPath)
         const uint64_t end = static_cast<uint64_t>(e.offset) + static_cast<uint64_t>(e.size);
         if (end > static_cast<uint64_t>(packSize))
         {
-            DEKI_LOG_ERROR("[PACK] %s entry %u spans %u..%llu, past the %zu-byte pack - skipping",
-                           packPath, i, e.offset,
-                           static_cast<unsigned long long>(end), packSize);
+            DEKI_LOG_ERROR("[PACK] %s entry %u spans %u..%llu, past the %zu-byte pack - skipping", packPath, i,
+                           e.offset, static_cast<unsigned long long>(end), packSize);
             continue;
         }
 
@@ -221,8 +232,8 @@ bool AssetPackReader::LoadPack(const char* packPath)
     m_LoadedPacks[packPath] = pack;
 
     uint32_t elapsed = Time::GetElapsed(t0);
-    DEKI_LOG_INTERNAL("[PERF] Pack loaded: %s (%u assets, %ld bytes, %ums)",
-                      packPath, header->entryCount, fileSize, elapsed);
+    DEKI_LOG_INTERNAL("[PERF] Pack loaded: %s (%u assets, %ld bytes, %ums)", packPath, header->entryCount, fileSize,
+                      elapsed);
 
     return true;
 }
@@ -231,11 +242,15 @@ const LoadedPack::AssetInfo* AssetPackReader::GetAsset(const std::string& guid) 
 {
     auto packIt = m_GuidToLoadedPack.find(guid);
     if (packIt == m_GuidToLoadedPack.end())
+    {
         return nullptr;
+    }
 
     auto assetIt = packIt->second->assets.find(guid);
     if (assetIt == packIt->second->assets.end())
+    {
         return nullptr;
+    }
 
     return &assetIt->second;
 }
@@ -245,7 +260,9 @@ void AssetPackReader::UnloadAll()
     for (auto& [path, pack] : m_LoadedPacks)
     {
         if (pack->data)
+        {
             Memory::Free(pack->data);
+        }
         delete pack;
     }
     m_LoadedPacks.clear();

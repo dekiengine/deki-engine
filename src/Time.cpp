@@ -45,7 +45,10 @@ void Time::Initialize()
 
 uint32_t Time::GetTime()
 {
-    if (!s_TimeProvider) return 0;
+    if (!s_TimeProvider)
+    {
+        return 0;
+    }
     return s_TimeProvider->GetTicksMs() - s_StartTime;
 }
 
@@ -146,9 +149,13 @@ void Time::SetDelayFunction(std::function<void(uint32_t)> fn)
 void Time::Delay(uint32_t ms)
 {
     if (s_TimeProvider)
+    {
         s_TimeProvider->DelayMs(ms);
+    }
     else if (s_DelayFn)
+    {
         s_DelayFn(ms);
+    }
 }
 
 }  // namespace Deki

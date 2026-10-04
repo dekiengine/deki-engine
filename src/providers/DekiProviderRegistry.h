@@ -37,13 +37,9 @@ namespace Deki
 template <typename Interface>
 class ProviderRegistry
 {
-    static_assert(std::is_base_of<IPackage, Interface>::value,
-                  "Interface must derive from IDekiPackage.");
+    static_assert(std::is_base_of<IPackage, Interface>::value, "Interface must derive from IDekiPackage.");
 
-    static ProviderRegistryBase& Base()
-    {
-        return ProviderRegistryBase::ForCategory(Interface::Category);
-    }
+    static ProviderRegistryBase& Base() { return ProviderRegistryBase::ForCategory(Interface::Category); }
 
 public:
     /// Typed access. T must derive from Interface and define ProviderId.
@@ -51,8 +47,7 @@ public:
     template <typename T>
     static T* GetProvider()
     {
-        static_assert(std::is_base_of<Interface, T>::value,
-                      "T must derive from Interface.");
+        static_assert(std::is_base_of<Interface, T>::value, "T must derive from Interface.");
         return static_cast<T*>(Base().GetById(T::ProviderId));
     }
 
@@ -60,19 +55,13 @@ public:
     /// Registration order is the order of calls to Register() at
     /// DekiPlugin_RegisterComponents time - i.e. source-code order in the
     /// package that registers them. This is the only "default" knob.
-    static Interface* GetDefault()
-    {
-        return static_cast<Interface*>(Base().GetDefault());
-    }
+    static Interface* GetDefault() { return static_cast<Interface*>(Base().GetDefault()); }
 
     // --- Diagnostics-only enumeration. Do not use for selection logic. ---
 
     static int GetProviderCount() { return Base().GetCount(); }
 
-    static Interface* GetProviderAt(int idx)
-    {
-        return static_cast<Interface*>(Base().GetAt(idx));
-    }
+    static Interface* GetProviderAt(int idx) { return static_cast<Interface*>(Base().GetAt(idx)); }
 
     // --- Registration. Called by the owning package's DekiPlugin_RegisterComponents. ---
 
@@ -91,10 +80,7 @@ public:
         Base().Register(provider, provider->GetPackageId(), /*isPlugin=*/false);
     }
 
-    static void Unregister(Interface* provider)
-    {
-        Base().Unregister(provider);
-    }
+    static void Unregister(Interface* provider) { Base().Unregister(provider); }
 };
 
 }  // namespace Deki

@@ -47,7 +47,6 @@ DEKI_CATEGORY("System")
 class SetupComponent : public Component
 {
 public:
-
     using SetupCallback = std::function<void(bool success)>;
 
     SetupComponent() = default;
@@ -103,8 +102,8 @@ public:
 
     using EditorAutoFactory = SetupComponent* (*)();
 
-    SETUP_COMPONENT_API static void RegisterEditorAutoFactory(
-        EditorAutoFactory factory, SetupPhase phase = SetupPhase::EditorLoad);
+    SETUP_COMPONENT_API static void RegisterEditorAutoFactory(EditorAutoFactory factory,
+                                                              SetupPhase phase = SetupPhase::EditorLoad);
     SETUP_COMPONENT_API static void ClearEditorAutoFactories();
     SETUP_COMPONENT_API static void RunEditorAutoSetups(SetupPhase phase);
 };
@@ -119,24 +118,21 @@ struct AutoSetupRegistrar
 {
     AutoSetupRegistrar()
     {
-        SetupComponent::RegisterEditorAutoFactory(
-            []() -> SetupComponent* { return new T(); }, Phase);
+        SetupComponent::RegisterEditorAutoFactory([]() -> SetupComponent* { return new T(); }, Phase);
     }
 };
 
 /// Runs when the editor finishes loading packages: every project open, and
 /// again after a hot reload. Keep it cheap and local. Anything that reaches the
 /// network or the outside world belongs in DEKI_REGISTER_PLAY_AUTO_SETUP.
-#define DEKI_REGISTER_EDITOR_AUTO_SETUP(ClassName)                    \
-    static ::Deki::AutoSetupRegistrar<ClassName,                      \
-                                      ::Deki::SetupComponent::SetupPhase::EditorLoad> \
+#define DEKI_REGISTER_EDITOR_AUTO_SETUP(ClassName)                                                                     \
+    static ::Deki::AutoSetupRegistrar<ClassName, ::Deki::SetupComponent::SetupPhase::EditorLoad>                       \
         s_##ClassName##_EditorAutoReg
 
 /// Runs when the user presses Play, not before. For a setup with a side effect
 /// the user would want to have asked for.
-#define DEKI_REGISTER_PLAY_AUTO_SETUP(ClassName)                      \
-    static ::Deki::AutoSetupRegistrar<ClassName,                      \
-                                      ::Deki::SetupComponent::SetupPhase::PlayStart> \
+#define DEKI_REGISTER_PLAY_AUTO_SETUP(ClassName)                                                                       \
+    static ::Deki::AutoSetupRegistrar<ClassName, ::Deki::SetupComponent::SetupPhase::PlayStart>                        \
         s_##ClassName##_PlayAutoReg
 #else
 #define DEKI_REGISTER_EDITOR_AUTO_SETUP(ClassName) /* embedded: no-op */

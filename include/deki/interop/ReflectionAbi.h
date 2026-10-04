@@ -257,7 +257,9 @@ inline bool DekiReflectionAbiMatches(const DekiReflectionAbi& other, char* what,
         if (f.mine != f.theirs)
         {
             if (what && whatSize)
+            {
                 std::snprintf(what, whatSize, "%s is %u there, %u here", f.name, f.theirs, f.mine);
+            }
             return false;
         }
     }

@@ -117,7 +117,11 @@ public:
      * to keep the byte total honest on free; returning 0 costs accuracy in
      * Memory::LogStats and nothing else.
      */
-    virtual size_t GetRawBlockSize(void* ptr) const { (void)ptr; return 0; }
+    virtual size_t GetRawBlockSize(void* ptr) const
+    {
+        (void)ptr;
+        return 0;
+    }
 };
 
 }  // namespace Deki

@@ -2,7 +2,8 @@
 // Deki::Component in the included package headers and writes the package's
 // reflection tables using C++26 static reflection. A component declares nothing
 // for this: its identity is its qualified class name (see deki/TypeId.h) and the
-// optional DEKI_CATEGORY / DEKI_DESCRIPTION markers sit above the class. Build with: g++ -std=c++26 -freflection -DDEKI_REFLECT ...
+// optional DEKI_CATEGORY / DEKI_DESCRIPTION markers sit above the class. Build with: g++ -std=c++26 -freflection
+// -DDEKI_REFLECT ...
 #include <cstdint>
 #include <cstddef>
 #include <string>
@@ -66,7 +67,10 @@ namespace m = std::meta;
 // hold nothing of ours and would multiply the work (std alone is enormous).
 consteval bool skip_namespace(m::info ns)
 {
-    if (!m::has_identifier(ns)) return true;  // anonymous: nothing reflectable lives there
+    if (!m::has_identifier(ns))
+    {
+        return true;  // anonymous: nothing reflectable lives there
+    }
     std::string_view id = m::identifier_of(ns);
     return id == "std" || id == "deki_refl" || id == "nlohmann" || id == "__gnu_cxx" || id == "__cxxabiv1" ||
            (id.size() >= 2 && id[0] == '_' && id[1] == '_');
@@ -76,7 +80,10 @@ consteval void collect_scope(m::info ns, std::vector<m::info>& out)
     for (m::info x : m::members_of(ns, m::access_context::unchecked()))
     {
         out.push_back(x);
-        if (m::is_namespace(x) && !skip_namespace(x)) collect_scope(x, out);
+        if (m::is_namespace(x) && !skip_namespace(x))
+        {
+            collect_scope(x, out);
+        }
     }
 }
 consteval std::vector<m::info> reflected_scope_members()
@@ -93,7 +100,9 @@ consteval const char* namespace_of(m::info t)
 {
     m::info p = m::parent_of(t);
     if (m::is_namespace(p) && p != ^^::)
+    {
         return std::define_static_string(m::identifier_of(p));
+    }
     return "";
 }
 
@@ -102,7 +111,12 @@ consteval const char* namespace_of(m::info t)
 consteval bool scope_is_reflectable(m::info t)
 {
     for (m::info p = m::parent_of(t); p != ^^::; p = m::parent_of(p))
-        if (!m::is_namespace(p) || !m::has_identifier(p)) return false;
+    {
+        if (!m::is_namespace(p) || !m::has_identifier(p))
+        {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -114,7 +128,9 @@ consteval std::string qualified_name_str(m::info t)
 {
     std::string s(m::identifier_of(t));
     for (m::info p = m::parent_of(t); m::is_namespace(p) && p != ^^::; p = m::parent_of(p))
+    {
         s = std::string(m::identifier_of(p)) + "::" + s;
+    }
     return s;
 }
 consteval const char* qualified_name(m::info t)
@@ -129,8 +145,9 @@ consteval std::string enclosing_namespace_str(m::info t)
 {
     std::string s;
     for (m::info p = m::parent_of(t); m::is_namespace(p) && p != ^^::; p = m::parent_of(p))
-        s = s.empty() ? std::string(m::identifier_of(p))
-                      : std::string(m::identifier_of(p)) + "::" + s;
+    {
+        s = s.empty() ? std::string(m::identifier_of(p)) : std::string(m::identifier_of(p)) + "::" + s;
+    }
     return s;
 }
 consteval const char* enclosing_namespace(m::info t)
@@ -146,7 +163,10 @@ consteval const char* symbol_stem(m::info t)
     {
         if (s[i] == ':')
         {
-            if (out.empty() || out.back() != '_') out += '_';
+            if (out.empty() || out.back() != '_')
+            {
+                out += '_';
+            }
             continue;
         }
         out += s[i];
@@ -219,54 +239,127 @@ consteval m::info vec_elem(m::info t)
 consteval bool is_int_like(m::info t)
 {
     m::info d = bare(t);
-    return d == m::dealias(^^int32_t) || d == m::dealias(^^uint32_t) ||
-           d == m::dealias(^^int16_t) || d == m::dealias(^^uint16_t) ||
-           d == m::dealias(^^int8_t) || d == m::dealias(^^uint8_t);
+    return d == m::dealias(^^int32_t) || d == m::dealias(^^uint32_t) || d == m::dealias(^^int16_t) ||
+           d == m::dealias(^^uint16_t) || d == m::dealias(^^int8_t) || d == m::dealias(^^uint8_t);
 }
 consteval const char* int_name(m::info d)
 {
-    if (d == m::dealias(^^int32_t)) return "Int32";
-    if (d == m::dealias(^^uint32_t)) return "UInt32";
-    if (d == m::dealias(^^int16_t)) return "Int16";
-    if (d == m::dealias(^^uint16_t)) return "UInt16";
-    if (d == m::dealias(^^int8_t)) return "Int8";
-    if (d == m::dealias(^^uint8_t)) return "UInt8";
+    if (d == m::dealias(^^int32_t))
+    {
+        return "Int32";
+    }
+    if (d == m::dealias(^^uint32_t))
+    {
+        return "UInt32";
+    }
+    if (d == m::dealias(^^int16_t))
+    {
+        return "Int16";
+    }
+    if (d == m::dealias(^^uint16_t))
+    {
+        return "UInt16";
+    }
+    if (d == m::dealias(^^int8_t))
+    {
+        return "Int8";
+    }
+    if (d == m::dealias(^^uint8_t))
+    {
+        return "UInt8";
+    }
     return "Unknown";
 }
 consteval const char* deki_type_name(m::info t)
 {
-    if (is_assetref(t)) return "AssetRef";
-    if (is_objectref(t)) return "ObjectRef";
-    if (is_noderef(t)) return "NodeRef";
-    if (is_propertyref(t)) return "PropertyRef";
-    if (is_vector(t)) return "Array";
-    if (is_color(t)) return "Color";
-    if (is_vec3(t)) return "Vector3";
-    if (is_vec2(t)) return "Vector2";
-    if (is_enum(t)) return "Enum";
-    if (is_float(t)) return "Float";
-    if (is_double(t)) return "Double";
-    if (is_bool(t)) return "Bool";
-    if (is_string(t)) return "String";
+    if (is_assetref(t))
+    {
+        return "AssetRef";
+    }
+    if (is_objectref(t))
+    {
+        return "ObjectRef";
+    }
+    if (is_noderef(t))
+    {
+        return "NodeRef";
+    }
+    if (is_propertyref(t))
+    {
+        return "PropertyRef";
+    }
+    if (is_vector(t))
+    {
+        return "Array";
+    }
+    if (is_color(t))
+    {
+        return "Color";
+    }
+    if (is_vec3(t))
+    {
+        return "Vector3";
+    }
+    if (is_vec2(t))
+    {
+        return "Vector2";
+    }
+    if (is_enum(t))
+    {
+        return "Enum";
+    }
+    if (is_float(t))
+    {
+        return "Float";
+    }
+    if (is_double(t))
+    {
+        return "Double";
+    }
+    if (is_bool(t))
+    {
+        return "Bool";
+    }
+    if (is_string(t))
+    {
+        return "String";
+    }
     return int_name(bare(t));
 }
 consteval const char* elem_type_name(m::info e)
 {
-    if (is_objectref(e)) return "ObjectRef";
-    if (is_string(e)) return "String";
-    if (is_float(e)) return "Float";
+    if (is_objectref(e))
+    {
+        return "ObjectRef";
+    }
+    if (is_string(e))
+    {
+        return "String";
+    }
+    if (is_float(e))
+    {
+        return "Float";
+    }
     return int_name(bare(e));
 }
 consteval const char* asset_arg(m::info t)
 {
-    if (is_assetref(t)) return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(t))[0]));
+    if (is_assetref(t))
+    {
+        return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(t))[0]));
+    }
     return nullptr;
 }
 consteval const char* component_ref(m::info t)
 {
-    if (is_objectref(t)) return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(t))[0]));
+    if (is_objectref(t))
+    {
+        return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(t))[0]));
+    }
     if (is_vector(t) && is_objectref(vec_elem(t)))
+    {
         return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(vec_elem(t)))[0]));
+    }
     return nullptr;
 }
 consteval const char* enum_name(m::info t)
@@ -281,7 +374,12 @@ consteval bool is_objref_like(m::info t)
 consteval bool has_static_member(m::info type, std::string_view name)
 {
     for (m::info mem : m::members_of(type, m::access_context::unchecked()))
-        if (m::has_identifier(mem) && m::identifier_of(mem) == name) return true;
+    {
+        if (m::has_identifier(mem) && m::identifier_of(mem) == name)
+        {
+            return true;
+        }
+    }
     return false;
 }
 // Does the class itself declare an Update() member (of any kind)? Direct
@@ -294,8 +392,14 @@ consteval bool declares_update(m::info type)
 // the two engine bases themselves.
 consteval bool is_component(m::info type)
 {
-    if (!m::is_class_type(type) || !m::is_complete_type(type)) return false;
-    if (type == ^^Deki::Component) return false;
+    if (!m::is_class_type(type) || !m::is_complete_type(type))
+    {
+        return false;
+    }
+    if (type == ^^Deki::Component)
+    {
+        return false;
+    }
     return m::is_base_of_type(^^Deki::Component, type);
 }
 // The direct base that carries the component identity: Deki::Component or
@@ -305,7 +409,10 @@ consteval m::info component_base(m::info cls)
     for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
     {
         m::info bt = bare(m::type_of(b));
-        if (bt == ^^Deki::Component || is_component(bt)) return bt;
+        if (bt == ^^Deki::Component || is_component(bt))
+        {
+            return bt;
+        }
     }
     return ^^Deki::Component;
 }
@@ -314,13 +421,19 @@ consteval bool component_base_is_public(m::info cls)
     for (m::info b : m::bases_of(cls, m::access_context::unchecked()))
     {
         m::info bt = bare(m::type_of(b));
-        if (bt == ^^Deki::Component || is_component(bt)) return m::is_public(b);
+        if (bt == ^^Deki::Component || is_component(bt))
+        {
+            return m::is_public(b);
+        }
     }
     return false;
 }
 consteval bool declares_update_rec(m::info cls)
 {
-    if (declares_update(cls)) return true;
+    if (declares_update(cls))
+    {
+        return true;
+    }
     m::info b = component_base(cls);
     return is_component(b) && declares_update_rec(b);
 }
@@ -329,7 +442,8 @@ consteval bool declares_update_rec(m::info cls)
 // path (reflection + node-factory registration).
 consteval bool is_node(m::info type)
 {
-    return m::is_class_type(type) && m::is_complete_type(type) && has_static_member(type, "StaticNodeName") && !is_component(type);
+    return m::is_class_type(type) && m::is_complete_type(type) && has_static_member(type, "StaticNodeName") &&
+           !is_component(type);
 }
 // Index into kPackages of the package a reflected type belongs to, or -1 when the type
 // came from outside this unit (engine headers, a sibling package pulled in transitively).
@@ -348,7 +462,10 @@ consteval bool path_has_component(std::string_view path, std::string_view tag)
         const bool starts = pos == 0 || path[pos - 1] == '/' || path[pos - 1] == '\\';
         const size_t end = pos + tag.size();
         const bool ends = end == path.size() || path[end] == '/' || path[end] == '\\';
-        if (starts && ends) return true;
+        if (starts && ends)
+        {
+            return true;
+        }
         ++pos;
     }
     return false;
@@ -362,7 +479,10 @@ consteval int package_index_of(m::info decl)
     {
         if (path_has_component(f, kPackages[i].tag))
         {
-            if (found >= 0) return -2;
+            if (found >= 0)
+            {
+                return -2;
+            }
             found = i;
         }
     }
@@ -397,40 +517,74 @@ consteval bool in_shard(std::string_view name)
 consteval bool is_exported(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::exported) return true;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::exported)
+        {
+            return true;
+        }
+    }
     return false;
 }
 consteval bool is_editor_only(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::editor_only) return true;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::editor_only)
+        {
+            return true;
+        }
+    }
     return false;
 }
 consteval bool is_serializable(m::info type)
 {
     for (m::info a : m::annotations_of(type))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::serializable) return true;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::serializable)
+        {
+            return true;
+        }
+    }
     return false;
 }
 consteval bool has_no_serialize(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::no_serialize) return true;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::no_serialize)
+        {
+            return true;
+        }
+    }
     return false;
 }
 // nlohmann j.value() default literal per scalar type
 consteval const char* json_default(m::info t)
 {
-    if (is_string(t)) return "\"\"";
-    if (is_bool(t)) return "false";
-    if (is_float(t) || is_double(t)) return "0.0f";
+    if (is_string(t))
+    {
+        return "\"\"";
+    }
+    if (is_bool(t))
+    {
+        return "false";
+    }
+    if (is_float(t) || is_double(t))
+    {
+        return "0.0f";
+    }
     return "0";
 }
 consteval std::vector<m::info> ser_members(m::info cls)
 {
     std::vector<m::info> out;
     for (m::info mem : m::nonstatic_data_members_of(cls, m::access_context::unchecked()))
-        if (!has_no_serialize(mem)) out.push_back(mem);
+    {
+        if (!has_no_serialize(mem))
+        {
+            out.push_back(mem);
+        }
+    }
     return out;
 }
 // basename of a path (after the last / or \)
@@ -452,7 +606,10 @@ inline void write_if_changed(const std::string& path, const std::string& content
         if (in)
         {
             std::string cur((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-            if (cur == content) return;
+            if (cur == content)
+            {
+                return;
+            }
         }
     }
     std::ofstream out(path);
@@ -471,7 +628,9 @@ inline std::string src_rel_include(std::string_view full, std::string_view sd)
     {
         std::string_view r = full.substr(sd.size());
         while (!r.empty() && (r.front() == '/' || r.front() == '\\'))
+        {
             r.remove_prefix(1);
+        }
         return std::string(r);
     }
     return std::string(path_basename(full));
@@ -493,44 +652,79 @@ inline std::string rel_src(std::string_view full, std::string_view sd)
 {
     std::string s = src_rel_include(full, sd);
     for (char& c : s)
-        if (c == '\\') c = '/';
+    {
+        if (c == '\\')
+        {
+            c = '/';
+        }
+    }
     return s;
 }
 
 consteval const char* unit_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::unit) return m::extract<Deki::deki_refl::unit>(a).name;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::unit)
+        {
+            return m::extract<Deki::deki_refl::unit>(a).name;
+        }
+    }
     return nullptr;
 }
 consteval const char* vw_prop(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when) return m::extract<Deki::deki_refl::visible_when>(a).prop;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when)
+        {
+            return m::extract<Deki::deki_refl::visible_when>(a).prop;
+        }
+    }
     return nullptr;
 }
 consteval const char* vw_vals(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when) return m::extract<Deki::deki_refl::visible_when>(a).values;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when)
+        {
+            return m::extract<Deki::deki_refl::visible_when>(a).values;
+        }
+    }
     return nullptr;
 }
 consteval const char* tooltip_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::tooltip) return m::extract<Deki::deki_refl::tooltip>(a).text;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::tooltip)
+        {
+            return m::extract<Deki::deki_refl::tooltip>(a).text;
+        }
+    }
     return nullptr;
 }
 consteval const char* group_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::group) return m::extract<Deki::deki_refl::group>(a).name;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::group)
+        {
+            return m::extract<Deki::deki_refl::group>(a).name;
+        }
+    }
     return nullptr;
 }
 consteval const char* toggle_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::toggle_object) return m::extract<Deki::deki_refl::toggle_object>(a).field;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::toggle_object)
+        {
+            return m::extract<Deki::deki_refl::toggle_object>(a).field;
+        }
+    }
     return nullptr;
 }
 // DEKI_OBJECT_NAME on a std::string field: the picker's component filter
@@ -538,7 +732,12 @@ consteval const char* toggle_of(m::info mem)
 consteval const char* objname_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::object_name) return m::extract<Deki::deki_refl::object_name>(a).component;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::object_name)
+        {
+            return m::extract<Deki::deki_refl::object_name>(a).component;
+        }
+    }
     return nullptr;
 }
 // DEKI_VALUE_OF on a std::string field: the ::Deki::PropertyRef field whose target
@@ -546,38 +745,68 @@ consteval const char* objname_of(m::info mem)
 consteval const char* valueof_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::value_of) return m::extract<Deki::deki_refl::value_of>(a).prop;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::value_of)
+        {
+            return m::extract<Deki::deki_refl::value_of>(a).prop;
+        }
+    }
     return nullptr;
 }
 // DEKI_RENAMED_FROM: the key this member used to be serialised under.
 consteval const char* renamed_from_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::renamed_from) return m::extract<Deki::deki_refl::renamed_from>(a).name;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::renamed_from)
+        {
+            return m::extract<Deki::deki_refl::renamed_from>(a).name;
+        }
+    }
     return nullptr;
 }
 consteval bool has_range(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range) return true;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        {
+            return true;
+        }
+    }
     return false;
 }
 consteval const char* range_lo(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range) return m::extract<Deki::deki_refl::range>(a).lo;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        {
+            return m::extract<Deki::deki_refl::range>(a).lo;
+        }
+    }
     return nullptr;
 }
 consteval const char* range_hi(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range) return m::extract<Deki::deki_refl::range>(a).hi;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        {
+            return m::extract<Deki::deki_refl::range>(a).hi;
+        }
+    }
     return nullptr;
 }
 consteval bool range_slider(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range) return m::extract<Deki::deki_refl::range>(a).slider;
+    {
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        {
+            return m::extract<Deki::deki_refl::range>(a).slider;
+        }
+    }
     return false;
 }
 // Skip sentinel enumerators (COUNT/MAX/NUM/SIZE/LAST, NUM_*/MAX_*), like Python's scan_for_enums.
@@ -585,9 +814,17 @@ consteval bool is_sentinel(std::string_view n)
 {
     std::string u;
     for (char c : n)
+    {
         u += (c >= 'a' && c <= 'z') ? char(c - 32) : c;
-    if (u == "COUNT" || u == "MAX" || u == "NUM" || u == "SIZE" || u == "LAST") return true;
-    if (u.size() >= 4 && (u.substr(0, 4) == "NUM_" || u.substr(0, 4) == "MAX_")) return true;
+    }
+    if (u == "COUNT" || u == "MAX" || u == "NUM" || u == "SIZE" || u == "LAST")
+    {
+        return true;
+    }
+    if (u.size() >= 4 && (u.substr(0, 4) == "NUM_" || u.substr(0, 4) == "MAX_"))
+    {
+        return true;
+    }
     return false;
 }
 // runtime helpers for DEKI_RANGE/DEKI_SLIDER (stringized args), matching Python:
@@ -595,20 +832,38 @@ consteval bool is_sentinel(std::string_view n)
 inline std::string _trim_f(std::string s)
 {
     while (!s.empty() && s.front() == ' ')
+    {
         s.erase(s.begin());
+    }
     while (!s.empty() && s.back() == ' ')
+    {
         s.pop_back();
-    if (!s.empty() && (s.back() == 'f' || s.back() == 'F')) s.pop_back();
+    }
+    if (!s.empty() && (s.back() == 'f' || s.back() == 'F'))
+    {
+        s.pop_back();
+    }
     return s;
 }
 inline bool is_simple_num(const char* lit)
 {
     std::string s = _trim_f(lit);
-    if (s.empty()) return false;
+    if (s.empty())
+    {
+        return false;
+    }
     size_t i = (s[0] == '+' || s[0] == '-') ? 1 : 0;
-    if (i >= s.size()) return false;
+    if (i >= s.size())
+    {
+        return false;
+    }
     for (; i < s.size(); ++i)
-        if (!((s[i] >= '0' && s[i] <= '9') || s[i] == '.')) return false;
+    {
+        if (!((s[i] >= '0' && s[i] <= '9') || s[i] == '.'))
+        {
+            return false;
+        }
+    }
     return true;
 }
 inline std::string py_float(const char* lit)
@@ -620,7 +875,10 @@ inline std::string py_float(const char* lit)
     auto epos = s.find('e');
     if (epos == std::string::npos)
     {  // already fixed
-        if (s.find('.') == std::string::npos) s += ".0";
+        if (s.find('.') == std::string::npos)
+        {
+            s += ".0";
+        }
         return s;
     }
     // expand scientific -> fixed (Python str(float) uses fixed for normal magnitudes)
@@ -633,19 +891,33 @@ inline std::string py_float(const char* lit)
     int pointpos = intlen + exp;
     std::string out;
     if (pointpos <= 0)
+    {
         out = "0." + std::string(-pointpos, '0') + digits;
+    }
     else if (pointpos >= (int)digits.size())
+    {
         out = digits + std::string(pointpos - (int)digits.size(), '0') + ".0";
+    }
     else
+    {
         out = digits.substr(0, pointpos) + "." + digits.substr(pointpos);
-    if (out.find('.') == std::string::npos) out += ".0";
+    }
+    if (out.find('.') == std::string::npos)
+    {
+        out += ".0";
+    }
     return (neg ? "-" : "") + out;
 }
 consteval int enum_count(m::info t)
 {
     int n = 0;
     for (m::info e : m::enumerators_of(bare(t)))
-        if (!is_sentinel(m::identifier_of(e))) ++n;
+    {
+        if (!is_sentinel(m::identifier_of(e)))
+        {
+            ++n;
+        }
+    }
     return n;
 }
 
@@ -653,7 +925,12 @@ consteval int enum_count(m::info t)
 consteval m::info member_type_by_name(m::info cls, std::string_view name)
 {
     for (m::info mem : m::nonstatic_data_members_of(cls, m::access_context::unchecked()))
-        if (m::identifier_of(mem) == name) return m::type_of(mem);
+    {
+        if (m::identifier_of(mem) == name)
+        {
+            return m::type_of(mem);
+        }
+    }
     return ^^void;
 }
 consteval int enum_ordinal(m::info enumType, std::string_view name)
@@ -661,8 +938,14 @@ consteval int enum_ordinal(m::info enumType, std::string_view name)
     int i = 0;
     for (m::info e : m::enumerators_of(bare(enumType)))
     {
-        if (is_sentinel(m::identifier_of(e))) continue;
-        if (m::identifier_of(e) == name) return i;
+        if (is_sentinel(m::identifier_of(e)))
+        {
+            continue;
+        }
+        if (m::identifier_of(e) == name)
+        {
+            return i;
+        }
         ++i;
     }
     return -1;
@@ -670,10 +953,21 @@ consteval int enum_ordinal(m::info enumType, std::string_view name)
 consteval bool is_numeric_tok(std::string_view t)
 {
     size_t i = 0;
-    if (i < t.size() && t[i] == '-') ++i;
-    if (i >= t.size()) return false;
+    if (i < t.size() && t[i] == '-')
+    {
+        ++i;
+    }
+    if (i >= t.size())
+    {
+        return false;
+    }
     for (; i < t.size(); ++i)
-        if (t[i] < '0' || t[i] > '9') return false;
+    {
+        if (t[i] < '0' || t[i] > '9')
+        {
+            return false;
+        }
+    }
     return true;
 }
 consteval int atoi_tok(std::string_view t)
@@ -687,7 +981,9 @@ consteval int atoi_tok(std::string_view t)
     }
     int v = 0;
     for (; i < t.size(); ++i)
+    {
         v = v * 10 + (t[i] - '0');
+    }
     return v * sign;
 }
 struct VisInfo
@@ -704,18 +1000,26 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
     while (i < vals.size())
     {
         while (i < vals.size() && (vals[i] == ' ' || vals[i] == ','))
+        {
             ++i;
+        }
         size_t s = i;
         while (i < vals.size() && vals[i] != ',')
+        {
             ++i;
+        }
         size_t e = i;
         while (e > s && vals[e - 1] == ' ')
+        {
             --e;
+        }
         if (e > s)
         {
             std::string_view tok = vals.substr(s, e - s);
             if (is_numeric_tok(tok))
+            {
                 resolved[n++] = atoi_tok(tok);
+            }
             else
             {
                 hasEnum = true;
@@ -732,7 +1036,9 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
     else
     {
         for (int k = 0; k < n; ++k)
+        {
             vi.mask |= (1u << resolved[k]);
+        }
     }
     return vi;
 }
@@ -741,16 +1047,42 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
 // Under DEKI_REFLECT each marker expands to a namespace-scope constant of a
 // deki_refl tag type. A marker belongs to the first component declared after it
 // in the same file; one that no component follows is reported as an error.
-enum TagKind { TAG_NONE = 0, TAG_CATEGORY, TAG_DESCRIPTION, TAG_DISPLAY_NAME, TAG_SETTINGS_SECTION, TAG_FORMER_NAME };
+enum TagKind
+{
+    TAG_NONE = 0,
+    TAG_CATEGORY,
+    TAG_DESCRIPTION,
+    TAG_DISPLAY_NAME,
+    TAG_SETTINGS_SECTION,
+    TAG_FORMER_NAME
+};
 consteval int tag_kind(m::info x)
 {
-    if (!m::is_variable(x)) return TAG_NONE;
+    if (!m::is_variable(x))
+    {
+        return TAG_NONE;
+    }
     m::info t = bare(m::type_of(x));
-    if (t == ^^Deki::deki_refl::category_tag) return TAG_CATEGORY;
-    if (t == ^^Deki::deki_refl::description_tag) return TAG_DESCRIPTION;
-    if (t == ^^Deki::deki_refl::display_name_tag) return TAG_DISPLAY_NAME;
-    if (t == ^^Deki::deki_refl::settings_section_tag) return TAG_SETTINGS_SECTION;
-    if (t == ^^Deki::deki_refl::former_name_tag) return TAG_FORMER_NAME;
+    if (t == ^^Deki::deki_refl::category_tag)
+    {
+        return TAG_CATEGORY;
+    }
+    if (t == ^^Deki::deki_refl::description_tag)
+    {
+        return TAG_DESCRIPTION;
+    }
+    if (t == ^^Deki::deki_refl::display_name_tag)
+    {
+        return TAG_DISPLAY_NAME;
+    }
+    if (t == ^^Deki::deki_refl::settings_section_tag)
+    {
+        return TAG_SETTINGS_SECTION;
+    }
+    if (t == ^^Deki::deki_refl::former_name_tag)
+    {
+        return TAG_FORMER_NAME;
+    }
     return TAG_NONE;
 }
 consteval const char* tag_text(m::info x)
@@ -772,14 +1104,24 @@ consteval std::vector<m::info> all_components()
 {
     std::vector<m::info> out;
     for (m::info x : kScope)
-        if (m::is_type(x) && is_component(x)) out.push_back(x);
+    {
+        if (m::is_type(x) && is_component(x))
+        {
+            out.push_back(x);
+        }
+    }
     return out;
 }
 consteval std::vector<m::info> all_tags()
 {
     std::vector<m::info> out;
     for (m::info x : kScope)
-        if (tag_kind(x) != TAG_NONE) out.push_back(x);
+    {
+        if (tag_kind(x) != TAG_NONE)
+        {
+            out.push_back(x);
+        }
+    }
     return out;
 }
 constexpr std::span<const m::info> kComponents = std::define_static_array(all_components());
@@ -787,7 +1129,8 @@ constexpr std::span<const m::info> kTags = std::define_static_array(all_tags());
 
 consteval bool same_file(m::info a, m::info b)
 {
-    return std::string_view(m::source_location_of(a).file_name()) == std::string_view(m::source_location_of(b).file_name());
+    return std::string_view(m::source_location_of(a).file_name()) ==
+           std::string_view(m::source_location_of(b).file_name());
 }
 // The component a marker attaches to (null reflection when none follows it).
 consteval m::info tag_owner(m::info tag)
@@ -797,7 +1140,10 @@ consteval m::info tag_owner(m::info tag)
     const unsigned tl = m::source_location_of(tag).line();
     for (m::info c : kComponents)
     {
-        if (!same_file(tag, c)) continue;
+        if (!same_file(tag, c))
+        {
+            continue;
+        }
         const unsigned cl = m::source_location_of(c).line();
         if (cl > tl && cl < bestLine)
         {
@@ -810,7 +1156,12 @@ consteval m::info tag_owner(m::info tag)
 consteval const char* tag_text_of(m::info comp, int kind)
 {
     for (m::info t : kTags)
-        if (tag_kind(t) == kind && tag_owner(t) == comp) return tag_text(t);
+    {
+        if (tag_kind(t) == kind && tag_owner(t) == comp)
+        {
+            return tag_text(t);
+        }
+    }
     return nullptr;
 }
 
@@ -821,7 +1172,12 @@ consteval std::vector<const char*> tag_texts_of(m::info comp, int kind)
 {
     std::vector<const char*> out;
     for (m::info t : kTags)
-        if (tag_kind(t) == kind && tag_owner(t) == comp) out.push_back(tag_text(t));
+    {
+        if (tag_kind(t) == kind && tag_owner(t) == comp)
+        {
+            out.push_back(tag_text(t));
+        }
+    }
     return out;
 }
 
@@ -830,7 +1186,12 @@ consteval std::vector<m::info> own_exported(m::info cls)
 {
     std::vector<m::info> out;
     for (m::info mem : m::nonstatic_data_members_of(cls, m::access_context::unchecked()))
-        if (is_exported(mem)) out.push_back(mem);
+    {
+        if (is_exported(mem))
+        {
+            out.push_back(mem);
+        }
+    }
     return out;
 }
 consteval void collect_base_exported(m::info cls, std::vector<m::info>& out)
@@ -841,7 +1202,12 @@ consteval void collect_base_exported(m::info cls, std::vector<m::info>& out)
         if (is_component(bt))
         {
             for (m::info mem : m::nonstatic_data_members_of(bt, m::access_context::unchecked()))
-                if (is_exported(mem)) out.push_back(mem);
+            {
+                if (is_exported(mem))
+                {
+                    out.push_back(mem);
+                }
+            }
             collect_base_exported(bt, out);
         }
     }
@@ -855,7 +1221,12 @@ consteval std::vector<m::info> deser_members(m::info cls)
 consteval bool any_editor_only(m::info cls)
 {
     for (m::info mem : deser_members(cls))
-        if (is_editor_only(mem)) return true;
+    {
+        if (is_editor_only(mem))
+        {
+            return true;
+        }
+    }
     return false;
 }
 consteval bool has_component_base(m::info cls)
@@ -866,14 +1237,24 @@ consteval int count_assetref(m::info cls)
 {
     int n = 0;
     for (m::info mem : m::nonstatic_data_members_of(cls, m::access_context::unchecked()))
-        if (is_exported(mem) && is_assetref(m::type_of(mem))) ++n;
+    {
+        if (is_exported(mem) && is_assetref(m::type_of(mem)))
+        {
+            ++n;
+        }
+    }
     return n;
 }
 consteval int count_objectref(m::info cls)
 {
     int n = 0;
     for (m::info mem : m::nonstatic_data_members_of(cls, m::access_context::unchecked()))
-        if (is_exported(mem) && is_objref_like(m::type_of(mem))) ++n;
+    {
+        if (is_exported(mem) && is_objref_like(m::type_of(mem)))
+        {
+            ++n;
+        }
+    }
     return n;
 }
 
@@ -887,14 +1268,15 @@ void emit_case(std::ostream& out)
     if constexpr (rf != nullptr)
     {
         if constexpr (std::string_view(rf) == std::string_view(nm))
+        {
             out << "#error DEKI_RENAMED_FROM on " << nm << " names its current identifier\n";
+        }
         // Stacked label: the old key falls into the same case body as the new one.
         out << "            case ::Deki::HashString(\"" << rf << "\"):  // DEKI_RENAMED_FROM\n";
     }
     if constexpr (is_assetref(t))
     {
-        out
-            << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+        out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
             << "                uint32_t mapSize;\n"
             << "                if (parser.ReadMapSize(mapSize)) {\n"
             << "                    for (uint32_t i = 0; i < mapSize; i++) {\n"
@@ -902,8 +1284,12 @@ void emit_case(std::ostream& out)
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        uint32_t kHash = ::Deki::HashStringLen(k, kLen);\n"
             << "                        switch (kHash) {\n"
-            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".guid = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".source = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) "
+            << fld << ".guid = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) "
+            << fld << ".source = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
@@ -914,8 +1300,7 @@ void emit_case(std::ostream& out)
     else if constexpr (is_propertyref(t))
     {
         // {object, component, field} as authored; the ids are derived once by Rehash.
-        out
-            << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+        out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
             << "                uint32_t mapSize;\n"
             << "                if (parser.ReadMapSize(mapSize)) {\n"
             << "                    for (uint32_t i = 0; i < mapSize; i++) {\n"
@@ -923,9 +1308,15 @@ void emit_case(std::ostream& out)
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        uint32_t kHash = ::Deki::HashStringLen(k, kLen);\n"
             << "                        switch (kHash) {\n"
-            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".object = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".component = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << ".field = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) "
+            << fld << ".object = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) "
+            << fld << ".component = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) "
+            << fld << ".field = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
@@ -936,17 +1327,18 @@ void emit_case(std::ostream& out)
     }
     else if constexpr (is_objectref(t))
     {
-        out
-            << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+        out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
             << "                uint8_t _pb;\n"
             << "                if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == 0xdd)) {\n"
             << "                    uint32_t _as; if (parser.ReadArraySize(_as) && _as >= 2) {\n"
             << "                        int32_t _id, _tid; parser.ReadInt(_id); parser.ReadInt(_tid);\n"
-            << "                        " << fld << ".id = static_cast<uint32_t>(_id); " << fld << ".componentTypeId = static_cast<uint32_t>(_tid);\n"
+            << "                        " << fld << ".id = static_cast<uint32_t>(_id); " << fld
+            << ".componentTypeId = static_cast<uint32_t>(_tid);\n"
             << "                        for (uint32_t _s = 2; _s < _as; _s++) parser.SkipValue();\n"
             << "                    }\n"
             << "                } else {\n"
-            << "                    int32_t v; if (parser.ReadInt(v)) { " << fld << ".id = static_cast<uint32_t>(v); " << fld << ".componentTypeId = 0; }\n"
+            << "                    int32_t v; if (parser.ReadInt(v)) { " << fld << ".id = static_cast<uint32_t>(v); "
+            << fld << ".componentTypeId = 0; }\n"
             << "                }\n"
             << "                break;\n"
             << "            }\n";
@@ -956,23 +1348,25 @@ void emit_case(std::ostream& out)
         constexpr m::info e = vec_elem(t);
         if constexpr (is_objectref(e))
         {
-            out
-                << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+            out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        decltype(" << fld << ")::value_type ref;\n"
                 << "                        uint8_t _pb;\n"
-                << "                        if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == 0xdd)) {\n"
+                << "                        if (parser.PeekByte(_pb) && ((_pb & 0xf0) == 0x90 || _pb == 0xdc || _pb == "
+                   "0xdd)) {\n"
                 << "                            uint32_t _as; if (parser.ReadArraySize(_as) && _as >= 2) {\n"
                 << "                                int32_t _id, _tid; parser.ReadInt(_id); parser.ReadInt(_tid);\n"
-                << "                                ref.id = static_cast<uint32_t>(_id); ref.componentTypeId = static_cast<uint32_t>(_tid);\n"
+                << "                                ref.id = static_cast<uint32_t>(_id); ref.componentTypeId = "
+                   "static_cast<uint32_t>(_tid);\n"
                 << "                                for (uint32_t _s = 2; _s < _as; _s++) parser.SkipValue();\n"
                 << "                            }\n"
                 << "                        } else {\n"
                 << "                            int32_t v;\n"
-                << "                            if (parser.ReadInt(v)) { ref.id = static_cast<uint32_t>(v); ref.componentTypeId = 0; }\n"
+                << "                            if (parser.ReadInt(v)) { ref.id = static_cast<uint32_t>(v); "
+                   "ref.componentTypeId = 0; }\n"
                 << "                        }\n"
                 << "                        " << fld << ".push_back(ref);\n"
                 << "                    }\n"
@@ -982,14 +1376,14 @@ void emit_case(std::ostream& out)
         }
         else if constexpr (is_string(e))
         {
-            out
-                << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+            out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        const char* s; uint16_t len;\n"
-                << "                        if (parser.ReadString(s, len)) " << fld << ".push_back(std::string(s, len));\n"
+                << "                        if (parser.ReadString(s, len)) " << fld
+                << ".push_back(std::string(s, len));\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -997,8 +1391,7 @@ void emit_case(std::ostream& out)
         }
         else if constexpr (is_float(e))
         {
-            out
-                << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+            out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    " << fld << ".clear();\n"
@@ -1012,14 +1405,14 @@ void emit_case(std::ostream& out)
         }
         else
         {
-            out
-                << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
+            out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    " << fld << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        int32_t v;\n"
-                << "                        if (parser.ReadInt(v)) " << fld << ".push_back(static_cast<decltype(" << fld << ")::value_type>(v));\n"
+                << "                        if (parser.ReadInt(v)) " << fld << ".push_back(static_cast<decltype(" << fld
+                << ")::value_type>(v));\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -1054,31 +1447,39 @@ void emit_case(std::ostream& out)
     }
     else if constexpr (is_color(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld
+            << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
     }
     else if constexpr (is_enum(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld
+            << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
     }
     else if constexpr (is_float(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld
+            << " = v; break; }\n";
     }
     else if constexpr (is_double(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld << " = static_cast<double>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) " << fld
+            << " = static_cast<double>(v); break; }\n";
     }
     else if constexpr (is_bool(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) " << fld << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) " << fld
+            << " = v; break; }\n";
     }
     else if constexpr (is_string(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld << " = std::string(s, len); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm
+            << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) " << fld
+            << " = std::string(s, len); break; }\n";
     }
     else if constexpr (is_int_like(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) " << fld
+            << " = static_cast<decltype(" << fld << ")>(v); break; }\n";
     }
 }
 
@@ -1086,10 +1487,10 @@ template <m::info COMP>
 void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild)
 {
     constexpr const char* CLS = std::define_static_string(m::identifier_of(COMP));  // Health
-    constexpr const char* QN = qualified_name(COMP);                                   // Game::Health
+    constexpr const char* QN = qualified_name(COMP);                                // Game::Health
     constexpr m::info BASE = component_base(COMP);
     constexpr const char* BQN = qualified_name(BASE);
-    const std::string G = std::string("DekiGen_") + symbol_stem(COMP);                // symbol prefix
+    const std::string G = std::string("DekiGen_") + symbol_stem(COMP);  // symbol prefix
 
     out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
     out << "// Source: " << rel_src(m::source_location_of(COMP).file_name(), srcdir) << "\n\n";
@@ -1101,20 +1502,30 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
 
     // What a component must look like, reported where the author will read it.
     if constexpr (!scope_is_reflectable(COMP))
-        out << "#error \"" << QN << ": a component must be declared in a named namespace (or at global scope), not nested in a class or an anonymous namespace\"\n";
+    {
+        out << "#error \"" << QN
+            << ": a component must be declared in a named namespace (or at global scope), not nested in a class or an "
+               "anonymous namespace\"\n";
+    }
     if constexpr (!component_base_is_public(COMP))
-        out << "#error \"" << QN << ": a component must derive PUBLICLY from Deki::Component (write `class " << CLS << " : public ...`)\"\n";
+    {
+        out << "#error \"" << QN << ": a component must derive PUBLICLY from Deki::Component (write `class " << CLS
+            << " : public ...`)\"\n";
+    }
     template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
     {
         if constexpr (!m::is_public(mem))
-            out << "#error \"" << QN << "::" << m::identifier_of(mem) << ": a DEKI_EXPORT field must be public (the generated code reaches it from outside the class)\"\n";
+        {
+            out << "#error \"" << QN << "::" << m::identifier_of(mem)
+                << ": a DEKI_EXPORT field must be public (the generated code reaches it from outside the class)\"\n";
+        }
     }
 
     out << "extern const ::Deki::ComponentTypeInfo " << G << "_TypeInfo;\n\n";
 
-    out << SEP << "\n// Runtime Deserialization (all platforms)\n"
-        << SEP << "\n\n";
-    out << "static bool " << G << "_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
+    out << SEP << "\n// Runtime Deserialization (all platforms)\n" << SEP << "\n\n";
+    out << "static bool " << G
+        << "_Deserialize(::Deki::Component* _c, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
     out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self;\n";
     out << "    for (uint32_t i = 0; i < mapSize; i++) {\n";
     out << "        const char* key; uint16_t keyLen;\n";
@@ -1127,17 +1538,24 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     {
         out << "\n        uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);\n";
         out << "        switch (keyHash) {\n";
-        template for (constexpr auto mem : std::define_static_array(deser_members(COMP))) if constexpr (!is_editor_only(mem)) emit_case<mem>(out);
+        template for (constexpr auto mem : std::define_static_array(
+                          deser_members(COMP))) if constexpr (!is_editor_only(mem)) emit_case<mem>(out);
         if constexpr (any_editor_only(COMP))
         {
             out << "#ifdef DEKI_EDITOR\n";
-            template for (constexpr auto mem : std::define_static_array(deser_members(COMP))) if constexpr (is_editor_only(mem)) emit_case<mem>(out);
+            template for (constexpr auto mem : std::define_static_array(
+                              deser_members(COMP))) if constexpr (is_editor_only(mem)) emit_case<mem>(out);
             out << "#else\n";
-            template for (constexpr auto mem : std::define_static_array(deser_members(COMP))) if constexpr (is_editor_only(mem))
+            template for (constexpr auto mem :
+                          std::define_static_array(deser_members(COMP))) if constexpr (is_editor_only(mem))
             {
                 if constexpr (renamed_from_of(mem) != nullptr)
-                    out << "            case ::Deki::HashString(\"" << renamed_from_of(mem) << "\"):  // DEKI_RENAMED_FROM\n";
-                out << "            case ::Deki::HashString(\"" << m::identifier_of(mem) << "\"): parser.SkipValue(); break;\n";
+                {
+                    out << "            case ::Deki::HashString(\"" << renamed_from_of(mem)
+                        << "\"):  // DEKI_RENAMED_FROM\n";
+                }
+                out << "            case ::Deki::HashString(\"" << m::identifier_of(mem)
+                    << "\"): parser.SkipValue(); break;\n";
             }
             out << "#endif\n";
         }
@@ -1148,8 +1566,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
 
     // Own and inherited reference fields, flattened: the class's entry answers
     // for the whole object, there is no chain to a base's function.
-    out << SEP << "\n// ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead\n"
-        << SEP << "\n\n";
+    out << SEP << "\n// ObjectRef/AssetRef Resolution (all platforms) - Zero Overhead\n" << SEP << "\n\n";
     out << "static void " << G << "_ResolveObjectRefs(::Deki::Component* _c, ::Deki::Scene* scene) {\n";
     out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self; (void)scene;\n";
     template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
@@ -1178,13 +1595,14 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
             constexpr const char* at = asset_arg(t);
             if constexpr (std::string_view(at) == "Scene")
             {
-                out << "    // AssetRef<Scene> \"" << nm << "\" - deferred (non-cacheable, loaded on-demand via Get())\n";
+                out << "    // AssetRef<Scene> \"" << nm
+                    << "\" - deferred (non-cacheable, loaded on-demand via Get())\n";
             }
             else
             {
-                out
-                    << "    if (auto* _loaded_" << nm << " = self." << nm << ".Get()) {\n"
-                    << "        const char* _frameGuid = self." << nm << ".source.empty() ? self." << nm << ".guid.c_str() : self." << nm << ".source.c_str();\n"
+                out << "    if (auto* _loaded_" << nm << " = self." << nm << ".Get()) {\n"
+                    << "        const char* _frameGuid = self." << nm << ".source.empty() ? self." << nm
+                    << ".guid.c_str() : self." << nm << ".source.c_str();\n"
                     << "        self.OnAssetRefResolved(\"" << nm << "\", _loaded_" << nm << ", _frameGuid);\n"
                     << "    }\n";
             }
@@ -1192,9 +1610,9 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     }
     out << "}\n\n";
 
-    out << SEP << "\n// ::Deki::ObjectRef ID Remapping (all platforms)\n"
-        << SEP << "\n\n";
-    out << "static void " << G << "_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {\n";
+    out << SEP << "\n// ::Deki::ObjectRef ID Remapping (all platforms)\n" << SEP << "\n\n";
+    out << "static void " << G
+        << "_RemapObjectRefs(::Deki::Component* _c, const std::unordered_map<uint32_t, uint32_t>& idRemap) {\n";
     out << "    " << QN << "& self = *static_cast<" << QN << "*>(_c); (void)self; (void)idRemap;\n";
     template for (constexpr auto mem : std::define_static_array(deser_members(COMP)))
     {
@@ -1203,7 +1621,8 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
         if constexpr (is_objectref(t))
         {
             out << "    { auto it = idRemap.find(self." << nm << ".id);\n"
-                << "      if (it != idRemap.end()) { self." << nm << ".id = it->second; self." << nm << ".resolved = nullptr; } }\n";
+                << "      if (it != idRemap.end()) { self." << nm << ".id = it->second; self." << nm
+                << ".resolved = nullptr; } }\n";
         }
         else if constexpr (is_vector(t) && is_objectref(vec_elem(t)))
         {
@@ -1219,8 +1638,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     // Flattened: own + inherited DEKI_EXPORT fields, each offset computed in THIS
     // class so no base-subobject layout is assumed. 8 bytes per entry, the only
     // reflection a device build gets. See ::Deki::FieldRef / ComponentRegistry.
-    out << SEP << "\n// Compact Field Table (all platforms)\n"
-        << SEP << "\n\n";
+    out << SEP << "\n// Compact Field Table (all platforms)\n" << SEP << "\n\n";
     int fieldCount = 0;
     if constexpr (!deser_members(COMP).empty())
     {
@@ -1247,9 +1665,13 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
                 << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
             if constexpr (is_enum(t))
+            {
                 out << sizeof(typename[:bare(t):]);
+            }
             else
+            {
                 out << "0";
+            }
             out << " },\n";
             // DEKI_RENAMED_FROM: the old key resolves to the same field on device
             // (FindField by name for ::Deki::PropertyRef, FSM and tween targets).
@@ -1260,17 +1682,20 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                     << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
                     << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
                 if constexpr (is_enum(t))
+                {
                     out << sizeof(typename[:bare(t):]);
+                }
                 else
+                {
                     out << "0";
+                }
                 out << " },  // DEKI_RENAMED_FROM\n";
             }
         }
         out << "};\n\n";
     }
 
-    out << SEP << "\n// Editor Reflection (editor-only)\n"
-        << SEP << "\n\n";
+    out << SEP << "\n// Editor Reflection (editor-only)\n" << SEP << "\n\n";
     out << "#ifdef DEKI_EDITOR\n\n";
 
     bool anyEnum = false;
@@ -1297,7 +1722,10 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 {
                     if constexpr (!is_sentinel(m::identifier_of(e)))
                     {
-                        if (!f) out << ", ";
+                        if (!f)
+                        {
+                            out << ", ";
+                        }
                         f = false;
                         out << "\"" << m::identifier_of(e) << "\"";
                     }
@@ -1315,7 +1743,10 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 {
                     if constexpr (!is_sentinel(m::identifier_of(e)))
                     {
-                        if (!f) out << ", ";
+                        if (!f)
+                        {
+                            out << ", ";
+                        }
                         f = false;
                         constexpr int32_t ev = static_cast<int32_t>([:e:]);
                         out << ev;
@@ -1326,7 +1757,10 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
             }
         }
     }
-    if (anyEnum) out << "\n";
+    if (anyEnum)
+    {
+        out << "\n";
+    }
 
     int count = 0;
     if constexpr (!own_exported(COMP).empty())
@@ -1337,45 +1771,67 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
         template for (constexpr auto mem : std::define_static_array(own_exported(COMP)))
         {
             constexpr m::info t = m::type_of(mem);
-            if (!first) out << ",";
+            if (!first)
+            {
+                out << ",";
+            }
             first = false;
             ++count;
-            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::"
-                << deki_type_name(t) << ", offsetof(" << QN << ", " << m::identifier_of(mem) << "),\n";
+            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << deki_type_name(t)
+                << ", offsetof(" << QN << ", " << m::identifier_of(mem) << "),\n";
             out << "      ";
             constexpr const char* tip = tooltip_of(mem);
             if constexpr (tip != nullptr)
+            {
                 out << "\"" << tip << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             if constexpr (has_range(mem))
             {
                 constexpr const char* rlo = range_lo(mem);
                 constexpr const char* rhi = range_hi(mem);
                 if (is_simple_num(rlo) && is_simple_num(rhi))
+                {
                     out << py_float(rlo) << ", " << py_float(rhi) << ", true, ";
+                }
                 else
+                {
                     out << "0, 0, false, ";
+                }
             }
             else
+            {
                 out << "0, 0, false, ";
+            }
             if constexpr (is_enum(t))
             {
                 constexpr size_t esz = sizeof(typename[:bare(t):]);
-                out << "nullptr, s_" << enum_name(t) << "_Values, " << enum_count(t) << ", " << esz << ", ::Deki::PropertyType::Int32, ";
+                out << "nullptr, s_" << enum_name(t) << "_Values, " << enum_count(t) << ", " << esz
+                    << ", ::Deki::PropertyType::Int32, ";
             }
             else
             {
                 constexpr const char* a = asset_arg(t);
                 if constexpr (a != nullptr)
+                {
                     out << "\"" << a << "\", ";
+                }
                 else
+                {
                     out << "nullptr, ";
+                }
                 out << "nullptr, 0, 0, ::Deki::PropertyType::";
                 if constexpr (is_vector(t))
+                {
                     out << elem_type_name(vec_elem(t));
+                }
                 else
+                {
                     out << "Int32";
+                }
                 out << ", ";
             }
             constexpr const char* vp = vw_prop(mem);
@@ -1385,36 +1841,59 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 out << "\"" << vp << "\", " << vis.min << ", " << vis.mask << ", ";
             }
             else
+            {
                 out << "nullptr, 0, 0, ";
+            }
             // componentRefType: the ::Deki::ObjectRef<T> argument, or DEKI_OBJECT_NAME's filter
             // on a String field (the editor's object-name picker; "" = any object).
             constexpr const char* cr = component_ref(t);
             constexpr const char* on = objname_of(mem);
             if constexpr (cr != nullptr)
+            {
                 out << "\"" << cr << "\", ";
+            }
             else if constexpr (on != nullptr)
+            {
                 out << "\"" << on << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             out << "false, false, nullptr, ";                       // isMultiline, triggersAssetRegen, assetRegenType
             out << (range_slider(mem) ? "true" : "false") << ", ";  // useSlider
             constexpr const char* grp = group_of(mem);
-            if constexpr (grp != nullptr) curGroup = grp;  // sticky
+            if constexpr (grp != nullptr)
+            {
+                curGroup = grp;  // sticky
+            }
             if (!curGroup.empty())
+            {
                 out << "\"" << curGroup << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             constexpr const char* tog = toggle_of(mem);
             if constexpr (tog != nullptr)
+            {
                 out << "\"" << tog << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             out << "::Deki::PhysicalUnit::";
             constexpr const char* u = unit_of(mem);
             if constexpr (u != nullptr)
+            {
                 out << u;
+            }
             else
+            {
                 out << "None";
+            }
             // The trailing optionals, in struct order: valueOfProperty,
             // renamedFrom, enumInts. They are positional, so emitting a later
             // one means spelling out every earlier one even where it is absent.
@@ -1422,15 +1901,25 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
             constexpr const char* rfm = renamed_from_of(mem);  // DEKI_RENAMED_FROM
             constexpr bool wantsEnumInts = is_enum(t);
             if constexpr (vo != nullptr)
+            {
                 out << ", \"" << vo << "\"";
+            }
             else if constexpr (rfm != nullptr || wantsEnumInts)
+            {
                 out << ", nullptr";
+            }
             if constexpr (rfm != nullptr)
+            {
                 out << ", \"" << rfm << "\"";
+            }
             else if constexpr (wantsEnumInts)
+            {
                 out << ", nullptr";
+            }
             if constexpr (wantsEnumInts)
+            {
                 out << ", s_" << enum_name(t) << "_Ints";
+            }
             out << " }";
         }
         out << "\n};\n\n";
@@ -1442,8 +1931,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     // expression), so it exists before any static initializer runs and nothing
     // can observe it half-built.
     constexpr bool ABSTRACT = m::is_abstract_type(COMP);
-    out << SEP << "\n// Type entry (all platforms)\n"
-        << SEP << "\n\n";
+    out << SEP << "\n// Type entry (all platforms)\n" << SEP << "\n\n";
     out << "const ::Deki::ComponentTypeInfo " << G << "_TypeInfo = {\n";
     out << "    ::Deki::TypeName<" << QN << ">(),\n";
     out << "    ::Deki::TypeShortName<" << QN << ">(),\n";
@@ -1452,16 +1940,25 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     out << "    " << (ABSTRACT ? "true" : "false") << ",   // isAbstract\n";
     out << "    " << (declares_update_rec(COMP) ? "true" : "false") << ",   // declaresUpdate\n";
     if constexpr (ABSTRACT)
+    {
         out << "    nullptr,\n";
+    }
     else
-        out << "    []() -> ::Deki::Component* { auto* c = new " << QN << "(); c->SetTypeInfo(&" << G << "_TypeInfo); return c; },\n";
+    {
+        out << "    []() -> ::Deki::Component* { auto* c = new " << QN << "(); c->SetTypeInfo(&" << G
+            << "_TypeInfo); return c; },\n";
+    }
     out << "    &" << G << "_Deserialize,\n";
     out << "    &" << G << "_ResolveObjectRefs,\n";
     out << "    &" << G << "_RemapObjectRefs,\n";
     if (fieldCount > 0)
+    {
         out << "    " << G << "_Fields, " << fieldCount << ",\n";
+    }
     else
+    {
         out << "    nullptr, 0,\n";
+    }
     out << "#ifdef DEKI_EDITOR\n    &" << G << "_Meta\n#else\n    nullptr\n#endif\n";
     out << "};\n\n";
 
@@ -1474,7 +1971,10 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
         bool firstName = true;
         for (const char* formerName : kFormerNames)
         {
-            if (!firstName) out << ", ";
+            if (!firstName)
+            {
+                out << ", ";
+            }
             firstName = false;
             out << "\"" << formerName << "\"";
         }
@@ -1485,14 +1985,22 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     out << "    ::Deki::TypeName<" << QN << ">(),  // serializedName: the scene file's \"type\"\n";
     constexpr const char* category = tag_text_of(COMP, TAG_CATEGORY);
     if constexpr (category != nullptr)
+    {
         out << "    \"" << category << "\",  // DEKI_CATEGORY\n";
+    }
     else
+    {
         out << "    \"" << (pluginBuild ? "Game" : "General") << "\",  // category (default)\n";
+    }
     constexpr const char* description = tag_text_of(COMP, TAG_DESCRIPTION);
     if constexpr (description != nullptr)
+    {
         out << "    \"" << description << "\",  // DEKI_DESCRIPTION\n";
+    }
     else
+    {
         out << "    \"\",      // description (none declared)\n";
+    }
     out << "    ::Deki::TypeId<" << QN << ">(),\n";
     out << "    ::Deki::TypeId<" << BQN << ">(),\n";
     out << "    " << (ABSTRACT ? "true" : "false") << ",   // isAbstract\n";
@@ -1501,31 +2009,51 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     out << "    false,   // platformSceneOnly\n";
     out << "    sizeof(" << QN << "),\n";
     if constexpr (ABSTRACT)
+    {
         out << "    nullptr,\n";
+    }
     else
+    {
         out << "    " << G << "_TypeInfo.create,\n";
+    }
     if (count > 0)
+    {
         out << "    " << G << "_Props, " << count << ",\n";
+    }
     else
+    {
         out << "    nullptr, 0,\n";
+    }
     out << "    {}, false,\n";
     constexpr const char* displayName = tag_text_of(COMP, TAG_DISPLAY_NAME);
     if constexpr (displayName != nullptr)
+    {
         out << "    \"" << displayName << "\",   // displayNameOverride (DEKI_DISPLAY_NAME)\n";
+    }
     else
+    {
         out << "    nullptr,   // displayNameOverride\n";
+    }
     constexpr const char* section = tag_text_of(COMP, TAG_SETTINGS_SECTION);
     if constexpr (section != nullptr)
+    {
         out << "    \"" << section << "\",   // settingsSection (DEKI_SETTINGS_SECTION)\n";
+    }
     else
+    {
         out << "    nullptr,   // settingsSection\n";
+    }
     out << "    &" << G << "_TypeInfo,\n";
     // Newest first: the qualified names a saved scene may still carry for this
     // class, so the loader can resolve a type it no longer recognises.
     if constexpr (kFormerNames.size() > 0)
+    {
         out << "    " << G << "_FormerNames, " << kFormerNames.size() << "   // DEKI_FORMER_NAME\n";
+    }
     else
+    {
         out << "    nullptr, 0   // formerNames (none declared)\n";
+    }
     out << "};\n";
     out << "#endif // DEKI_EDITOR\n\n";
 }
@@ -1544,7 +2072,9 @@ void emit_msgpack_case(std::ostream& out)
     if constexpr (rf != nullptr)
     {
         if constexpr (std::string_view(rf) == std::string_view(nm))
+        {
             out << "#error DEKI_RENAMED_FROM on " << nm << " names its current identifier\n";
+        }
         // Stacked label: the old key falls into the same case body as the new one.
         out << "            case ::Deki::HashString(\"" << rf << "\"):  // DEKI_RENAMED_FROM\n";
     }
@@ -1559,7 +2089,8 @@ void emit_msgpack_case(std::ostream& out)
                 << "                    obj." << nm << ".clear();\n"
                 << "                    for (uint32_t i = 0; i < arrSize; i++) {\n"
                 << "                        const char* s; uint16_t len;\n"
-                << "                        if (parser.ReadString(s, len)) obj." << nm << ".push_back(std::string(s, len));\n"
+                << "                        if (parser.ReadString(s, len)) obj." << nm
+                << ".push_back(std::string(s, len));\n"
                 << "                    }\n"
                 << "                }\n"
                 << "                break;\n"
@@ -1571,7 +2102,8 @@ void emit_msgpack_case(std::ostream& out)
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    obj." << nm << ".clear();\n"
-                << "                    for (uint32_t i = 0; i < arrSize; i++) { float v; if (parser.ReadFloat(v)) obj." << nm << ".push_back(v); }\n"
+                << "                    for (uint32_t i = 0; i < arrSize; i++) { float v; if (parser.ReadFloat(v)) obj."
+                << nm << ".push_back(v); }\n"
                 << "                }\n"
                 << "                break;\n"
                 << "            }\n";
@@ -1598,7 +2130,8 @@ void emit_msgpack_case(std::ostream& out)
                 << "                uint32_t arrSize;\n"
                 << "                if (parser.ReadArraySize(arrSize)) {\n"
                 << "                    obj." << nm << ".clear();\n"
-                << "                    for (uint32_t i = 0; i < arrSize; i++) { int32_t v; if (parser.ReadInt(v)) obj." << nm << ".push_back(static_cast<decltype(obj." << nm << ")::value_type>(v)); }\n"
+                << "                    for (uint32_t i = 0; i < arrSize; i++) { int32_t v; if (parser.ReadInt(v)) obj."
+                << nm << ".push_back(static_cast<decltype(obj." << nm << ")::value_type>(v)); }\n"
                 << "                }\n"
                 << "                break;\n"
                 << "            }\n";
@@ -1616,7 +2149,9 @@ void emit_msgpack_case(std::ostream& out)
     {
         out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
             << "                uint32_t arrSize;\n"
-            << "                if (parser.ReadArraySize(arrSize) && arrSize >= 3) { float x, y, z; if (parser.ReadFloat(x) && parser.ReadFloat(y) && parser.ReadFloat(z)) obj." << nm << " = ::Deki::Vector3(x, y, z); }\n"
+            << "                if (parser.ReadArraySize(arrSize) && arrSize >= 3) { float x, y, z; if "
+               "(parser.ReadFloat(x) && parser.ReadFloat(y) && parser.ReadFloat(z)) obj."
+            << nm << " = ::Deki::Vector3(x, y, z); }\n"
             << "                break;\n"
             << "            }\n";
     }
@@ -1624,33 +2159,42 @@ void emit_msgpack_case(std::ostream& out)
     {
         out << "            case ::Deki::HashString(\"" << nm << "\"): {\n"
             << "                uint32_t arrSize;\n"
-            << "                if (parser.ReadArraySize(arrSize) && arrSize >= 2) { float x, y; if (parser.ReadFloat(x) && parser.ReadFloat(y)) obj." << nm << " = ::Deki::Vector2(x, y); }\n"
+            << "                if (parser.ReadArraySize(arrSize) && arrSize >= 2) { float x, y; if "
+               "(parser.ReadFloat(x) && parser.ReadFloat(y)) obj."
+            << nm << " = ::Deki::Vector2(x, y); }\n"
             << "                break;\n"
             << "            }\n";
     }
     else if constexpr (is_color(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm
+            << " = Deki::Color::FromRGBA8888(static_cast<uint32_t>(v)); break; }\n";
     }
     else if constexpr (is_enum(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm << " = static_cast<decltype(obj." << nm << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm
+            << " = static_cast<decltype(obj." << nm << ")>(v); break; }\n";
     }
     else if constexpr (is_float(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) obj." << nm << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) obj." << nm
+            << " = v; break; }\n";
     }
     else if constexpr (is_double(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) obj." << nm << " = static_cast<double>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { float v; if (parser.ReadFloat(v)) obj." << nm
+            << " = static_cast<double>(v); break; }\n";
     }
     else if constexpr (is_bool(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) obj." << nm << " = v; break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { bool v; if (parser.ReadBool(v)) obj." << nm
+            << " = v; break; }\n";
     }
     else if constexpr (is_string(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << " = std::string(s, len); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm
+            << "\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm
+            << " = std::string(s, len); break; }\n";
     }
     else if constexpr (is_assetref(t))
     {
@@ -1662,8 +2206,12 @@ void emit_msgpack_case(std::ostream& out)
             << "                        const char* k; uint16_t kLen;\n"
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        switch (::Deki::HashStringLen(k, kLen)) {\n"
-            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << ".guid = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << ".source = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"guid\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) obj."
+            << nm << ".guid = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"source\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) obj."
+            << nm << ".source = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
@@ -1673,7 +2221,8 @@ void emit_msgpack_case(std::ostream& out)
     }
     else if constexpr (is_noderef(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm << ".targetId = static_cast<uint32_t>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm
+            << ".targetId = static_cast<uint32_t>(v); break; }\n";
     }
     else if constexpr (is_propertyref(t))
     {
@@ -1685,9 +2234,15 @@ void emit_msgpack_case(std::ostream& out)
             << "                        const char* k; uint16_t kLen;\n"
             << "                        if (!parser.ReadString(k, kLen)) break;\n"
             << "                        switch (::Deki::HashStringLen(k, kLen)) {\n"
-            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << ".object = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << ".component = std::string(s, len); break; }\n"
-            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if (parser.ReadString(s, len)) obj." << nm << ".field = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"object\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) obj."
+            << nm << ".object = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"component\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) obj."
+            << nm << ".component = std::string(s, len); break; }\n"
+            << "                            case ::Deki::HashString(\"field\"): { const char* s; uint16_t len; if "
+               "(parser.ReadString(s, len)) obj."
+            << nm << ".field = std::string(s, len); break; }\n"
             << "                            default: parser.SkipValue(); break;\n"
             << "                        }\n"
             << "                    }\n"
@@ -1698,7 +2253,8 @@ void emit_msgpack_case(std::ostream& out)
     }
     else if constexpr (is_int_like(t))
     {
-        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm << " = static_cast<decltype(obj." << nm << ")>(v); break; }\n";
+        out << "            case ::Deki::HashString(\"" << nm << "\"): { int32_t v; if (parser.ReadInt(v)) obj." << nm
+            << " = static_cast<decltype(obj." << nm << ")>(v); break; }\n";
     }
 }
 
@@ -1773,8 +2329,7 @@ void emit_serializable(std::ostream& out, std::string_view srcdir)
     // Runtime MessagePack deserialization (all platforms) - mirrors the component
     // Deserialize path so data assets load on desktop AND embedded with no
     // hand-written mpack. Full field-name keys (hashed), same as components.
-    out << SEP << "\n// Runtime MessagePack Deserialization (all platforms)\n"
-        << SEP << "\n\n";
+    out << SEP << "\n// Runtime MessagePack Deserialization (all platforms)\n" << SEP << "\n\n";
     out << "#include <deki/SceneMessagePack.h>\n";
     out << "#include <deki/Scene.h>\n\n";
     // Reopened so this definition lands in the same namespace as the
@@ -1782,8 +2337,12 @@ void emit_serializable(std::ostream& out, std::string_view srcdir)
     // global scope instead leaves two overloads and ADL cannot choose.
     constexpr const char* NS = enclosing_namespace(S);
     const bool namespaced = NS[0] != 0;
-    if (namespaced) out << "namespace " << NS << " {\n";
-    out << "bool DeserializeMsgPack(" << BARE << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
+    if (namespaced)
+    {
+        out << "namespace " << NS << " {\n";
+    }
+    out << "bool DeserializeMsgPack(" << BARE
+        << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
     out << "    for (uint32_t i = 0; i < mapSize; i++) {\n";
     out << "        const char* key; uint16_t keyLen;\n";
     out << "        if (!parser.ReadString(key, keyLen)) return false;\n";
@@ -1796,13 +2355,15 @@ void emit_serializable(std::ostream& out, std::string_view srcdir)
     {
         out << "        uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);\n";
         out << "        switch (keyHash) {\n";
-        template for (constexpr auto mem : std::define_static_array(ser_members(S)))
-            emit_msgpack_case<mem>(out);
+        template for (constexpr auto mem : std::define_static_array(ser_members(S))) emit_msgpack_case<mem>(out);
         out << "            default: parser.SkipValue(); break;\n";
         out << "        }\n";
     }
     out << "    }\n    return true;\n}\n";
-    if (namespaced) out << "}  // namespace " << NS << "\n";
+    if (namespaced)
+    {
+        out << "}  // namespace " << NS << "\n";
+    }
 }
 template <m::info S>
 void emit_serializable_header(std::ostream& out, std::string_view srcdir)
@@ -1821,7 +2382,8 @@ void emit_serializable_header(std::ostream& out, std::string_view srcdir)
     // declared in <deki/reflection/Property.h> instead, which every header
     // carrying DEKI_EXPORT already includes.
 
-    out << "bool DeserializeMsgPack(" << NM << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);\n";
+    out << "bool DeserializeMsgPack(" << NM
+        << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);\n";
 }
 
 // ---- DEKI_NODE struct: node reflection + runtime deserialize + self-registration ----
@@ -1856,13 +2418,16 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     // node meta would name a different type from the one in the header.
     constexpr const char* NS = enclosing_namespace(NODE);
     const bool namespaced = NS[0] != 0;
-    if (namespaced) out << "namespace " << NS << " {\n\n";
+    if (namespaced)
+    {
+        out << "namespace " << NS << " {\n\n";
+    }
 
     // Runtime MessagePack deserialization (all platforms): a free function so the
     // NodeFactory thunk and the generic NodeGraph loader can call it.
-    out << SEP << "\n// Runtime MessagePack Deserialization (all platforms)\n"
-        << SEP << "\n\n";
-    out << "bool DeserializeMsgPack(" << CLS << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
+    out << SEP << "\n// Runtime MessagePack Deserialization (all platforms)\n" << SEP << "\n\n";
+    out << "bool DeserializeMsgPack(" << CLS
+        << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize) {\n";
     out << "    for (uint32_t i = 0; i < mapSize; i++) {\n";
     out << "        const char* key; uint16_t keyLen;\n";
     out << "        if (!parser.ReadString(key, keyLen)) return false;\n";
@@ -1875,8 +2440,7 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     {
         out << "        uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);\n";
         out << "        switch (keyHash) {\n";
-        template for (constexpr auto mem : std::define_static_array(own_exported(NODE)))
-            emit_msgpack_case<mem>(out);
+        template for (constexpr auto mem : std::define_static_array(own_exported(NODE))) emit_msgpack_case<mem>(out);
         out << "            default: parser.SkipValue(); break;\n";
         out << "        }\n";
     }
@@ -1906,7 +2470,10 @@ void emit_node(std::ostream& out, std::string_view srcdir)
                 {
                     if constexpr (!is_sentinel(m::identifier_of(e)))
                     {
-                        if (!f) out << ", ";
+                        if (!f)
+                        {
+                            out << ", ";
+                        }
                         f = false;
                         out << "\"" << m::identifier_of(e) << "\"";
                     }
@@ -1924,7 +2491,10 @@ void emit_node(std::ostream& out, std::string_view srcdir)
                 {
                     if constexpr (!is_sentinel(m::identifier_of(e)))
                     {
-                        if (!f) out << ", ";
+                        if (!f)
+                        {
+                            out << ", ";
+                        }
                         f = false;
                         constexpr int32_t ev = static_cast<int32_t>([:e:]);
                         out << ev;
@@ -1935,7 +2505,10 @@ void emit_node(std::ostream& out, std::string_view srcdir)
             }
         }
     }
-    if (anyEnum) out << "\n";
+    if (anyEnum)
+    {
+        out << "\n";
+    }
 
     out << "const ::Deki::PropertyInfo* " << CLS << "::GetProperties() {\n";
     int count = 0;
@@ -1951,45 +2524,67 @@ void emit_node(std::ostream& out, std::string_view srcdir)
         template for (constexpr auto mem : std::define_static_array(own_exported(NODE)))
         {
             constexpr m::info t = m::type_of(mem);
-            if (!first) out << ",";
+            if (!first)
+            {
+                out << ",";
+            }
             first = false;
             ++count;
-            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::"
-                << deki_type_name(t) << ", offsetof(" << CLS << ", " << m::identifier_of(mem) << "),\n";
+            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << deki_type_name(t)
+                << ", offsetof(" << CLS << ", " << m::identifier_of(mem) << "),\n";
             out << "      ";
             constexpr const char* tip = tooltip_of(mem);
             if constexpr (tip != nullptr)
+            {
                 out << "\"" << tip << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             if constexpr (has_range(mem))
             {
                 constexpr const char* rlo = range_lo(mem);
                 constexpr const char* rhi = range_hi(mem);
                 if (is_simple_num(rlo) && is_simple_num(rhi))
+                {
                     out << py_float(rlo) << ", " << py_float(rhi) << ", true, ";
+                }
                 else
+                {
                     out << "0, 0, false, ";
+                }
             }
             else
+            {
                 out << "0, 0, false, ";
+            }
             if constexpr (is_enum(t))
             {
                 constexpr size_t esz = sizeof(typename[:bare(t):]);
-                out << "nullptr, s_" << enum_name(t) << "_Values, " << enum_count(t) << ", " << esz << ", ::Deki::PropertyType::Int32, ";
+                out << "nullptr, s_" << enum_name(t) << "_Values, " << enum_count(t) << ", " << esz
+                    << ", ::Deki::PropertyType::Int32, ";
             }
             else
             {
                 constexpr const char* a = asset_arg(t);
                 if constexpr (a != nullptr)
+                {
                     out << "\"" << a << "\", ";
+                }
                 else
+                {
                     out << "nullptr, ";
+                }
                 out << "nullptr, 0, 0, ::Deki::PropertyType::";
                 if constexpr (is_vector(t))
+                {
                     out << elem_type_name(vec_elem(t));
+                }
                 else
+                {
                     out << "Int32";
+                }
                 out << ", ";
             }
             constexpr const char* vp = vw_prop(mem);
@@ -1999,46 +2594,75 @@ void emit_node(std::ostream& out, std::string_view srcdir)
                 out << "\"" << vp << "\", " << vis.min << ", " << vis.mask << ", ";
             }
             else
+            {
                 out << "nullptr, 0, 0, ";
+            }
             // componentRefType: the ::Deki::ObjectRef<T> argument, or DEKI_OBJECT_NAME's filter
             // on a String field (the editor's object-name picker; "" = any object).
             constexpr const char* cr = component_ref(t);
             constexpr const char* on = objname_of(mem);
             if constexpr (cr != nullptr)
+            {
                 out << "\"" << cr << "\", ";
+            }
             else if constexpr (on != nullptr)
+            {
                 out << "\"" << on << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             out << "false, false, nullptr, ";                       // isMultiline, triggersAssetRegen, assetRegenType
             out << (range_slider(mem) ? "true" : "false") << ", ";  // useSlider
             constexpr const char* grp = group_of(mem);
-            if constexpr (grp != nullptr) curGroup = grp;  // sticky
+            if constexpr (grp != nullptr)
+            {
+                curGroup = grp;  // sticky
+            }
             if (!curGroup.empty())
+            {
                 out << "\"" << curGroup << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             constexpr const char* tog = toggle_of(mem);
             if constexpr (tog != nullptr)
+            {
                 out << "\"" << tog << "\", ";
+            }
             else
+            {
                 out << "nullptr, ";
+            }
             out << "::Deki::PhysicalUnit::";
             constexpr const char* u = unit_of(mem);
             if constexpr (u != nullptr)
+            {
                 out << u;
+            }
             else
+            {
                 out << "None";
+            }
             // Trailing optionals are positional. This path has no
             // DEKI_RENAMED_FROM, so reaching enumInts pads that slot too.
             constexpr const char* vo = valueof_of(mem);  // DEKI_VALUE_OF
             constexpr bool wantsEnumInts = is_enum(t);
             if constexpr (vo != nullptr)
+            {
                 out << ", \"" << vo << "\"";
+            }
             else if constexpr (wantsEnumInts)
+            {
                 out << ", nullptr";
+            }
             if constexpr (wantsEnumInts)
+            {
                 out << ", nullptr, s_" << enum_name(t) << "_Ints";
+            }
             out << " }";
         }
         out << "\n    };\n    return props;\n}\n\n";
@@ -2054,54 +2678,98 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     out << "        " << CLS << "::GetPropertyCount(),\n";
     // Pins are optional (DEKI_NODE_INPUTS / DEKI_NODE_OUTPUTS / DEKI_NODE_DYNAMIC_OUTPUTS).
     if constexpr (has_static_member(NODE, "StaticInputPins"))
+    {
         out << "        " << CLS << "::StaticInputPins, " << CLS << "::StaticInputPinCount,\n";
+    }
     else
+    {
         out << "        nullptr, 0,   // no input pins\n";
+    }
     if constexpr (has_static_member(NODE, "StaticOutputPins"))
+    {
         out << "        " << CLS << "::StaticOutputPins, " << CLS << "::StaticOutputPinCount,\n";
+    }
     else
+    {
         out << "        nullptr, 0,   // no fixed output pins\n";
+    }
     if constexpr (has_static_member(NODE, "StaticDynamicOutputsProperty"))
+    {
         out << "        " << CLS << "::StaticDynamicOutputsProperty,\n";
+    }
     else
+    {
         out << "        nullptr,   // fixed outputs\n";
+    }
     out << "        []() -> void* { return new " << CLS << "(); },\n";
     out << "        [](void* p) { delete static_cast<" << CLS << "*>(p); },\n";
     out << "        sizeof(" << CLS << "),\n";
     // Trailing fields are APPEND-ONLY (see DekiNodeMeta): displayName, then
     // childCategory, then titleProperty, then permanent.
     if constexpr (has_static_member(NODE, "StaticNodeDisplayName"))
+    {
         out << "        " << CLS << "::StaticNodeDisplayName,\n";
+    }
     else
+    {
         out << "        nullptr,   // displayName (editor derives from name)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeChildCategory"))
+    {
         out << "        " << CLS << "::StaticNodeChildCategory,\n";
+    }
     else
+    {
         out << "        nullptr,   // childCategory (no child stack)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeTitleProperty"))
+    {
         out << "        " << CLS << "::StaticNodeTitleProperty,\n";
+    }
     else
+    {
         out << "        nullptr,   // titleProperty (title = display name)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodePermanent"))
+    {
         out << "        " << CLS << "::StaticNodePermanent,\n";
+    }
     else
+    {
         out << "        false,   // permanent (freely addable/deletable)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeVariables"))
+    {
         out << "        " << CLS << "::StaticNodeVariables,\n";
+    }
     else
+    {
         out << "        false,   // declaresVariables (ordinary child stack)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeSubgraphCategory"))
+    {
         out << "        " << CLS << "::StaticNodeSubgraphCategory,\n";
+    }
     else
+    {
         out << "        nullptr,   // subgraphCategory (no inner graph)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeSubgraphEntry"))
+    {
         out << "        " << CLS << "::StaticNodeSubgraphEntry,\n";
+    }
     else
+    {
         out << "        nullptr,   // subgraphEntry (no seeded entry node)\n";
+    }
     if constexpr (has_static_member(NODE, "StaticNodeDescription"))
+    {
         out << "        " << CLS << "::StaticNodeDescription\n";
+    }
     else
+    {
         out << "        nullptr   // description (add picker shows the type name instead)\n";
+    }
     out << "    };\n    return meta;\n}\n\n";
 
     out << "#endif // DEKI_EDITOR\n\n";
@@ -2112,7 +2780,10 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     out << "#ifdef DEKI_EDITOR\n";
     out << "REGISTER_NODE(" << CLS << ");\n";
     out << "#endif\n";
-    if (namespaced) out << "\n}  // namespace " << NS << "\n";
+    if (namespaced)
+    {
+        out << "\n}  // namespace " << NS << "\n";
+    }
 }
 
 // ---- DEKI_NODE .gen.h stub ----
@@ -2134,7 +2805,8 @@ void emit_node_header(std::ostream& out, std::string_view srcdir)
     // declared in <deki/reflection/Property.h> instead, which every header
     // carrying DEKI_EXPORT already includes.
 
-    out << "bool DeserializeMsgPack(" << CLS << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);\n";
+    out << "bool DeserializeMsgPack(" << CLS
+        << "& obj, ::Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);\n";
 }
 
 // ---- package registration: {Prefix}Registration.gen.cpp ----
@@ -2144,12 +2816,12 @@ void emit_node_header(std::ostream& out, std::string_view srcdir)
 // collects it; only the emitting of per-component bodies is sharded).
 struct CompInfo
 {
-    std::string name;      // unqualified identifier
-    std::string qn;        // qualified name ("Game::Health")
-    std::string stem;      // generated-symbol stem ("Game_Health")
+    std::string name;  // unqualified identifier
+    std::string qn;    // qualified name ("Game::Health")
+    std::string stem;  // generated-symbol stem ("Game_Health")
     bool abstract;
-    bool settings;         // DEKI_SETTINGS_SECTION: a Project Settings section
-    std::string inc;       // header path relative to the package's source dir
+    bool settings;    // DEKI_SETTINGS_SECTION: a Project Settings section
+    std::string inc;  // header path relative to the package's source dir
 };
 inline bool by_name(const CompInfo& a, const CompInfo& b)
 {
@@ -2163,28 +2835,37 @@ inline bool by_name(const CompInfo& a, const CompInfo& b)
 // clearing on hot reload, and a registration from inside the DLL would leave
 // unmarked pointers behind after FreeLibrary.
 inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comps, const std::string& fnName,
-                                   const char* const* adapters, int adapterCount, bool editorRegistries, bool pluginSettings)
+                                   const char* const* adapters, int adapterCount, bool editorRegistries,
+                                   bool pluginSettings)
 {
     std::sort(comps.begin(), comps.end(), by_name);
     out << "#include <deki/reflection/ComponentFactory.h>\n";
     out << "#include <deki/reflection/ComponentRegistry.h>\n";
     if (editorRegistries)
+    {
         out << "#ifdef DEKI_EDITOR\n#include <deki/reflection/SettingsRegistry.h>\n#endif\n";
+    }
     out << "\n";
     for (auto& c : comps)
+    {
         out << "extern const ::Deki::ComponentTypeInfo DekiGen_" << c.stem << "_TypeInfo;\n";
+    }
     if (editorRegistries)
     {
         out << "#ifdef DEKI_EDITOR\n";
         for (auto& c : comps)
+        {
             out << "extern const ::Deki::ComponentMeta DekiGen_" << c.stem << "_Meta;\n";
+        }
         out << "#endif\n";
     }
     if (adapterCount > 0)
     {
         out << "\n// Interface adapter registrations (explicit calls for static-lib builds)\n";
         for (int i = 0; i < adapterCount; ++i)
+        {
             out << "extern void " << adapters[i] << "();\n";
+        }
     }
     out << "\nvoid " << fnName << "() {\n";
     // `done` alone is not enough: a shared library the platform did not really
@@ -2202,8 +2883,10 @@ inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comp
         const std::string first = "DekiGen_" + comps.front().stem;
         out << "    if (done && ::Deki::ComponentFactory::Instance().Find(" << first << "_TypeInfo.typeId)";
         if (editorRegistries)
+        {
             out << "\n#ifdef DEKI_EDITOR\n        && ::Deki::ComponentRegistry::Instance().GetMeta(" << first
                 << "_TypeInfo.typeId)\n#endif\n       ";
+        }
         out << ")\n        return;\n";
     }
     out << "    done = true;\n";
@@ -2211,26 +2894,38 @@ inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comp
     {
         out << "    // Register interface adapters first (stripped by linker in static-lib builds)\n";
         for (int i = 0; i < adapterCount; ++i)
+        {
             out << "    " << adapters[i] << "();\n";
+        }
         out << "\n";
     }
     out << "    auto& factory = ::Deki::ComponentFactory::Instance();\n";
     for (auto& c : comps)
+    {
         out << "    factory.Register(&DekiGen_" << c.stem << "_TypeInfo);\n";
+    }
     out << "\n    // Compact field tables (all platforms - see ::Deki::FieldRef)\n";
     out << "    auto& registry = ::Deki::ComponentRegistry::Instance();\n";
     for (auto& c : comps)
+    {
         out << "    registry.RegisterFields(DekiGen_" << c.stem << "_TypeInfo.typeId, DekiGen_" << c.stem
             << "_TypeInfo.fields, DekiGen_" << c.stem << "_TypeInfo.fieldCount);\n";
+    }
     if (editorRegistries)
     {
         out << "#ifdef DEKI_EDITOR\n";
         for (auto& c : comps)
+        {
             out << "    registry.Register(&DekiGen_" << c.stem << "_Meta);\n";
+        }
         for (auto& c : comps)
+        {
             if (c.settings)
+            {
                 out << "    ::Deki::SettingsRegistry::Instance()." << (pluginSettings ? "RegisterPlugin" : "Register")
                     << "(DekiGen_" << c.stem << "_Meta.settingsSection, &DekiGen_" << c.stem << "_Meta);\n";
+            }
+        }
         out << "#endif\n";
     }
     out << "}\n\n";
@@ -2241,13 +2936,20 @@ inline void emit_meta_accessors(std::ostream& out, std::vector<CompInfo> comps, 
     std::sort(comps.begin(), comps.end(), by_name);
     std::vector<const CompInfo*> concrete;
     for (auto& c : comps)
-        if (!c.abstract) concrete.push_back(&c);
+    {
+        if (!c.abstract)
+        {
+            concrete.push_back(&c);
+        }
+    }
     out << "int " << prefix << "_GetAutoComponentCount() {\n    return " << concrete.size() << ";\n}\n\n";
     out << "#ifdef DEKI_EDITOR\n";
     out << "const ::Deki::ComponentMeta* " << prefix << "_GetAutoComponentMeta(int index) {\n";
     out << "    switch (index) {\n";
     for (size_t i = 0; i < concrete.size(); ++i)
+    {
         out << "        case " << i << ": return &DekiGen_" << concrete[i]->stem << "_Meta;\n";
+    }
     out << "        default: return nullptr;\n";
     out << "    }\n}\n#endif\n";
 }
@@ -2256,7 +2958,12 @@ void emit_registration(std::ostream& out, std::vector<CompInfo> comps, const Cod
 {
     size_t nAbstract = 0;
     for (auto& c : comps)
-        if (c.abstract) ++nAbstract;
+    {
+        if (c.abstract)
+        {
+            ++nAbstract;
+        }
+    }
     out << "// AUTO-GENERATED by the Deki reflection codegen: " << pkg.prefix << " package registration\n";
     out << "// " << (comps.size() - nAbstract) << " concrete + " << nAbstract << " abstract component(s)\n\n";
     emit_registration_body(out, comps, std::string(pkg.prefix) + "_RegisterComponents", pkg.adapters, pkg.adapterCount,
@@ -2276,13 +2983,17 @@ void emit_plugin_registration(std::ostream& out, std::vector<CompInfo> comps, co
     std::sort(comps.begin(), comps.end(), by_name);
     out << "#ifdef DEKI_EDITOR\n";
     for (auto& c : comps)
+    {
         out << "extern const ::Deki::ComponentMeta DekiGen_" << c.stem << "_Meta;\n";
+    }
     out << "#endif\n\n";
     emit_meta_accessors(out, comps, pkg.prefix);
     out << "\n#ifdef DEKI_EDITOR\n";
-    out << "#ifdef _WIN32\n#define DEKI_GEN_PLUGIN_API __declspec(dllexport)\n#else\n#define DEKI_GEN_PLUGIN_API __attribute__((visibility(\"default\")))\n#endif\n";
+    out << "#ifdef _WIN32\n#define DEKI_GEN_PLUGIN_API __declspec(dllexport)\n#else\n#define DEKI_GEN_PLUGIN_API "
+           "__attribute__((visibility(\"default\")))\n#endif\n";
     out << "extern \"C\" {\n";
-    out << "DEKI_GEN_PLUGIN_API int DekiPlugin_GetComponentCount() { return " << pkg.prefix << "_GetAutoComponentCount(); }\n";
+    out << "DEKI_GEN_PLUGIN_API int DekiPlugin_GetComponentCount() { return " << pkg.prefix
+        << "_GetAutoComponentCount(); }\n";
     out << "DEKI_GEN_PLUGIN_API const ::Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index) { return "
         << pkg.prefix << "_GetAutoComponentMeta(index); }\n";
     out << "}\n#endif // DEKI_EDITOR\n";
@@ -2298,7 +3009,8 @@ void emit_core_registration(std::ostream& out, std::vector<CompInfo> comps)
     emit_registration_body(out, comps, "DekiCore_RegisterComponents", nullptr, 0,
                            /*editorRegistries=*/true, /*pluginSettings=*/false);
     out << "#ifdef DEKI_EDITOR\n";
-    out << "namespace {\nstruct DekiCoreRegistrar {\n    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }\n} s_DekiCoreRegistrar;\n}  // namespace\n";
+    out << "namespace {\nstruct DekiCoreRegistrar {\n    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }\n} "
+           "s_DekiCoreRegistrar;\n}  // namespace\n";
     out << "#else\n";
     out << "// Static initializers are unreliable on ESP-IDF, so the runtime registers explicitly.\n";
     out << "extern \"C\" void deki_register_core_components(void)\n{\n    DekiCore_RegisterComponents();\n}\n";
@@ -2324,9 +3036,7 @@ int main()
     // the package's complete list and is written by shard 0.
     std::vector<std::vector<CompInfo>> comps(kPackageCount);
     auto out_path = [](int mi, const char* nm, const char* ext)
-    {
-        return std::string(kPackages[mi].outdir) + "/" + nm + ext;
-    };
+    { return std::string(kPackages[mi].outdir) + "/" + nm + ext; };
 
     // One MERGED .gen.cpp per package instead of one per type. The .gen.h stubs stay
     // per type because hand-written headers include them BY NAME; nothing includes a
@@ -2347,7 +3057,12 @@ int main()
     // emit renders into a buffer here and hands the finished text to write_if_changed.
     std::ostringstream buf;
     auto take = [&buf]
-    { std::string s = buf.str(); buf.str({}); buf.clear(); return s; };
+    {
+        std::string s = buf.str();
+        buf.str({});
+        buf.clear();
+        return s;
+    };
 #if defined(DEKI_NO_REGISTRATION)
     constexpr bool kPluginBuild = true;
 #else
@@ -2382,7 +3097,8 @@ int main()
         {
             constexpr int mi = package_index_of(tg);
             constexpr auto loc = m::source_location_of(tg);
-            mergedCpp[mi] += std::string("#error \"component marker at ") + loc.file_name() + ":" + std::to_string(loc.line()) +
+            mergedCpp[mi] += std::string("#error \"component marker at ") + loc.file_name() + ":" +
+                             std::to_string(loc.line()) +
                              " is not followed by a component class in that file (DEKI_CATEGORY / DEKI_DESCRIPTION / "
                              "DEKI_DISPLAY_NAME / DEKI_SETTINGS_SECTION go right above the class)\"\n";
         }
@@ -2390,7 +3106,8 @@ int main()
     // DEKI_SERIALIZABLE structs: .gen.cpp (Serialize/Deserialize) and .gen.h (stub)
     template for (constexpr auto s : kScope)
     {
-        if constexpr (m::is_type(s) && m::is_class_type(s) && m::is_complete_type(s) && is_serializable(s) && package_index_of(s) != -1 && in_shard(m::identifier_of(s)))
+        if constexpr (m::is_type(s) && m::is_class_type(s) && m::is_complete_type(s) && is_serializable(s) &&
+                      package_index_of(s) != -1 && in_shard(m::identifier_of(s)))
         {
             constexpr int mi = package_index_of(s);
             static_assert(mi >= 0, "reflection codegen: source path matches two package tags in this work unit");
@@ -2429,19 +3146,31 @@ int main()
     auto is_generator_output = [](const std::string& fn)
     {
         auto ends_with = [&fn](std::string_view s)
+        { return fn.size() >= s.size() && fn.compare(fn.size() - s.size(), s.size(), s) == 0; };
+        if (ends_with("Registration.gen.cpp"))
         {
-            return fn.size() >= s.size() && fn.compare(fn.size() - s.size(), s.size(), s) == 0;
-        };
-        if (ends_with("Registration.gen.cpp")) return true;  // {Prefix}/Core/AllComponent
-        if (fn == "AllPackageInit.gen.cpp") return true;
+            return true;  // {Prefix}/Core/AllComponent
+        }
+        if (fn == "AllPackageInit.gen.cpp")
+        {
+            return true;
+        }
         // {Prefix}Reflection<shard>.gen.cpp, any shard (another shard owns the others).
         const std::string tail = ".gen.cpp";
-        if (!ends_with(tail)) return false;
+        if (!ends_with(tail))
+        {
+            return false;
+        }
         std::string stem = fn.substr(0, fn.size() - tail.size());
         size_t digits = 0;
         while (digits < stem.size() && std::isdigit(static_cast<unsigned char>(stem[stem.size() - 1 - digits])))
+        {
             ++digits;
-        if (digits == 0) return false;
+        }
+        if (digits == 0)
+        {
+            return false;
+        }
         stem.resize(stem.size() - digits);
         return stem.size() >= 10 && stem.compare(stem.size() - 10, 10, "Reflection") == 0;
     };
@@ -2450,11 +3179,23 @@ int main()
         std::error_code ec;
         for (const auto& e : std::filesystem::directory_iterator(kPackages[i].outdir, ec))
         {
-            if (ec) break;
-            if (!e.is_regular_file()) continue;
+            if (ec)
+            {
+                break;
+            }
+            if (!e.is_regular_file())
+            {
+                continue;
+            }
             const std::string fn = e.path().filename().string();
-            if (fn.size() < 9 || fn.compare(fn.size() - 8, 8, ".gen.cpp") != 0) continue;
-            if (is_generator_output(fn)) continue;
+            if (fn.size() < 9 || fn.compare(fn.size() - 8, 8, ".gen.cpp") != 0)
+            {
+                continue;
+            }
+            if (is_generator_output(fn))
+            {
+                continue;
+            }
             write_if_changed(e.path().string(),
                              "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n"
                              "// Orphaned: this type's reflection now lives in the package's merged\n"
@@ -2475,7 +3216,9 @@ int main()
              << "// Every reflected type of this package, in one translation unit.\n"
              << "// Per-type stubs are the .gen.h files next to this one.\n\n";
         if (mergedCpp[i].empty())
+        {
             head << "// (no reflected types in this work unit)\n";
+        }
 
         // The field tables take offsetof() of components, which have a vtable
         // and so are not standard-layout. That is "conditionally supported"
@@ -2487,12 +3230,14 @@ int main()
         // whichever hand-written file follows in the same translation unit.
         std::string body = mergedCpp[i];
         if (!body.empty())
+        {
             body = "#if defined(__GNUC__)\n#pragma GCC diagnostic push\n"
                    "#pragma GCC diagnostic ignored \"-Winvalid-offsetof\"\n#endif\n\n" +
                    body + "\n#if defined(__GNUC__)\n#pragma GCC diagnostic pop\n#endif\n";
+        }
 
-        write_if_changed(std::string(kPackages[i].outdir) + "/" + kPackages[i].prefix +
-                             "Reflection" + std::to_string(DEKI_CODEGEN_SHARD_INDEX) + ".gen.cpp",
+        write_if_changed(std::string(kPackages[i].outdir) + "/" + kPackages[i].prefix + "Reflection" +
+                             std::to_string(DEKI_CODEGEN_SHARD_INDEX) + ".gen.cpp",
                          head.str() + body);
     }
 
@@ -2528,7 +3273,7 @@ int main()
         }
     }
     std::cout << "generated " << nc << " components, " << ns << " serializable structs, " << nn << " nodes"
-              << " (shard " << DEKI_CODEGEN_SHARD_INDEX << "/" << DEKI_CODEGEN_SHARD_COUNT
-              << ", " << kPackageCount << " package(s))\n";
+              << " (shard " << DEKI_CODEGEN_SHARD_INDEX << "/" << DEKI_CODEGEN_SHARD_COUNT << ", " << kPackageCount
+              << " package(s))\n";
     return 0;
 }

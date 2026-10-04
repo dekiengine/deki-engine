@@ -49,8 +49,7 @@ public:
      * the boundary type-checked and lets a compiler flag a format nobody
      * handles.
      */
-    virtual void Present(const uint8_t* framebuffer, int width, int height,
-                         ColorFormat format) = 0;
+    virtual void Present(const uint8_t* framebuffer, int width, int height, ColorFormat format) = 0;
 
     /**
      * @brief True when PresentRegions() pushes only the rectangles it is given.
@@ -70,8 +69,8 @@ public:
      * holds, an LCD does nothing. The default pushes the whole frame, so a
      * display that does not override this behaves exactly as before.
      */
-    virtual void PresentRegions(const uint8_t* framebuffer, int width, int height,
-                                ColorFormat format, const Rect* rects, int32_t count)
+    virtual void PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
+                                const Rect* rects, int32_t count)
     {
         (void)rects;
         (void)count;
@@ -111,10 +110,10 @@ public:
     // ---- UI / Overlay support for UI systems ----
 
     virtual void* CreateUIOverlay(int32_t width, int32_t height) = 0;
-    virtual bool UpdateUIOverlay(
-        void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint32_t* pixels) = 0;
-    virtual bool UpdateUIOverlayRGB565A8(
-        void* overlay, int32_t x, int32_t y, int32_t width, int32_t height, const uint8_t* rgb565a8_pixels) = 0;
+    virtual bool UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                                 const uint32_t* pixels) = 0;
+    virtual bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
+                                         const uint8_t* rgb565a8_pixels) = 0;
     virtual void DestroyUIOverlay(void* overlay) = 0;
     virtual void SetActiveUIOverlay(void* overlay) = 0;
     virtual void ClearActiveUIOverlay() = 0;

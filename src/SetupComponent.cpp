@@ -10,7 +10,6 @@ namespace Deki
 
 #ifdef DEKI_EDITOR
 
-
 namespace
 {
 struct Entry
@@ -32,7 +31,9 @@ std::vector<Entry>& Entries()
 void SetupComponent::RegisterEditorAutoFactory(EditorAutoFactory factory, SetupPhase phase)
 {
     if (factory)
+    {
         Entries().push_back({ factory, phase, false });
+    }
 }
 
 void SetupComponent::ClearEditorAutoFactories()
@@ -48,11 +49,15 @@ void SetupComponent::RunEditorAutoSetups(SetupPhase phase)
     for (auto& e : Entries())
     {
         if (e.fired || e.phase != phase)
+        {
             continue;
+        }
         SetupComponent* c = e.factory();
         e.fired = true;
         if (!c)
+        {
             continue;
+        }
         DEKI_LOG_INTERNAL("[SetupComponent] auto-setup: %s", c->GetSetupName());
         c->Setup([](bool /*ok*/) { /* per-component error already logged */ });
         // Driver lives via static s_Driver in the component's .cpp; the

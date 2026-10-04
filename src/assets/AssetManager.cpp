@@ -53,7 +53,10 @@ void AssetManager::RegisterLoader(const char* typeName, AssetLoadFn loader, Asse
 
 bool AssetManager::HasLoader(const char* typeName)
 {
-    if (!typeName) return false;
+    if (!typeName)
+    {
+        return false;
+    }
     return GetLoaderRegistry().count(typeName) > 0;
 }
 
@@ -64,10 +67,10 @@ AssetManager* AssetManager::Get()
         s_Instance = new AssetManager();
         // Register Scene loader (core type) - NOT cacheable: each load returns
         // a fresh instance because scenes are mutable scene graphs, not shared data
-        RegisterLoader("Scene", [](const char* p) -> void*
-                       { return Scene::LoadInternal(p); }, [](void* a)
-                       { delete static_cast<Scene*>(a); }, [](const uint8_t* d, size_t s) -> void*
-                       { return Scene::LoadFromMemory(d, s); }, false);
+        RegisterLoader(
+            "Scene", [](const char* p) -> void* { return Scene::LoadInternal(p); },
+            [](void* a) { delete static_cast<Scene*>(a); },
+            [](const uint8_t* d, size_t s) -> void* { return Scene::LoadFromMemory(d, s); }, false);
     }
     return s_Instance;
 }
@@ -102,7 +105,9 @@ void AssetManager::UnloadAll()
         for (void* asset : assets)
         {
             if (unloader)
+            {
                 unloader(asset);
+            }
         }
     }
     m_LoadedAssets.clear();
@@ -116,16 +121,22 @@ void AssetManager::InvalidateAsset(const char* typeName, const std::string& guid
 {
     std::string path = LookupPath(guid);
     if (path.empty())
+    {
         return;
+    }
 
     std::string type(typeName);
     auto cacheIt = m_TypeCache.find(type);
     if (cacheIt == m_TypeCache.end())
+    {
         return;
+    }
 
     auto it = cacheIt->second.find(path);
     if (it == cacheIt->second.end())
+    {
         return;
+    }
 
     void* asset = it->second;
     cacheIt->second.erase(it);
@@ -134,13 +145,17 @@ void AssetManager::InvalidateAsset(const char* typeName, const std::string& guid
     auto& assets = m_LoadedAssets[type];
     auto vecIt = std::find(assets.begin(), assets.end(), asset);
     if (vecIt != assets.end())
+    {
         assets.erase(vecIt);
+    }
 
     // Free via registered unloader
     auto& registry = GetLoaderRegistry();
     auto regIt = registry.find(type);
     if (regIt != registry.end() && regIt->second.unloader)
+    {
         regIt->second.unloader(asset);
+    }
 
     ++m_Epoch;
 
@@ -161,7 +176,9 @@ void AssetManager::ClearCache(const char* typeName)
         for (void* asset : assetsIt->second)
         {
             if (unloader)
+            {
                 unloader(asset);
+            }
         }
         assetsIt->second.clear();
     }
@@ -188,15 +205,23 @@ void AssetManager::RegisterGuid(const std::string& guid, const std::string& path
 void AssetManager::RemoveGuid(const std::string& guid)
 {
     if (m_GuidToPath.erase(guid) > 0)
+    {
         ++m_Epoch;  // refs holding this GUID must re-resolve (to null)
+    }
 }
 
 bool AssetManager::ReadWholeFile(const std::string& path, std::vector<uint8_t>& out)
 {
     IFileSystem* fs = FileSystem::GetFileSystemForPath(path.c_str());
-    if (!fs) return false;
+    if (!fs)
+    {
+        return false;
+    }
     IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::READ_BINARY);
-    if (!file) return false;
+    if (!file)
+    {
+        return false;
+    }
     const long size = fs->GetFileSize(file);
     bool ok = false;
     if (size > 0)
@@ -205,27 +230,43 @@ bool AssetManager::ReadWholeFile(const std::string& path, std::vector<uint8_t>& 
         ok = fs->ReadFile(file, out.data(), out.size()) == out.size();
     }
     fs->CloseFile(file);
-    if (!ok) out.clear();
+    if (!ok)
+    {
+        out.clear();
+    }
     return ok;
 }
 
 bool AssetManager::ReadWholeFile(const std::string& path, Buffer<uint8_t>& out, Memory::Region region)
 {
     IFileSystem* fs = FileSystem::GetFileSystemForPath(path.c_str());
-    if (!fs) return false;
+    if (!fs)
+    {
+        return false;
+    }
     IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::READ_BINARY);
-    if (!file) return false;
+    if (!file)
+    {
+        return false;
+    }
     const long size = fs->GetFileSize(file);
     bool ok = false;
     if (size > 0)
     {
         if (!out.Allocate(static_cast<size_t>(size), region))
+        {
             DEKI_LOG_ERROR("AssetManager: no room to read %s (%ld bytes)", path.c_str(), size);
+        }
         else
+        {
             ok = fs->ReadFile(file, out.Data(), out.Count()) == out.Count();
+        }
     }
     fs->CloseFile(file);
-    if (!ok) out.Reset();
+    if (!ok)
+    {
+        out.Reset();
+    }
     return ok;
 }
 
@@ -290,8 +331,8 @@ std::string AssetManager::LookupGuidByKey(const std::string& key) const
     {
         uint32_t hash = AssetLookupTable::HashString(key.c_str());
         const char* foundGuid = AssetLookupTable::Lookup(hash);
-        DEKI_LOG_INTERNAL("AssetManager::LookupGuidByKey: Binary lookup hash=0x%08X, found=%s",
-                          hash, foundGuid ? foundGuid : "(null)");
+        DEKI_LOG_INTERNAL("AssetManager::LookupGuidByKey: Binary lookup hash=0x%08X, found=%s", hash,
+                          foundGuid ? foundGuid : "(null)");
         if (foundGuid)
         {
             return foundGuid;
@@ -402,7 +443,9 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     // Skip loading when asset system isn't ready (e.g., during scene compilation
     // inside ImportAllAssets, before filesystem and cache directory are set up)
     if (!IsReady())
+    {
         return nullptr;
+    }
 
     std::string path = LookupPath(guid);
     if (path.empty())
@@ -468,7 +511,8 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
             {
                 m_ByteCache[path] = std::move(bytes);
                 auto& cached = m_ByteCache[path];
-                DEKI_LOG_INTERNAL("AssetManager: Pinned %s bytes in RAM (%zu bytes): %s", assetType, cached.Count(), path.c_str());
+                DEKI_LOG_INTERNAL("AssetManager: Pinned %s bytes in RAM (%zu bytes): %s", assetType, cached.Count(),
+                                  path.c_str());
                 void* asset = regIt->second.memLoader(cached.Data(), cached.Count());
                 if (asset)
                 {
@@ -496,7 +540,9 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
             {
                 void* asset = LoadFromMemory(guid, assetType, packAsset->ptr, packAsset->size);
                 if (asset)
+                {
                     return asset;
+                }
             }
         }
     }
@@ -511,7 +557,9 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     if (IFileSystem* fs = FileSystem::GetFileSystemForPath(path.c_str()))
     {
         if (!fs->FileExists(path.c_str()))
+        {
             return nullptr;
+        }
     }
 
     // Load via registered loader (from filesystem)
@@ -534,16 +582,20 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
     return asset;
 }
 
-void* AssetManager::LoadFromMemory(const std::string& guid, const char* assetType,
-                                   const uint8_t* data, size_t size)
+void* AssetManager::LoadFromMemory(const std::string& guid, const char* assetType, const uint8_t* data, size_t size)
 {
-    if (!data || size == 0 || !assetType) return nullptr;
+    if (!data || size == 0 || !assetType)
+    {
+        return nullptr;
+    }
 
     std::string type(assetType);
     auto& registry = GetLoaderRegistry();
     auto it = registry.find(type);
     if (it == registry.end() || !it->second.memLoader)
+    {
         return nullptr;
+    }
 
     bool cacheable = it->second.cacheable;
 
@@ -568,17 +620,26 @@ bool AssetManager::IsTypeCacheable(const char* typeName) const
 {
     auto& registry = GetLoaderRegistry();
     auto it = registry.find(std::string(typeName));
-    if (it == registry.end()) return true;  // Unknown types default to cacheable
+    if (it == registry.end())
+    {
+        return true;  // Unknown types default to cacheable
+    }
     return it->second.cacheable;
 }
 
 void AssetManager::ReleaseAssetTracking(const char* typeName, void* asset)
 {
-    if (!asset) return;
+    if (!asset)
+    {
+        return;
+    }
 
     std::string type(typeName);
     auto it = m_LoadedAssets.find(type);
-    if (it == m_LoadedAssets.end()) return;
+    if (it == m_LoadedAssets.end())
+    {
+        return;
+    }
 
     auto& vec = it->second;
     auto vecIt = std::find(vec.begin(), vec.end(), asset);

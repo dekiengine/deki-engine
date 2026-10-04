@@ -7,7 +7,6 @@
 namespace Deki
 {
 
-
 class ITimeProvider;
 
 /**

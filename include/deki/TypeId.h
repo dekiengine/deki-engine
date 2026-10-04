@@ -104,9 +104,13 @@ constexpr std::string_view TypeNameOf()
     s.remove_suffix(detail::TypeNameProbe::suffix);
     // MSVC spells class types with their class-key.
     if (detail::StartsWith(s, "class "))
+    {
         s.remove_prefix(6);
+    }
     else if (detail::StartsWith(s, "struct "))
+    {
         s.remove_prefix(7);
+    }
     return s;
 }
 

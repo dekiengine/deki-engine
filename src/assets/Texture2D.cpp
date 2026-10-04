@@ -13,9 +13,15 @@ namespace Deki
 {
 
 Texture2D::Texture2D()
-: data(nullptr), width(0), height(0), format(Texture2D::TextureFormat::RGB565), hasTransparency(false), hasAlpha(false)
+    : data(nullptr),
+      width(0),
+      height(0),
+      format(Texture2D::TextureFormat::RGB565),
+      hasTransparency(false),
+      hasAlpha(false)
 #ifdef DEKI_EDITOR
-, allocatedWithBackend(false)
+      ,
+      allocatedWithBackend(false)
 #endif
 {
 }
@@ -54,7 +60,8 @@ Texture2D* Texture2D::Load(const char* file_path)
     }
 
     Deki::IFileSystem* fs = Deki::FileSystem::GetFileSystemForPath(file_path);
-    if (!fs) {
+    if (!fs)
+    {
         DEKI_LOG_INTERNAL("FileSystem not initialized for path: %s", file_path);
         return nullptr;
     }
@@ -106,8 +113,7 @@ Texture2D* Texture2D::Load(const char* file_path)
     }
 
     // Read pixel data
-    uint8_t* pixel_data = (uint8_t*)Deki::Memory::Allocate(
-        header.dataSize, Deki::Memory::External);
+    uint8_t* pixel_data = (uint8_t*)Deki::Memory::Allocate(header.dataSize, Deki::Memory::External);
 
     if (!pixel_data)
     {
@@ -140,11 +146,8 @@ Texture2D* Texture2D::Load(const char* file_path)
     // Pixel data is now owned by texture
     texture->data = pixel_data;
 
-    DEKI_LOG_INTERNAL("Loaded texture: %s (%dx%d, %s)",
-              file_path,
-              texture->width,
-              texture->height,
-              GetFormatName(texture->format));
+    DEKI_LOG_INTERNAL("Loaded texture: %s (%dx%d, %s)", file_path, texture->width, texture->height,
+                      GetFormatName(texture->format));
 
     return texture;
 }
@@ -171,18 +174,12 @@ uint32_t Texture2D::GetBytesPerPixel(Texture2D::TextureFormat format)
 {
     switch (format)
     {
-        case Texture2D::TextureFormat::RGB888:
-            return 3;
-        case Texture2D::TextureFormat::RGBA8888:
-            return 4;
-        case Texture2D::TextureFormat::RGB565:
-            return 2;
-        case Texture2D::TextureFormat::RGB565A8:
-            return 3;
-        case Texture2D::TextureFormat::ALPHA8:
-            return 1;
-        default:
-            return 0;
+        case Texture2D::TextureFormat::RGB888: return 3;
+        case Texture2D::TextureFormat::RGBA8888: return 4;
+        case Texture2D::TextureFormat::RGB565: return 2;
+        case Texture2D::TextureFormat::RGB565A8: return 3;
+        case Texture2D::TextureFormat::ALPHA8: return 1;
+        default: return 0;
     }
 }
 
@@ -190,18 +187,12 @@ const char* Texture2D::GetFormatName(Texture2D::TextureFormat format)
 {
     switch (format)
     {
-        case Texture2D::TextureFormat::RGB888:
-            return "RGB888";
-        case Texture2D::TextureFormat::RGBA8888:
-            return "RGBA8888";
-        case Texture2D::TextureFormat::RGB565:
-            return "RGB565";
-        case Texture2D::TextureFormat::RGB565A8:
-            return "RGB565A8";
-        case Texture2D::TextureFormat::ALPHA8:
-            return "ALPHA8";
-        default:
-            return "Unknown";
+        case Texture2D::TextureFormat::RGB888: return "RGB888";
+        case Texture2D::TextureFormat::RGBA8888: return "RGBA8888";
+        case Texture2D::TextureFormat::RGB565: return "RGB565";
+        case Texture2D::TextureFormat::RGB565A8: return "RGB565A8";
+        case Texture2D::TextureFormat::ALPHA8: return "ALPHA8";
+        default: return "Unknown";
     }
 }
 

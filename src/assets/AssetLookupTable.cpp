@@ -16,7 +16,9 @@ uint32_t AssetLookupTable::s_Count = 0;
 bool AssetLookupTable::Load(const uint8_t* data, size_t size)
 {
     if (!data || size < 4)
+    {
         return false;
+    }
 
     // Read entry count. memcpy rather than a cast: `data` comes from a file
     // buffer with no alignment guarantee, and an unaligned uint32 load faults
@@ -31,8 +33,7 @@ bool AssetLookupTable::Load(const uint8_t* data, size_t size)
     // desktop but wrapped on the 32-bit ESP32 target, where size_t is
     // also 32 bits - a crafted count produced a small product, the check
     // passed, and Lookup then binary-searched far past the buffer.
-    const uint64_t expectedSize =
-        4ull + static_cast<uint64_t>(count) * sizeof(Entry);
+    const uint64_t expectedSize = 4ull + static_cast<uint64_t>(count) * sizeof(Entry);
     if (static_cast<uint64_t>(size) < expectedSize)
     {
         s_Data = nullptr;
@@ -72,7 +73,9 @@ void AssetLookupTable::Unload()
 const char* AssetLookupTable::Lookup(uint32_t hash)
 {
     if (!s_Data || s_Count == 0)
+    {
         return nullptr;
+    }
 
     // Binary search
     const Entry* entries = reinterpret_cast<const Entry*>(s_Data);
@@ -142,13 +145,17 @@ uint32_t AssetLookupTable::HashString(const char* str)
 bool AssetLookupTable::ContainsGuid(const char* guid)
 {
     if (!s_Data || s_Count == 0 || !guid)
+    {
         return false;
+    }
 
     const Entry* entries = reinterpret_cast<const Entry*>(s_Data);
     for (uint32_t i = 0; i < s_Count; i++)
     {
         if (std::strcmp(entries[i].guid, guid) == 0)
+        {
             return true;
+        }
     }
 
     return false;

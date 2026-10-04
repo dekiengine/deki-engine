@@ -62,8 +62,12 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     // paths that can log every frame.
     const char* display_name = file ? file : "";
     for (const char* p = display_name; *p; ++p)
+    {
         if (*p == '/' || *p == '\\')
+        {
             display_name = p + 1;
+        }
+    }
 
     // Call callback if registered (for editor console integration)
     if (s_LogCallback)
@@ -117,8 +121,7 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     // it, the escape lands at the start of whatever is written next, which
     // is invisible on a terminal but prefixes the following line wherever
     // stdout and stderr are combined into one stream.
-    fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, level_text, arrow, display_name, line, arrow,
-            buffer, reset);
+    fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, level_text, arrow, display_name, line, arrow, buffer, reset);
 }
 
 }  // namespace Deki

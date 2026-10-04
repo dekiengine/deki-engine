@@ -71,11 +71,11 @@ public:
     // World ↔ screen conversion. World is in meters; both sides are float
     // to preserve sub-pixel precision. Renderers decide whether to snap to
     // integer pixels at draw.
-    virtual void ScreenToWorld(float screenX, float screenY, int bufferWidth, int bufferHeight,
-                               float& worldX, float& worldY) const = 0;
+    virtual void ScreenToWorld(float screenX, float screenY, int bufferWidth, int bufferHeight, float& worldX,
+                               float& worldY) const = 0;
 
-    virtual void WorldToScreen(float worldX, float worldY, int bufferWidth, int bufferHeight,
-                               float& screenX, float& screenY) const = 0;
+    virtual void WorldToScreen(float worldX, float worldY, int bufferWidth, int bufferHeight, float& screenX,
+                               float& screenY) const = 0;
 
     // Clear color (RGB)
     virtual void GetClearColor(uint8_t& r, uint8_t& g, uint8_t& b) const = 0;

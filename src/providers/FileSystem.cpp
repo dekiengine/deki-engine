@@ -159,7 +159,9 @@ IFileSystem* FileSystem::GetFileSystemForPath(const char* path)
     for (const auto& entry : s_RegisteredFilesystems)
     {
         if (strncmp(path, entry.prefix.c_str(), entry.prefix.size()) == 0)
+        {
             return entry.fs;
+        }
     }
 
     // Non-prefixed paths use default filesystem

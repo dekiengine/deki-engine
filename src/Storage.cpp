@@ -3,7 +3,6 @@
 namespace Deki
 {
 
-
 namespace Storage
 {
 

@@ -4,7 +4,6 @@
 namespace Deki
 {
 
-
 namespace ComponentInterfaceAdapters
 {
 
@@ -44,14 +43,18 @@ InterfaceAdapter Find(uint32_t interfaceId, ComponentType componentType, Compone
     // Try exact type match first
     auto it = reg.find(MakeKey(interfaceId, componentType));
     if (it != reg.end())
+    {
         return it->second;
+    }
 
     // Try base type match (for inherited components)
     if (baseType != 0)
     {
         it = reg.find(MakeKey(interfaceId, baseType));
         if (it != reg.end())
+        {
             return it->second;
+        }
     }
 
     return nullptr;
@@ -59,7 +62,10 @@ InterfaceAdapter Find(uint32_t interfaceId, ComponentType componentType, Compone
 
 void* Query(uint32_t interfaceId, Component* comp)
 {
-    if (!comp) return nullptr;
+    if (!comp)
+    {
+        return nullptr;
+    }
     InterfaceAdapter adapter = Find(interfaceId, comp->GetType(), comp->GetBaseType());
     return adapter ? adapter(comp) : nullptr;
 }

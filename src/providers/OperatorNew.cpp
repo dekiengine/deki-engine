@@ -84,7 +84,9 @@ bool s_Reporting = false;
 void ReportOutOfMemory(std::size_t bytes, const char* what)
 {
     if (s_Reporting)
+    {
         return;
+    }
     s_Reporting = true;
 
     // Both numbers, for the same reason Memory::Allocate reports them: the
@@ -94,8 +96,7 @@ void ReportOutOfMemory(std::size_t bytes, const char* what)
                    "%zu held by containers). A buffer whose size comes from a "
                    "file, a scene or the screen should use Deki::Buffer<T>, "
                    "which returns empty instead of aborting",
-                   what, bytes, Deki::Memory::GetAvailableInternal(),
-                   Deki::Memory::GetRawAllocated());
+                   what, bytes, Deki::Memory::GetAvailableInternal(), Deki::Memory::GetRawAllocated());
 
     s_Reporting = false;
 }
@@ -128,7 +129,9 @@ void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
     void* p = Deki::detail::RawAllocate(size ? size : 1);
     if (!p)
+    {
         ReportOutOfMemory(size, "operator new(nothrow)");
+    }
     return p;  // nullptr, as the caller asked for
 }
 

@@ -87,7 +87,9 @@ private:
     void EnsureWorldTransformValid() const
     {
         if (m_WorldTransformDirty)
+        {
             RecomputeWorldTransform();
+        }
     }
     void RecomputeWorldTransform() const;
 
@@ -161,7 +163,10 @@ public:
         hash *= 16777619u;
         hash ^= seed2;
         hash *= 16777619u;
-        if (hash == 0) hash = 1;
+        if (hash == 0)
+        {
+            hash = 1;
+        }
         return hash;
     }
     const std::string& GetName() const { return name; }
@@ -188,9 +193,13 @@ public:
     void SetPartOfInstance(bool value)
     {
         if (value)
+        {
             m_EditorFlags |= EditorFlag_PartOfInstance;
+        }
         else
+        {
             m_EditorFlags &= static_cast<uint8_t>(~EditorFlag_PartOfInstance);
+        }
     }
     /// Empty when this object is not a scene instance. The reference is valid
     /// until the next SetSourceSceneGuid on this object, or its destruction.
@@ -229,7 +238,6 @@ public:
     /// degrees via DEKI_UNIT(Angle)).
     void SetRotation(float radians);
 
-
     // World transform getters (lazy evaluation - recomputes if dirty)
 
     /// All five world-transform values with one dirty check.
@@ -237,7 +245,7 @@ public:
     {
         EnsureWorldTransformValid();
 #ifdef DEKI_TRANSFORM_3D
-        return { m_WorldX, m_WorldY, m_WorldRotation, m_WorldScaleX, m_WorldScaleY,
+        return { m_WorldX, m_WorldY,         m_WorldRotation,  m_WorldScaleX, m_WorldScaleY,
                  m_WorldZ, m_WorldRotationX, m_WorldRotationY, m_WorldScaleZ };
 #else
         return { m_WorldX, m_WorldY, m_WorldRotation, m_WorldScaleX, m_WorldScaleY };
@@ -330,7 +338,9 @@ public:
         // A hand-written class may attach its own entry in its constructor;
         // otherwise the registered (or fallback) entry for T is used.
         if (!component->GetTypeInfo())
+        {
             component->SetTypeInfo(TypeInfoFor<T>());
+        }
         component->SetOwner(this);
         components.push_back(component);
         return component;
@@ -346,7 +356,8 @@ private:
         components.push_back(component);
     }
 #ifdef DEKI_EDITOR
-    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
+    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName,
+                                                   const std::string& classHint);
     friend int Internal::DetachComponent(Object& object, Component* component);
     friend void Internal::ReattachComponent(Object& object, Component* component, size_t index);
     Component* AddComponent(const std::string& typeName, const std::string& classHint);
@@ -392,7 +403,9 @@ public:
         for (auto* comp : components)
         {
             if (comp->GetType() == typeId)
+            {
                 return comp;
+            }
         }
         return nullptr;
     }
@@ -402,7 +415,9 @@ public:
         for (auto* comp : components)
         {
             if (comp->GetType() == typeId)
+            {
                 return comp;
+            }
         }
         return nullptr;
     }
@@ -433,7 +448,10 @@ public:
     {
         for (auto* comp : components)
         {
-            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>()) return true;
+            if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
+            {
+                return true;
+            }
         }
         return false;
     }
@@ -486,7 +504,10 @@ public:
         for (auto* comp : components)
         {
             void* iface = ComponentInterfaceAdapters::Query(T::InterfaceID, comp);
-            if (iface) return static_cast<T*>(iface);
+            if (iface)
+            {
+                return static_cast<T*>(iface);
+            }
         }
         return nullptr;
     }
@@ -504,31 +525,51 @@ public:
 template <typename Fn>
 inline void VisitSubtree(Object* root, Fn&& fn)
 {
-    if (!root) return;
+    if (!root)
+    {
+        return;
+    }
     fn(root);
     for (Object* child : root->GetChildren())
+    {
         VisitSubtree(child, fn);
+    }
 }
 
 /// Like VisitSubtree, but does not enter inactive objects (nor visit them).
 template <typename Fn>
 inline void VisitActiveSubtree(Object* root, Fn&& fn)
 {
-    if (!root || !root->IsActive()) return;
+    if (!root || !root->IsActive())
+    {
+        return;
+    }
     fn(root);
     for (Object* child : root->GetChildren())
+    {
         VisitActiveSubtree(child, fn);
+    }
 }
 
 /// First object in pre-order for which `pred(Object*)` is true, or null.
 template <typename Pred>
 inline Object* FindInSubtree(Object* root, Pred&& pred)
 {
-    if (!root) return nullptr;
-    if (pred(root)) return root;
+    if (!root)
+    {
+        return nullptr;
+    }
+    if (pred(root))
+    {
+        return root;
+    }
     for (Object* child : root->GetChildren())
+    {
         if (Object* found = FindInSubtree(child, pred))
+        {
             return found;
+        }
+    }
     return nullptr;
 }
 

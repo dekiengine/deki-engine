@@ -131,7 +131,9 @@ void Object::SetSourceSceneGuid(const std::string& guid)
             it->second.sourceSceneGuid.clear();
             // Drop the row entirely once nothing is left in it.
             if (it->second.instanceOverridesJson.empty())
+            {
                 table.erase(it);
+            }
         }
         return;
     }
@@ -157,7 +159,9 @@ void Object::SetInstanceOverridesJson(const std::string& json)
         {
             it->second.instanceOverridesJson.clear();
             if (it->second.sourceSceneGuid.empty())
+            {
                 table.erase(it);
+            }
         }
         return;
     }
@@ -169,16 +173,27 @@ void Object::SetInstanceOverridesJson(const std::string& json)
 void Object::SetId(uint32_t newId)
 {
     id = newId;
-    if (newId >= s_NextId) s_NextId = newId + 1;
+    if (newId >= s_NextId)
+    {
+        s_NextId = newId + 1;
+    }
 }
 
 Object::Object()
-    : id(s_NextId++), name("DekiObject"), active(true), ownerScene(nullptr), parent(nullptr)
+    : id(s_NextId++),
+      name("DekiObject"),
+      active(true),
+      ownerScene(nullptr),
+      parent(nullptr)
 {
 }
 
 Object::Object(const std::string& objectName)
-    : id(s_NextId++), name(objectName), active(true), ownerScene(nullptr), parent(nullptr)
+    : id(s_NextId++),
+      name(objectName),
+      active(true),
+      ownerScene(nullptr),
+      parent(nullptr)
 {
 }
 
@@ -220,7 +235,9 @@ Object::~Object()
 void Object::AddChild(Object* child)
 {
     if (!child || child == this || child->parent == this)
+    {
         return;
+    }
 
     // Remove from previous parent
     if (child->parent)
@@ -245,7 +262,9 @@ void Object::AddChild(Object* child)
 void Object::RemoveChild(Object* child)
 {
     if (!child)
+    {
         return;
+    }
 
     auto it = std::find(children.begin(), children.end(), child);
     if (it != children.end())
@@ -259,11 +278,15 @@ void Object::RemoveChild(Object* child)
 void Object::SetParent(Object* newParent)
 {
     if (newParent == parent)
+    {
         return;
+    }
 
     // Prevent setting self or descendant as parent
     if (newParent && (newParent == this || newParent->IsDescendantOf(this)))
+    {
         return;
+    }
 
     if (newParent)
     {
@@ -286,7 +309,9 @@ void Object::RemoveFromParent()
 void Object::InsertChildAt(Object* child, size_t index)
 {
     if (!child || child == this || child->parent == this)
+    {
         return;
+    }
 
     // Remove from previous parent
     if (child->parent)
@@ -296,7 +321,9 @@ void Object::InsertChildAt(Object* child, size_t index)
 
     // Clamp index to valid range
     if (index > children.size())
+    {
         index = children.size();
+    }
 
     // Insert at position
     children.insert(children.begin() + index, child);
@@ -316,7 +343,9 @@ int Object::GetChildIndex(Object* child) const
 {
     auto it = std::find(children.begin(), children.end(), child);
     if (it != children.end())
+    {
         return static_cast<int>(std::distance(children.begin(), it));
+    }
     return -1;
 }
 
@@ -325,12 +354,16 @@ Object* Object::FindChild(uint32_t childId)
     for (auto* child : children)
     {
         if (child->GetId() == childId)
+        {
             return child;
+        }
 
         // Recursive search
         Object* found = child->FindChild(childId);
         if (found)
+        {
             return found;
+        }
     }
     return nullptr;
 }
@@ -340,12 +373,16 @@ Object* Object::FindChildByName(const std::string& searchName)
     for (auto* child : children)
     {
         if (child->GetName() == searchName)
+        {
             return child;
+        }
 
         // Recursive search
         Object* found = child->FindChildByName(searchName);
         if (found)
+        {
             return found;
+        }
     }
     return nullptr;
 }
@@ -353,13 +390,17 @@ Object* Object::FindChildByName(const std::string& searchName)
 bool Object::IsDescendantOf(Object* ancestor) const
 {
     if (!ancestor)
+    {
         return false;
+    }
 
     Object* current = parent;
     while (current)
     {
         if (current == ancestor)
+        {
             return true;
+        }
         current = current->parent;
     }
     return false;
@@ -371,7 +412,9 @@ bool Object::IsActiveInHierarchy() const
     for (const Object* o = this; o; o = o->parent)
     {
         if (!o->active)
+        {
             return false;
+        }
     }
     return true;
 }
@@ -388,9 +431,15 @@ void RotationFromAngles(float rx, float ry, float rz, float m[9])
     const float cx = std::cos(rx), sx = std::sin(rx);
     const float cy = std::cos(ry), sy = std::sin(ry);
     const float cz = std::cos(rz), sz = std::sin(rz);
-    m[0] = cz * cy;  m[1] = cz * sy * sx - sz * cx;  m[2] = cz * sy * cx + sz * sx;
-    m[3] = sz * cy;  m[4] = sz * sy * sx + cz * cx;  m[5] = sz * sy * cx - cz * sx;
-    m[6] = -sy;      m[7] = cy * sx;                 m[8] = cy * cx;
+    m[0] = cz * cy;
+    m[1] = cz * sy * sx - sz * cx;
+    m[2] = cz * sy * cx + sz * sx;
+    m[3] = sz * cy;
+    m[4] = sz * sy * sx + cz * cx;
+    m[5] = sz * sy * cx - cz * sx;
+    m[6] = -sy;
+    m[7] = cy * sx;
+    m[8] = cy * cx;
 }
 
 // The angles back out of a matrix RotationFromAngles built.
@@ -414,8 +463,12 @@ void AnglesFromRotation(const float m[9], float& rx, float& ry, float& rz)
 void Multiply(const float a[9], const float b[9], float out[9])
 {
     for (int r = 0; r < 3; ++r)
+    {
         for (int c = 0; c < 3; ++c)
+        {
             out[r * 3 + c] = a[r * 3 + 0] * b[0 * 3 + c] + a[r * 3 + 1] * b[1 * 3 + c] + a[r * 3 + 2] * b[2 * 3 + c];
+        }
+    }
 }
 
 void Apply(const float m[9], float x, float y, float z, float& ox, float& oy, float& oz)
@@ -522,7 +575,9 @@ void Object::RecomputeWorldTransform() const
 void Object::MarkWorldTransformDirty()
 {
     if (m_WorldTransformDirty)
+    {
         return;  // Already dirty, no need to propagate again
+    }
 
     m_WorldTransformDirty = true;
 
@@ -551,8 +606,8 @@ void Object::SetWorldPosition(float worldX, float worldY)
         if (parent->GetWorldRotationX() != 0.0f || parent->GetWorldRotationY() != 0.0f)
         {
             float rp[9];
-            RotationFromAngles(parent->GetWorldRotationX(), parent->GetWorldRotationY(),
-                               parent->GetWorldRotation(), rp);
+            RotationFromAngles(parent->GetWorldRotationX(), parent->GetWorldRotationY(), parent->GetWorldRotation(),
+                               rp);
             float lx, ly, lz;
             ApplyInverse(rp, worldX - parent->GetWorldX(), worldY - parent->GetWorldY(),
                          GetWorldZ() - parent->GetWorldZ(), lx, ly, lz);
@@ -694,11 +749,15 @@ int Internal::DetachComponent(Object& object, Component* component)
 void Internal::ReattachComponent(Object& object, Component* component, size_t index)
 {
     if (!component)
+    {
         return;
+    }
     component->SetOwner(&object);
     auto& comps = object.components;
     if (index > comps.size())
+    {
         index = comps.size();
+    }
     comps.insert(comps.begin() + static_cast<std::ptrdiff_t>(index), component);
 }
 
@@ -709,7 +768,9 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
     // 0.10 GUID (through the legacy table) are accepted too.
     const ComponentMeta* meta = registry.GetMeta(typeName);
     if (!meta)
+    {
         meta = registry.GetMetaByClassName(typeName);
+    }
     if (!meta && !classHint.empty())
     {
         // The type in the file is not registered but the class name written
@@ -718,10 +779,12 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
         // save writes the current type.
         meta = registry.GetMetaByClassName(classHint);
         if (meta)
+        {
             DEKI_LOG(LogLevel::Warning,
                      "AddComponent: type '%s' is not registered; resolved '%s' by class name "
                      "(object='%s' id=%u). Re-save the scene to write the current type.",
                      typeName.c_str(), classHint.c_str(), name.c_str(), id);
+        }
     }
     if (!meta)
     {
@@ -751,7 +814,9 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
         return nullptr;
     }
     if (!meta->createFunc || meta->isAbstract)
+    {
         return nullptr;
+    }
     Component* comp = meta->createFunc();
     if (comp)
     {

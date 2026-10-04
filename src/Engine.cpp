@@ -57,13 +57,17 @@ void Engine::SetRuntimeMode(bool runtime)
 
 // Engine implementation
 Engine::Engine()
-    : m_Initialized(false), m_IsDirty(true)  // Start dirty to ensure initial render
+    : m_Initialized(false),
+      m_IsDirty(true)  // Start dirty to ensure initial render
       ,
-      m_SceneSystem(new SceneSystem()), m_LifecycleManager(new LifecycleManager()), m_Renderer(nullptr)  // Set by rendering package via SetRenderSystem()
+      m_SceneSystem(new SceneSystem()),
+      m_LifecycleManager(new LifecycleManager()),
+      m_Renderer(nullptr)  // Set by rendering package via SetRenderSystem()
       ,
       m_InputSystem(nullptr)  // Set by input package via SetInputSystem()
       ,
-      m_TargetFps(30), m_Running(false)
+      m_TargetFps(30),
+      m_Running(false)
 {
 }
 
@@ -99,9 +103,9 @@ EngineHost EngineHost::Editor()
     host.initializeProviders = false;  // EditorProjectManager installs memory, filesystem and time
     host.pollInput = false;            // the editor feeds input from its own event loop
     host.tickPower = false;
-    host.renderAndPresent = false;     // play mode calls Render() and presents through EditorDisplay
+    host.renderAndPresent = false;  // play mode calls Render() and presents through EditorDisplay
     host.logFrameStats = false;
-    host.ownsMainLoop = false;         // the editor has its own frame loop
+    host.ownsMainLoop = false;  // the editor has its own frame loop
     return host;
 }
 
@@ -150,7 +154,9 @@ bool Engine::Initialize(const EngineHost& host)
             int32_t fps = ProjectSettings::GetTargetFPS();
             DEKI_LOG_INTERNAL("ProjectSettings targetFPS=%d", fps);
             if (fps > 0)
+            {
                 engine.SetTargetFPS(fps);
+            }
         }
         else
         {
@@ -190,7 +196,10 @@ bool Engine::Initialize(const EngineHost& host)
     if (!engine.m_SceneSystem->Setup())
     {
         DEKI_LOG_ERROR("Failed to setup SceneSystem");
-        if (engine.m_Display) engine.m_Display->Shutdown();
+        if (engine.m_Display)
+        {
+            engine.m_Display->Shutdown();
+        }
         return false;
     }
 
@@ -198,9 +207,10 @@ bool Engine::Initialize(const EngineHost& host)
     // A display installed before initialization (a host that sets it up first)
     // is sized now that the render system exists.
     if (engine.m_Display && engine.m_Renderer)
+    {
         engine.SizeFramebufferToDisplay();
-    DEKI_LOG_INTERNAL("DekiEngine initialized (%s%s)",
-                      host.ownsMainLoop ? "device" : "hosted",
+    }
+    DEKI_LOG_INTERNAL("DekiEngine initialized (%s%s)", host.ownsMainLoop ? "device" : "hosted",
                       engine.m_Renderer ? "" : ", headless");
     return true;
 }
@@ -239,7 +249,9 @@ void Engine::Update(uint32_t deltaTime)
     if (!m_Initialized)
     {
         if (m_Host.ownsMainLoop)
+        {
             DEKI_LOG_ERROR("DekiEngine::Update() called but engine not initialized!");
+        }
         return;
     }
 
@@ -327,9 +339,10 @@ void Engine::Update(uint32_t deltaTime)
             int max_fps_int = (int)m_FpsCounter.GetMaxFPS();
             int frame_time_int = (int)m_FpsCounter.GetAverageFrameTime();
 
-            DEKI_LOG_INTERNAL("Frame %u - FPS: %d.%02d (min: %d, max: %d, time: %d ms) | update: %u render: %u present: %u",
-                              totalFrames, fps_int, fps_frac, min_fps_int, max_fps_int, frame_time_int,
-                              (unsigned)(t1 - t0), (unsigned)(t2 - t1), (unsigned)(t3 - t2));
+            DEKI_LOG_INTERNAL(
+                "Frame %u - FPS: %d.%02d (min: %d, max: %d, time: %d ms) | update: %u render: %u present: %u",
+                totalFrames, fps_int, fps_frac, min_fps_int, max_fps_int, frame_time_int, (unsigned)(t1 - t0),
+                (unsigned)(t2 - t1), (unsigned)(t3 - t2));
         }
     }
 }
@@ -359,7 +372,9 @@ void Engine::Render()
 void Engine::PresentFrame()
 {
     if (!m_Display || !m_Renderer)
+    {
         return;
+    }
 
     const uint8_t* fb = m_Renderer->GetFrameBuffer();
     const int32_t w = m_Renderer->GetScreenWidth();
@@ -378,8 +393,14 @@ void Engine::PresentFrame()
 
 void Engine::RequestFullRefresh()
 {
-    if (m_Renderer) m_Renderer->MarkAllDirty();
-    if (m_Display) m_Display->RequestFullRefresh();
+    if (m_Renderer)
+    {
+        m_Renderer->MarkAllDirty();
+    }
+    if (m_Display)
+    {
+        m_Display->RequestFullRefresh();
+    }
 }
 
 void Engine::RunMainLoop()
@@ -452,14 +473,18 @@ void Engine::StopMainLoop()
 void Engine::ProcessLifecycle()
 {
     if (!m_SceneSystem)
+    {
         return;
+    }
 
     // Flush deferred scene deletions from previous frame.
     // Safe: no behaviour code is executing at this point.
     m_SceneSystem->FlushPendingDeletions();
 
     if (!m_SceneSystem->HasRootScene())
+    {
         return;
+    }
 
     Scene* activeScene = m_SceneSystem->GetRootScene();
 
@@ -474,8 +499,8 @@ void Engine::ProcessLifecycle()
     uint32_t total = t3 - t0;
     if (total > 5)
     {
-        DEKI_LOG_INTERNAL("[PERF] ProcessLifecycle: InternalAwake=%ums, Awake=%ums, Start=%ums, total=%ums",
-                          t1 - t0, t2 - t1, t3 - t2, total);
+        DEKI_LOG_INTERNAL("[PERF] ProcessLifecycle: InternalAwake=%ums, Awake=%ums, Start=%ums, total=%ums", t1 - t0,
+                          t2 - t1, t3 - t2, total);
     }
 
     // Check if scene changed during Start (e.g., SetRootScene called)
@@ -554,7 +579,9 @@ void Engine::UnregisterUpdate(size_t id)
     // Slots are nulled rather than erased: ids are indices, and the update
     // loop already skips empty entries.
     if (id < m_UpdateCallbacks.size())
+    {
         m_UpdateCallbacks[id] = nullptr;
+    }
 }
 
 void Engine::RunUpdateCallbacks(uint32_t deltaTime)
@@ -621,22 +648,28 @@ void Engine::SetDisplay(IDisplay* display, const std::string& name)
     // Play view's screen - which, skipped here, left the framebuffer at its
     // old size and play refused to start on any other screen.
     if (m_Renderer && m_Display)
+    {
         SizeFramebufferToDisplay();
+    }
     // Whatever the new display shows, it is not this framebuffer yet.
     if (m_Renderer)
+    {
         m_Renderer->MarkAllDirty();
+    }
 }
 
 bool Engine::SizeFramebufferToDisplay()
 {
     if (!m_Renderer || !m_Display)
+    {
         return false;
+    }
     int32_t width = 0, height = 0;
     m_Display->GetDisplaySize(&width, &height);
     if (width <= 0 || height <= 0)
     {
-        DEKI_LOG_ERROR("Display '%s' reports no size (%dx%d); nothing can be rendered",
-                       m_DisplayName.c_str(), (int)width, (int)height);
+        DEKI_LOG_ERROR("Display '%s' reports no size (%dx%d); nothing can be rendered", m_DisplayName.c_str(),
+                       (int)width, (int)height);
         return false;
     }
     const ColorFormat format = m_Display->GetColorFormat();

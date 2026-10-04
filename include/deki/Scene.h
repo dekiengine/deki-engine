@@ -147,14 +147,12 @@ public:
     bool ExpandInstance(Object* instanceObj);
     void CollapseInstance(Object* instanceObj);
     void ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides);
-    void CollectOverrides(const Object* instanceRoot, const Object* obj,
-                          nlohmann::json& overrides) const;
+    void CollectOverrides(const Object* instanceRoot, const Object* obj, nlohmann::json& overrides) const;
     /// CollectOverrides, telling whether there was a source to diff against.
     /// False when the source scene could not be found or loaded (a merge
     /// conflict, saved by a newer editor, missing for a moment): `overrides`
     /// is then left empty, and saving it would drop the instance's overrides.
-    bool TryCollectOverrides(const Object* instanceRoot, const Object* obj,
-                             nlohmann::json& overrides) const;
+    bool TryCollectOverrides(const Object* instanceRoot, const Object* obj, nlohmann::json& overrides) const;
 
     /// Property keys found in a scene file that no component's current metadata
     /// recognises, as {component type name, key}.
@@ -185,8 +183,7 @@ public:
     /// own - as the JSON a scene file holds for it, keyed by reflected name.
     /// The same writer SaveToFile uses, so a value prints exactly as it would
     /// be saved. The docs build reads default values through this.
-    static nlohmann::json ComponentPropertiesToJson(const Component* comp,
-                                                    const ComponentMeta& meta);
+    static nlohmann::json ComponentPropertiesToJson(const Component* comp, const ComponentMeta& meta);
 
     /// ComponentPropertiesToJson for a default-constructed instance of `meta`.
     /// Null when the type is abstract or has no factory.
@@ -217,7 +214,7 @@ private:
     std::string name;
     std::vector<Object*> objects;               // DekiObjects in the scene
     std::vector<Component*> m_ComponentsCache;  // components of active objects, for the lifecycle
-    bool m_ComponentsCacheDirty = true;           // Dirty flag for lazy rebuild
+    bool m_ComponentsCacheDirty = true;         // Dirty flag for lazy rebuild
     uint32_t nextDekiObjectId;
     bool m_IsLoaded = false;
 

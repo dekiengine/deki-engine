@@ -33,7 +33,6 @@ DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the sta
 class PlatformSetupComponent : public Component
 {
 public:
-
     /** @brief SetupComponents to initialize in order (use ObjectRef picker in editor) */
     // Boot scenes written before the camelCase rename spell this key
     // setup_components; without the alias they loaded an empty list and the

@@ -126,8 +126,7 @@ public:
      * @param size Data size in bytes
      * @return Loaded asset or nullptr
      */
-    void* LoadFromMemory(const std::string& guid, const char* assetType,
-                         const uint8_t* data, size_t size);
+    void* LoadFromMemory(const std::string& guid, const char* assetType, const uint8_t* data, size_t size);
 
     /**
      * @brief Unload all loaded assets
@@ -355,13 +354,19 @@ private:
 template <typename T>
 T* AssetManager::Load(const char* path, bool cache)
 {
-    if (!path) return nullptr;
+    if (!path)
+    {
+        return nullptr;
+    }
 
     // Normalize path: backslashes → forward slashes, strip file extension
     std::string normalized(path);
     for (char& c : normalized)
     {
-        if (c == '\\') c = '/';
+        if (c == '\\')
+        {
+            c = '/';
+        }
     }
     auto dot = normalized.rfind('.');
     auto slash = normalized.rfind('/');
@@ -388,37 +393,35 @@ T* AssetManager::Load(const char* path, bool cache)
 // Self-registration macro for new asset types.
 // Usage: REGISTER_ASSET_TYPE(MyAssetClass, MyAssetClass::Load)
 // Requires: MyAssetClass::AssetTypeName and a static Load(const char*) method.
-#define REGISTER_ASSET_TYPE(TypeName, LoadFunc)                     \
-    namespace                                                       \
-    {                                                               \
-    struct _AssetTypeReg_##TypeName                                 \
-    {                                                               \
-        _AssetTypeReg_##TypeName()                                  \
-        {                                                           \
-            Deki::AssetManager::RegisterLoader(                     \
-                TypeName::AssetTypeName,                            \
-                [](const char* p) -> void* { return LoadFunc(p); }, \
-                [](void* a) { delete static_cast<TypeName*>(a); }); \
-        }                                                           \
-    };                                                              \
-    static _AssetTypeReg_##TypeName _assetReg_##TypeName;           \
+#define REGISTER_ASSET_TYPE(TypeName, LoadFunc)                                                                        \
+    namespace                                                                                                          \
+    {                                                                                                                  \
+    struct _AssetTypeReg_##TypeName                                                                                    \
+    {                                                                                                                  \
+        _AssetTypeReg_##TypeName()                                                                                     \
+        {                                                                                                              \
+            Deki::AssetManager::RegisterLoader(                                                                        \
+                TypeName::AssetTypeName, [](const char* p) -> void* { return LoadFunc(p); },                           \
+                [](void* a) { delete static_cast<TypeName*>(a); });                                                    \
+        }                                                                                                              \
+    };                                                                                                                 \
+    static _AssetTypeReg_##TypeName _assetReg_##TypeName;                                                              \
     }
 
 // Variant that also registers a memory loader for pack file support
 // MemLoadFunc signature: TypeName* MemLoadFunc(const uint8_t* data, size_t size)
-#define REGISTER_ASSET_TYPE_WITH_MEMLOAD(TypeName, LoadFunc, MemLoadFunc)               \
-    namespace                                                                           \
-    {                                                                                   \
-    struct _AssetTypeReg_##TypeName                                                     \
-    {                                                                                   \
-        _AssetTypeReg_##TypeName()                                                      \
-        {                                                                               \
-            Deki::AssetManager::RegisterLoader(                                         \
-                TypeName::AssetTypeName,                                                \
-                [](const char* p) -> void* { return LoadFunc(p); },                     \
-                [](void* a) { delete static_cast<TypeName*>(a); },                      \
-                [](const uint8_t* d, size_t s) -> void* { return MemLoadFunc(d, s); }); \
-        }                                                                               \
-    };                                                                                  \
-    static _AssetTypeReg_##TypeName _assetReg_##TypeName;                               \
+#define REGISTER_ASSET_TYPE_WITH_MEMLOAD(TypeName, LoadFunc, MemLoadFunc)                                              \
+    namespace                                                                                                          \
+    {                                                                                                                  \
+    struct _AssetTypeReg_##TypeName                                                                                    \
+    {                                                                                                                  \
+        _AssetTypeReg_##TypeName()                                                                                     \
+        {                                                                                                              \
+            Deki::AssetManager::RegisterLoader(                                                                        \
+                TypeName::AssetTypeName, [](const char* p) -> void* { return LoadFunc(p); },                           \
+                [](void* a) { delete static_cast<TypeName*>(a); },                                                     \
+                [](const uint8_t* d, size_t s) -> void* { return MemLoadFunc(d, s); });                                \
+        }                                                                                                              \
+    };                                                                                                                 \
+    static _AssetTypeReg_##TypeName _assetReg_##TypeName;                                                              \
     }

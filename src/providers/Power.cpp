@@ -3,7 +3,6 @@
 namespace Deki
 {
 
-
 IPower* Power::s_Current = nullptr;
 
 void Power::SetCurrent(IPower* power)

@@ -62,13 +62,15 @@ enum class ColorFormat
 constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
 {
     if (width <= 0 || height <= 0)
+    {
         return 0;
+    }
 
     const size_t pixels = static_cast<size_t>(width) * static_cast<size_t>(height);
     switch (format)
     {
-        case ColorFormat::RGB565:   return pixels * 2;
-        case ColorFormat::RGB888:   return pixels * 3;
+        case ColorFormat::RGB565: return pixels * 2;
+        case ColorFormat::RGB888: return pixels * 3;
         case ColorFormat::ARGB8888: return pixels * 4;
         case ColorFormat::RGB565A8: return pixels * 3;  // RGB565 plane + A8 plane
     }
@@ -126,7 +128,6 @@ using GameUpdateCallback = std::function<void()>;
 // Include utility headers
 
 // Include interface headers
-
 
 // Forward declarations
 class Object;

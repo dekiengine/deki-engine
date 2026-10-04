@@ -5,7 +5,10 @@
 // Forward declaration. The renderer belongs to the deki-rendering package, not
 // the engine: this interface only stores one and hands it back, so its name in
 // that package's namespace is all the engine needs.
-namespace DekiRendering { class DekiRenderer; }
+namespace DekiRendering
+{
+class DekiRenderer;
+}
 
 namespace Deki
 {
@@ -40,8 +43,7 @@ public:
     /**
      * @brief Render a scene to an external buffer (used by edit mode)
      */
-    virtual void RenderToBuffer(Scene* scene, ICamera* camera,
-                                uint8_t* buffer, int32_t width, int32_t height,
+    virtual void RenderToBuffer(Scene* scene, ICamera* camera, uint8_t* buffer, int32_t width, int32_t height,
                                 ColorFormat format) = 0;
 
     /**
@@ -63,7 +65,10 @@ public:
      */
     virtual const Rect* GetPresentRects(int32_t* count) const
     {
-        if (count) *count = -1;
+        if (count)
+        {
+            *count = -1;
+        }
         return nullptr;
     }
 };

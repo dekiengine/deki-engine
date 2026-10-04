@@ -7,7 +7,6 @@
 namespace Deki
 {
 
-
 ComponentRegistry& ComponentRegistry::Instance()
 {
     static ComponentRegistry instance;
@@ -17,10 +16,8 @@ ComponentRegistry& ComponentRegistry::Instance()
 #ifndef DEKI_EDITOR
 void ComponentRegistry::IndexInsertOrReplace(const ComponentMeta* meta)
 {
-    auto it = std::lower_bound(
-        m_TypeIndex.begin(), m_TypeIndex.end(), meta->typeId,
-        [](const TypeIndexEntry& e, uint32_t id)
-        { return e.typeId < id; });
+    auto it = std::lower_bound(m_TypeIndex.begin(), m_TypeIndex.end(), meta->typeId,
+                               [](const TypeIndexEntry& e, uint32_t id) { return e.typeId < id; });
 
     if (it != m_TypeIndex.end() && it->typeId == meta->typeId)
     {
@@ -33,14 +30,20 @@ void ComponentRegistry::IndexInsertOrReplace(const ComponentMeta* meta)
 
 void ComponentRegistry::Register(const ComponentMeta* meta)
 {
-    if (!meta) return;
+    if (!meta)
+    {
+        return;
+    }
 
     // The indexed lookup answers "already registered?" without scanning
     // m_Components, which made startup registration quadratic. The scan is
     // kept only for the rare hot-reload replacement.
     if (const ComponentMeta* existing = GetMeta(meta->typeId))
     {
-        if (existing == meta) return;  // Same pointer, skip
+        if (existing == meta)
+        {
+            return;  // Same pointer, skip
+        }
         // A second registration of the same id is normally a hot reload: the
         // same class, recompiled, arriving from a rebuilt DLL. But a component's
         // id is the hash of its qualified name, so two DIFFERENT classes that
@@ -55,14 +58,13 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
         if (existing->instanceSize != meta->instanceSize || existing->baseTypeId != meta->baseTypeId ||
             existing->propertyCount != meta->propertyCount)
         {
-            DEKI_LOG_ERROR(
-                "ComponentRegistry: two different components are registered as '%s'. Component "
-                "identity is the qualified class name, so this is a name clash, not a reload: "
-                "one is %u bytes with %d propertie(s), the other %u with %d. The one registered "
-                "second wins and the other's instances will be read with the wrong field "
-                "offsets. Rename one of them, or put them in different namespaces.",
-                meta->serializedName ? meta->serializedName : "?", (unsigned)existing->instanceSize,
-                existing->propertyCount, (unsigned)meta->instanceSize, meta->propertyCount);
+            DEKI_LOG_ERROR("ComponentRegistry: two different components are registered as '%s'. Component "
+                           "identity is the qualified class name, so this is a name clash, not a reload: "
+                           "one is %u bytes with %d propertie(s), the other %u with %d. The one registered "
+                           "second wins and the other's instances will be read with the wrong field "
+                           "offsets. Rename one of them, or put them in different namespaces.",
+                           meta->serializedName ? meta->serializedName : "?", (unsigned)existing->instanceSize,
+                           existing->propertyCount, (unsigned)meta->instanceSize, meta->propertyCount);
         }
         for (size_t i = 0; i < m_Components.size(); ++i)
         {
@@ -96,24 +98,29 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
 #ifdef DEKI_EDITOR
 void ComponentRegistry::IndexFormerNames(const ComponentMeta* meta)
 {
-    if (!meta || !meta->formerNames) return;
+    if (!meta || !meta->formerNames)
+    {
+        return;
+    }
     for (int i = 0; i < meta->formerNameCount; ++i)
     {
         const char* former = meta->formerNames[i];
-        if (!former || !*former) continue;
+        if (!former || !*former)
+        {
+            continue;
+        }
         // Two components claiming the same discarded name cannot both be
         // resolved, and picking one silently would load somebody's scene as the
         // wrong component. Keep the first and say so.
         auto existing = m_ByFormerName.find(former);
         if (existing != m_ByFormerName.end() && existing->second != meta)
         {
-            DEKI_LOG_ERROR(
-                "ComponentRegistry: '%s' and '%s' both declare DEKI_FORMER_NAME(\"%s\"). A scene "
-                "written under that name cannot be resolved to either with confidence, so '%s' "
-                "keeps it. Only the class that actually had that name should claim it.",
-                existing->second->serializedName ? existing->second->serializedName : "?",
-                meta->serializedName ? meta->serializedName : "?", former,
-                existing->second->serializedName ? existing->second->serializedName : "?");
+            DEKI_LOG_ERROR("ComponentRegistry: '%s' and '%s' both declare DEKI_FORMER_NAME(\"%s\"). A scene "
+                           "written under that name cannot be resolved to either with confidence, so '%s' "
+                           "keeps it. Only the class that actually had that name should claim it.",
+                           existing->second->serializedName ? existing->second->serializedName : "?",
+                           meta->serializedName ? meta->serializedName : "?", former,
+                           existing->second->serializedName ? existing->second->serializedName : "?");
             continue;
         }
         m_ByFormerName[former] = meta;
@@ -124,7 +131,9 @@ void ComponentRegistry::IndexFormerNames(const ComponentMeta* meta)
         // is not indexed: that id already resolves, correctly, to that class.
         const uint32_t formerId = HashString(former);
         if (GetMeta(formerId) == nullptr)
+        {
             m_ByFormerTypeId[formerId] = meta;
+        }
     }
 }
 #endif
@@ -142,10 +151,8 @@ const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
     // m_Components, which was fine when "a small number of components" meant
     // the engine's own - with packages registering theirs it grew, and GetMeta
     // runs per component per object during scene deserialization.
-    auto it = std::lower_bound(
-        m_TypeIndex.begin(), m_TypeIndex.end(), typeId,
-        [](const TypeIndexEntry& e, uint32_t id)
-        { return e.typeId < id; });
+    auto it = std::lower_bound(m_TypeIndex.begin(), m_TypeIndex.end(), typeId,
+                               [](const TypeIndexEntry& e, uint32_t id) { return e.typeId < id; });
     if (it != m_TypeIndex.end() && it->typeId == typeId)
     {
         return it->meta;
@@ -163,7 +170,10 @@ const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
 // object while a scene loads, and packages have made the type count grow.
 void ComponentRegistry::RegisterFields(uint32_t typeId, const FieldRef* fields, int count)
 {
-    if (!fields || count <= 0) return;
+    if (!fields || count <= 0)
+    {
+        return;
+    }
 
     auto it = std::lower_bound(m_FieldTables.begin(), m_FieldTables.end(), typeId,
                                [](const FieldTable& t, uint32_t id) { return t.typeId < id; });
@@ -197,7 +207,9 @@ const FieldRef* ComponentRegistry::FindField(uint32_t typeId, uint32_t nameHash)
     for (int i = 0; i < count; ++i)
     {
         if (fields[i].nameHash == nameHash)
+        {
             return &fields[i];
+        }
     }
     return nullptr;
 }
@@ -303,7 +315,9 @@ void ComponentRegistry::RegisterPluginComponent(const ComponentMeta* meta)
     {
         m_PluginTypeIds.insert(meta->typeId);
         if (meta->serializedName)
+        {
             m_PluginTypeToName[meta->typeId] = meta->serializedName;
+        }
     }
 }
 
@@ -317,13 +331,17 @@ void ComponentRegistry::ClearPluginComponents()
         m_ByType.erase(typeId);
         auto nameIt = m_PluginTypeToName.find(typeId);
         if (nameIt != m_PluginTypeToName.end())
+        {
             m_ByName.erase(nameIt->second);
+        }
     }
 
     // Rebuild m_Components from m_ByType (avoids pointer dereferences)
     m_Components.clear();
     for (const auto& [typeId, meta] : m_ByType)
+    {
         m_Components.push_back(meta);
+    }
 
     // The alias index points at metas too, and the plugin's are gone. Rebuilt
     // from the survivors, which are by definition still loaded.
@@ -338,12 +356,17 @@ void ComponentRegistry::RebuildFormerNameIndex()
     m_ByFormerName.clear();
     m_ByFormerTypeId.clear();
     for (const ComponentMeta* meta : m_Components)
+    {
         IndexFormerNames(meta);
+    }
 }
 
 const ComponentMeta* ComponentRegistry::GetMetaByFormerTypeId(uint32_t formerTypeId) const
 {
-    if (formerTypeId == 0) return nullptr;
+    if (formerTypeId == 0)
+    {
+        return nullptr;
+    }
     auto it = m_ByFormerTypeId.find(formerTypeId);
     return it != m_ByFormerTypeId.end() ? it->second : nullptr;
 }
@@ -363,7 +386,9 @@ void ComponentRegistry::Unregister(uint32_t typeId)
         {
             m_ByType.erase(typeId);
             if ((*it)->serializedName)
+            {
                 m_ByName.erase((*it)->serializedName);
+            }
             it = m_Components.erase(it);
             rebuildAliases = true;
         }
@@ -373,14 +398,19 @@ void ComponentRegistry::Unregister(uint32_t typeId)
         }
     }
     // The alias index may have pointed at the meta just removed.
-    if (rebuildAliases) RebuildFormerNameIndex();
+    if (rebuildAliases)
+    {
+        RebuildFormerNameIndex();
+    }
 }
 
 void ComponentRegistry::FreezeEngineComponents()
 {
     m_EngineTypeIds.clear();
     for (const auto* meta : m_Components)
+    {
         m_EngineTypeIds.insert(meta->typeId);
+    }
 
     // Snapshot the entire engine-core state so ClearNonEngineComponents can
     // restore from it without dereferencing any pointers (which may be stale

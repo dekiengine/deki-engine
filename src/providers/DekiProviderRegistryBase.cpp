@@ -8,7 +8,6 @@
 namespace Deki
 {
 
-
 namespace
 {
 
@@ -27,7 +26,10 @@ ProviderRegistryBase& ProviderRegistryBase::ForCategory(const char* category)
     auto& map = RegistryMap();
     std::string key = category ? category : "";
     auto it = map.find(key);
-    if (it != map.end()) return *it->second;
+    if (it != map.end())
+    {
+        return *it->second;
+    }
 
     // Allocate a fresh instance for this category. The instances are intentionally
     // leaked at process exit (matches the singleton model of other engine registries).
@@ -40,8 +42,7 @@ void ProviderRegistryBase::Register(IPackage* provider, const char* providerId, 
 {
     if (!provider || !providerId)
     {
-        DEKI_LOG_ERROR("[deki-provider-registry] Register called with null %s",
-                       !provider ? "provider" : "providerId");
+        DEKI_LOG_ERROR("[deki-provider-registry] Register called with null %s", !provider ? "provider" : "providerId");
         return;
     }
 
@@ -84,10 +85,16 @@ void ProviderRegistryBase::Unregister(IPackage* provider)
 
 IPackage* ProviderRegistryBase::GetById(const char* providerId) const
 {
-    if (!providerId) return nullptr;
+    if (!providerId)
+    {
+        return nullptr;
+    }
     for (const auto& e : m_Entries)
     {
-        if (std::strcmp(e.providerId, providerId) == 0) return e.provider;
+        if (std::strcmp(e.providerId, providerId) == 0)
+        {
+            return e.provider;
+        }
     }
     return nullptr;
 }
@@ -104,7 +111,10 @@ int ProviderRegistryBase::GetCount() const
 
 IPackage* ProviderRegistryBase::GetAt(int idx) const
 {
-    if (idx < 0 || idx >= static_cast<int>(m_Entries.size())) return nullptr;
+    if (idx < 0 || idx >= static_cast<int>(m_Entries.size()))
+    {
+        return nullptr;
+    }
     return m_Entries[idx].provider;
 }
 
@@ -115,7 +125,10 @@ void ProviderRegistryBase::ClearPluginProviders()
     {
         if (it->isPlugin)
         {
-            if (it->provider) delete it->provider;
+            if (it->provider)
+            {
+                delete it->provider;
+            }
             it = m_Entries.erase(it);
         }
         else
@@ -129,7 +142,10 @@ void ProviderRegistryBase::ClearAllPluginProviders()
 {
     for (auto& kv : RegistryMap())
     {
-        if (kv.second) kv.second->ClearPluginProviders();
+        if (kv.second)
+        {
+            kv.second->ClearPluginProviders();
+        }
     }
 }
 

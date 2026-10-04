@@ -83,15 +83,15 @@ struct AssetRef : AssetRefBase
             // ready - must NOT retry, or it re-opens the missing file every
             // frame and floods the log. If the asset is later (re)imported,
             // InvalidateAsset bumps the epoch and the check above re-arms us.
-            if (!ptr && !mgr->IsReady()) loadAttempted = false;
+            if (!ptr && !mgr->IsReady())
+            {
+                loadAttempted = false;
+            }
         }
         return static_cast<T*>(ptr);
     }
 
-    const T* Get() const
-    {
-        return const_cast<AssetRef*>(this)->Get();
-    }
+    const T* Get() const { return const_cast<AssetRef*>(this)->Get(); }
 
     // Transparent pointer access
     T* operator->() { return Get(); }

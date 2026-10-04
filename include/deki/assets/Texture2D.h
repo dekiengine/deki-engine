@@ -28,17 +28,17 @@ namespace Deki
 
 class Texture2D
 {
-   public:
+public:
     /**
      * @brief Texture formats supported by V-Engine
      */
     enum class TextureFormat : uint32_t
     {
-        RGB888 = 0,  // 3 bytes per pixel
+        RGB888 = 0,    // 3 bytes per pixel
         RGBA8888 = 1,  // 4 bytes per pixel
-        RGB565 = 2,  // 2 bytes per pixel (for memory constrained scenarios)
+        RGB565 = 2,    // 2 bytes per pixel (for memory constrained scenarios)
         RGB565A8 = 3,  // 3 bytes per pixel (RGB565 + 8-bit alpha)
-        ALPHA8 = 4  // 1 byte per pixel (alpha only)
+        ALPHA8 = 4     // 1 byte per pixel (alpha only)
     };
     /**
      * @brief V-Engine Texture Binary Format Header
@@ -48,23 +48,23 @@ class Texture2D
      */
     struct Header
     {
-        char magic[4];  // Magic number "2DTX"
-        uint32_t version;  // Format version (currently 1)
-        uint32_t width;  // Texture width in pixels
-        uint32_t height;  // Texture height in pixels
-        TextureFormat format;  // Pixel format
-        uint32_t dataSize;  // Size of pixel data in bytes
+        char magic[4];          // Magic number "2DTX"
+        uint32_t version;       // Format version (currently 1)
+        uint32_t width;         // Texture width in pixels
+        uint32_t height;        // Texture height in pixels
+        TextureFormat format;   // Pixel format
+        uint32_t dataSize;      // Size of pixel data in bytes
         uint32_t metadataSize;  // Size of additional metadata (0 if none)
-        uint32_t flags;  // Format flags (DTEX_FLAG_*)
+        uint32_t flags;         // Format flags (DTEX_FLAG_*)
     };
 
-    uint8_t* data;  // Pixel data (includes alpha if format has it) - Runtime only
-    int32_t width;  // Texture width
-    int32_t height;  // Texture height
+    uint8_t* data;         // Pixel data (includes alpha if format has it) - Runtime only
+    int32_t width;         // Texture width
+    int32_t height;        // Texture height
     TextureFormat format;  // Pixel format
 
     bool hasTransparency;  // Whether the texture has transparent pixels
-    bool hasAlpha;  // Whether the texture has an alpha channel
+    bool hasAlpha;         // Whether the texture has an alpha channel
 
     // Per-row opaque span data for RGB565A8 sprites with alpha.
     // For each row: opaqueStart = first fully opaque column, opaqueEnd = last+1 fully opaque column.
@@ -76,7 +76,8 @@ class Texture2D
     // on a third path, while the destructor always used delete[].
     Deki::Buffer<int16_t> alphaRowSpans;
 #ifdef DEKI_EDITOR
-    bool allocatedWithBackend;  // Editor-only: Track which allocator was used (play mode uses backend, edit mode uses malloc)
+    bool allocatedWithBackend;  // Editor-only: Track which allocator was used (play mode uses backend, edit mode uses
+                                // malloc)
 #endif
 
     Texture2D();
@@ -132,7 +133,7 @@ class Texture2D
     static uint8_t* ConvertToRGBA(const uint8_t* src_data, int32_t width, int32_t height, TextureFormat format);
 #endif
 
-   protected:
+protected:
     /**
      * @brief Load texture data from memory buffer
      * @param header Parsed texture header

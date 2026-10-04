@@ -16,14 +16,13 @@
 namespace Deki
 {
 
-
 namespace ProjectSettings
 {
 
 // File format constants
 constexpr const char* FILENAME = "F:/project_data.bin";      // Runtime virtual path (internal storage)
 constexpr const char* EXPORT_FILENAME = "project_data.bin";  // Plain filename for editor export
-constexpr uint32_t MAGIC = 0x444B5052;                   // "DKPR" in little-endian
+constexpr uint32_t MAGIC = 0x444B5052;                       // "DKPR" in little-endian
 constexpr uint16_t VERSION = 6;
 
 // FileHeader::flags (version 6+)
@@ -51,13 +50,13 @@ struct FileHeader
  */
 struct DisplaySettings
 {
-    int32_t reserved0;    // Was targetWidth; the framebuffer is the display's own size since 0.18
-    int32_t reserved5;    // Was targetHeight
-    uint8_t reserved6;    // Was colorFormat; the framebuffer takes the display's format since 0.18
-    uint8_t reserved1;    // Was pixelPerfect, kept for binary compat
-    uint8_t reserved2;    // Was dirtyRectMaxCount, kept for binary compat
-    uint8_t reserved3;    // Was dirtyRectEnabled, kept for binary compat
-    float reserved4;      // Was dirtyRectOverlapThreshold, kept for binary compat
+    int32_t reserved0;  // Was targetWidth; the framebuffer is the display's own size since 0.18
+    int32_t reserved5;  // Was targetHeight
+    uint8_t reserved6;  // Was colorFormat; the framebuffer takes the display's format since 0.18
+    uint8_t reserved1;  // Was pixelPerfect, kept for binary compat
+    uint8_t reserved2;  // Was dirtyRectMaxCount, kept for binary compat
+    uint8_t reserved3;  // Was dirtyRectEnabled, kept for binary compat
+    float reserved4;    // Was dirtyRectOverlapThreshold, kept for binary compat
 };
 
 /**
@@ -163,9 +162,9 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
  * @param startupScene Startup scene path (can be nullptr)
  * @return The serialized image; empty only if nothing could be written
  */
-std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS = 0,
-                           const char* startupScene = nullptr, const char* rendererName = nullptr,
-                           const char* const* passNames = nullptr, int passCount = 0);
+std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS = 0, const char* startupScene = nullptr,
+                           const char* rendererName = nullptr, const char* const* passNames = nullptr,
+                           int passCount = 0);
 #endif
 
 }  // namespace ProjectSettings

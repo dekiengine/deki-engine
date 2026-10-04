@@ -65,7 +65,10 @@ struct ObjectRef : ObjectRefBase
     // Get the resolved component (nullptr if not resolved or object doesn't have component)
     T* Get() const
     {
-        if (!resolved) return nullptr;
+        if (!resolved)
+        {
+            return nullptr;
+        }
         if (componentTypeId != 0)
         {
             Component* comp = resolved->GetComponentByTypeId(componentTypeId);

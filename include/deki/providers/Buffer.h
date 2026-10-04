@@ -59,26 +59,22 @@ class Buffer
     // elements, so a T with a destructor would have it silently never run.
     // These are the raw pixel, glyph and sample buffers the engine hands to
     // blitters and drivers, and Memory zeroes what it returns.
-    static_assert(std::is_trivially_copyable<T>::value,
-                  "Deki::Buffer<T> is for trivially copyable T; it does not "
-                  "construct or copy elements");
-    static_assert(std::is_trivially_destructible<T>::value,
-                  "Deki::Buffer<T> does not destroy elements; a T with a "
-                  "destructor would leak whatever that destructor releases");
+    static_assert(std::is_trivially_copyable<T>::value, "Deki::Buffer<T> is for trivially copyable T; it does not "
+                                                        "construct or copy elements");
+    static_assert(std::is_trivially_destructible<T>::value, "Deki::Buffer<T> does not destroy elements; a T with a "
+                                                            "destructor would leak whatever that destructor releases");
 
 public:
     Buffer() = default;
 
     /// Allocates `count` elements. Check the result with `if (!buffer)`.
-    Buffer(size_t count, Memory::Region region, AllocContext ctx = {})
-    {
-        Allocate(count, region, ctx);
-    }
+    Buffer(size_t count, Memory::Region region, AllocContext ctx = {}) { Allocate(count, region, ctx); }
 
     ~Buffer() { Reset(); }
 
     Buffer(Buffer&& other) noexcept
-        : m_Data(other.m_Data), m_Count(other.m_Count)
+        : m_Data(other.m_Data),
+          m_Count(other.m_Count)
     {
         other.m_Data = nullptr;
         other.m_Count = 0;
@@ -112,17 +108,23 @@ public:
     bool Allocate(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         if (count == m_Count && m_Data)
+        {
             return true;
+        }
 
         Reset();
         if (count == 0)
+        {
             return true;  // an empty buffer is a success, not a failure
+        }
 
         // Checked here rather than in the allocator: a count from a file or a
         // scene is corruption-controlled, and count * sizeof(T) is a 32-bit
         // size_t on the device, so a large count silently wraps to a small one.
         if (count > (SIZE_MAX / sizeof(T)))
+        {
             return false;
+        }
 
         // ctx forwarded, never re-defaulted: it must name whoever called
         // Allocate, not this header.

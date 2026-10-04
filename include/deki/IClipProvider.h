@@ -35,7 +35,6 @@
 namespace Deki
 {
 
-
 class IClipProvider
 {
 public:

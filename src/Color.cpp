@@ -9,20 +9,23 @@ namespace Deki
 
 Color Color::FromFloats(float r, float g, float b, float a)
 {
-    return Color(
-        static_cast<uint8_t>(std::min(std::max(r * 255.0f, 0.0f), 255.0f)),
-        static_cast<uint8_t>(std::min(std::max(g * 255.0f, 0.0f), 255.0f)),
-        static_cast<uint8_t>(std::min(std::max(b * 255.0f, 0.0f), 255.0f)),
-        static_cast<uint8_t>(std::min(std::max(a * 255.0f, 0.0f), 255.0f)));
+    return Color(static_cast<uint8_t>(std::min(std::max(r * 255.0f, 0.0f), 255.0f)),
+                 static_cast<uint8_t>(std::min(std::max(g * 255.0f, 0.0f), 255.0f)),
+                 static_cast<uint8_t>(std::min(std::max(b * 255.0f, 0.0f), 255.0f)),
+                 static_cast<uint8_t>(std::min(std::max(a * 255.0f, 0.0f), 255.0f)));
 }
 
 Color Color::FromHSV(float h, float s, float v, float a)
 {
     // Normalize hue to 0-360 range
     while (h < 0)
+    {
         h += 360;
+    }
     while (h >= 360)
+    {
         h -= 360;
+    }
 
     float c = v * s;
     float x = c * (1 - std::abs(std::fmod(h / 60.0f, 2) - 1));
@@ -117,26 +120,23 @@ void Color::ToHSV(float& h, float& s, float& v) const
         h = 60 * ((fr - fg) / delta + 4);
     }
 
-    if (h < 0) h += 360;
+    if (h < 0)
+    {
+        h += 360;
+    }
 }
 
 Color Color::Lerp(const Color& to, float t) const
 {
     t = std::min(std::max(t, 0.0f), 1.0f);
-    return Color(
-        static_cast<uint8_t>(r + t * (to.r - r)),
-        static_cast<uint8_t>(g + t * (to.g - g)),
-        static_cast<uint8_t>(b + t * (to.b - b)),
-        static_cast<uint8_t>(a + t * (to.a - a)));
+    return Color(static_cast<uint8_t>(r + t * (to.r - r)), static_cast<uint8_t>(g + t * (to.g - g)),
+                 static_cast<uint8_t>(b + t * (to.b - b)), static_cast<uint8_t>(a + t * (to.a - a)));
 }
 
 Color Color::Multiply(float factor) const
 {
-    return Color(
-        static_cast<uint8_t>(std::min(r * factor, 255.0f)),
-        static_cast<uint8_t>(std::min(g * factor, 255.0f)),
-        static_cast<uint8_t>(std::min(b * factor, 255.0f)),
-        a);
+    return Color(static_cast<uint8_t>(std::min(r * factor, 255.0f)), static_cast<uint8_t>(std::min(g * factor, 255.0f)),
+                 static_cast<uint8_t>(std::min(b * factor, 255.0f)), a);
 }
 
 Color Color::Tint(const Color& tintColor, float intensity) const

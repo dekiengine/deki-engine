@@ -82,7 +82,9 @@ public:
     size_t GetRawBlockSize(void* ptr) const override
     {
         if (!ptr)
+        {
             return 0;
+        }
 #if defined(_WIN32)
         return _msize(ptr);
 #elif defined(__GLIBC__) || defined(__linux__)

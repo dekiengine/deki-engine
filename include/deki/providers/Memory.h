@@ -69,7 +69,9 @@ struct AllocContext
     // it. A layer that took its own default instead would report itself, and
     // every allocation in the engine would name a plausible, wrong file.
     AllocContext(std::source_location loc = std::source_location::current())
-        : file(loc.file_name()), function(loc.function_name()), line(loc.line())
+        : file(loc.file_name()),
+          function(loc.function_name()),
+          line(loc.line())
     {
     }
 
@@ -93,7 +95,6 @@ struct AllocContext
 // already imposes, and the same one the reflection ABI number exists to
 // police.
 
-
 /// FNV-1a over a name, at compile time. The same function
 /// AssetLookupTable::HashString computes at runtime, so a region name hashes
 /// the way every other name in this engine does.
@@ -107,7 +108,6 @@ constexpr uint32_t HashName(const char* s)
     }
     return h;
 }
-
 
 /**
  * @brief Memory statistics structure
@@ -159,7 +159,7 @@ private:
         void* ptr;
         size_t size;
         const char* context;
-        uint32_t line;      ///< 0 in a stripped build
+        uint32_t line;  ///< 0 in a stripped build
         bool isExternal;
     };
     static AllocationRecord* s_AllocationRecords;
@@ -211,7 +211,8 @@ public:
         const char* name;  ///< what a failure prints
 
         constexpr explicit Region(const char* region_name)
-            : id(HashName(region_name)), name(region_name)
+            : id(HashName(region_name)),
+              name(region_name)
         {
         }
 
@@ -224,7 +225,8 @@ public:
         /// public form would let anyone make a Region whose id and name
         /// disagree, and the id is what every provider dispatches on.
         constexpr Region(uint32_t stored_id, const char* placeholder_name)
-            : id(stored_id), name(placeholder_name)
+            : id(stored_id),
+              name(placeholder_name)
         {
         }
 
@@ -272,9 +274,7 @@ public:
      * @param ctx Who is asking. Omit it - the compiler fills in the call site
      * @return Pointer to allocated memory, or nullptr if failed
      */
-    static void* Allocate(size_t size,
-                          Memory::Region region,
-                          AllocContext ctx = {});
+    static void* Allocate(size_t size, Memory::Region region, AllocContext ctx = {});
 
     /**
      * @brief Allocate memory a DMA engine can read, from `region`
@@ -285,9 +285,7 @@ public:
      * drop the requirement. On a platform where every allocation is equally
      * reachable this is the same as Allocate, and the provider says so.
      */
-    static void* AllocateDma(size_t size,
-                             Memory::Region region,
-                             AllocContext ctx = {});
+    static void* AllocateDma(size_t size, Memory::Region region, AllocContext ctx = {});
 
     /**
      * @brief Deprecated: name the region instead of passing a flag for it
@@ -344,9 +342,13 @@ public:
     static T* AllocateArray(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         if (count == 0)
+        {
             return nullptr;
+        }
         if (count > (SIZE_MAX / sizeof(T)))
+        {
             return nullptr;  // would wrap; no allocation could satisfy it anyway
+        }
         // ctx is forwarded, not defaulted again, so it still names the
         // caller of AllocateArray rather than this header.
         return static_cast<T*>(Allocate(count * sizeof(T), region, ctx));
@@ -422,15 +424,14 @@ private:
      * @param ptr Pointer for leak tracking (debug only)
      * @param context Context string for leak tracking (debug only)
      */
-    static uint32_t UpdateTracking(int32_t size, bool isExternal, void* ptr = nullptr,
-                                   const char* context = nullptr, uint32_t line = 0);
+    static uint32_t UpdateTracking(int32_t size, bool isExternal, void* ptr = nullptr, const char* context = nullptr,
+                                   uint32_t line = 0);
 
 #ifdef DEBUG
     /**
      * @brief Track allocation for leak detection (debug only)
      */
-    static uint32_t TrackAllocation(void* ptr, size_t size, const char* context,
-                                    uint32_t line, bool isExternal);
+    static uint32_t TrackAllocation(void* ptr, size_t size, const char* context, uint32_t line, bool isExternal);
 
     /**
      * @brief Untrack allocation for leak detection (debug only)
@@ -449,7 +450,7 @@ private:
 // defined out of line. inline gives them one definition across every
 // translation unit; constexpr belongs on the definition of a variable, not on
 // the declaration ([dcl.constexpr]).
-inline constexpr Memory::Region Memory::Internal{"internal"};
-inline constexpr Memory::Region Memory::External{"external"};
+inline constexpr Memory::Region Memory::Internal{ "internal" };
+inline constexpr Memory::Region Memory::External{ "external" };
 
 }  // namespace Deki

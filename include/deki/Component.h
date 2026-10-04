@@ -32,19 +32,19 @@ class SceneMsgPackParser;
  */
 struct ComponentTypeInfo
 {
-    const char* name;           // fully qualified C++ name: the on-disk key; HashString(name) == typeId
-    const char* shortName;      // the identifier alone, for display and the scene file's "class" hint
-    ComponentType typeId;       // TypeId<T>()
-    ComponentType baseTypeId;   // TypeId of the direct component base (Deki::Component or a user base)
-    bool isAbstract;            // no create()
-    bool declaresUpdate;        // the class (or a reflected base) declares Update(); see Component::DeclaresUpdate
+    const char* name;          // fully qualified C++ name: the on-disk key; HashString(name) == typeId
+    const char* shortName;     // the identifier alone, for display and the scene file's "class" hint
+    ComponentType typeId;      // TypeId<T>()
+    ComponentType baseTypeId;  // TypeId of the direct component base (Deki::Component or a user base)
+    bool isAbstract;           // no create()
+    bool declaresUpdate;       // the class (or a reflected base) declares Update(); see Component::DeclaresUpdate
 
-    Component* (*create)();     // new instance with its type info set; nullptr when abstract
+    Component* (*create)();  // new instance with its type info set; nullptr when abstract
     bool (*deserialize)(Component* self, SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
     void (*resolveObjectRefs)(Component* self, Scene* scene);
     void (*remapObjectRefs)(Component* self, const std::unordered_map<uint32_t, uint32_t>& idRemap);
 
-    const FieldRef* fields;     // flattened field table (own + inherited), every platform
+    const FieldRef* fields;  // flattened field table (own + inherited), every platform
     int fieldCount;
 
     const ComponentMeta* meta;  // editor-only rich metadata; nullptr on device builds
@@ -75,7 +75,13 @@ class Component
 {
 public:
     Component()
-        : m_Owner(nullptr), m_TypeInfo(nullptr), m_RefsResolved(false), m_HasAwoken(false), m_HasStarted(false) {}
+        : m_Owner(nullptr),
+          m_TypeInfo(nullptr),
+          m_RefsResolved(false),
+          m_HasAwoken(false),
+          m_HasStarted(false)
+    {
+    }
     virtual ~Component() = default;
 
     // Prevent copying - components have unique identity and owner
@@ -224,7 +230,10 @@ public:
      */
     void ResolveObjectRefs(Scene* scene)
     {
-        if (m_TypeInfo && m_TypeInfo->resolveObjectRefs) m_TypeInfo->resolveObjectRefs(this, scene);
+        if (m_TypeInfo && m_TypeInfo->resolveObjectRefs)
+        {
+            m_TypeInfo->resolveObjectRefs(this, scene);
+        }
     }
 
     /**
@@ -235,7 +244,10 @@ public:
      */
     void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap)
     {
-        if (m_TypeInfo && m_TypeInfo->remapObjectRefs) m_TypeInfo->remapObjectRefs(this, idRemap);
+        if (m_TypeInfo && m_TypeInfo->remapObjectRefs)
+        {
+            m_TypeInfo->remapObjectRefs(this, idRemap);
+        }
     }
 
     // Ref resolution tracking (prevents per-frame re-resolution in edit mode)
@@ -250,10 +262,7 @@ public:
      * Components can override this to react to property changes.
      * Called after Execute() and Undo() in ModifyComponentPropertyCommand.
      */
-    virtual void OnPropertyChanged(const char* propertyName)
-    {
-        (void)propertyName;
-    }
+    virtual void OnPropertyChanged(const char* propertyName) { (void)propertyName; }
 
 protected:
     Object* m_Owner;

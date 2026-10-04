@@ -57,16 +57,16 @@ public:
      */
     void Register(const ComponentTypeInfo* info)
     {
-        if (info) m_Types[info->typeId] = info;
+        if (info)
+        {
+            m_Types[info->typeId] = info;
+        }
     }
 
     /**
      * @brief Forget a component class (package unload).
      */
-    void Unregister(uint32_t typeId)
-    {
-        m_Types.erase(typeId);
-    }
+    void Unregister(uint32_t typeId) { m_Types.erase(typeId); }
 
     /**
      * @brief The class entry for a type id, or nullptr when unknown.
@@ -91,28 +91,19 @@ public:
     /**
      * @brief Check if a component type is registered
      */
-    bool IsRegistered(uint32_t typeId) const
-    {
-        return m_Types.find(typeId) != m_Types.end();
-    }
+    bool IsRegistered(uint32_t typeId) const { return m_Types.find(typeId) != m_Types.end(); }
 
     /**
      * @brief Get number of registered components
      */
-    size_t GetRegisteredCount() const
-    {
-        return m_Types.size();
-    }
+    size_t GetRegisteredCount() const { return m_Types.size(); }
 
     /**
      * @brief Clear all registered components
      *
      * Useful for plugin hot-reload scenarios.
      */
-    void Clear()
-    {
-        m_Types.clear();
-    }
+    void Clear() { m_Types.clear(); }
 
 private:
     ComponentFactory() = default;
@@ -131,9 +122,13 @@ template <class T, class Base>
 constexpr ComponentType HandWrittenBaseId()
 {
     if constexpr (std::is_void<Base>::value)
+    {
         return TypeId<Component>();
+    }
     else
+    {
         return TypeId<Base>();
+    }
 }
 // Does T (or a base between T and Component) declare Update()? The member
 // pointer's class is whoever declared it, so an inherited Component::Update
@@ -153,20 +148,24 @@ constexpr bool DeclaresUpdate()
  */
 template <class T, class Base = void>
 constexpr ComponentTypeInfo MakeHandWrittenTypeInfo(bool declaresUpdate, const ComponentMeta* meta = nullptr,
-                                                    ComponentType typeId = TypeId<T>(), const char* name = TypeName<T>())
+                                                    ComponentType typeId = TypeId<T>(),
+                                                    const char* name = TypeName<T>())
 {
-    static_assert(std::is_base_of<Component, T>::value, "MakeHandWrittenTypeInfo<T>: T must derive from Deki::Component");
-    return ComponentTypeInfo{
-        name,
-        TypeShortName<T>(),
-        typeId,
-        detail::HandWrittenBaseId<T, Base>(),
-        std::is_abstract<T>::value,
-        declaresUpdate,
-        nullptr, nullptr, nullptr, nullptr,
-        nullptr, 0,
-        meta
-    };
+    static_assert(std::is_base_of<Component, T>::value,
+                  "MakeHandWrittenTypeInfo<T>: T must derive from Deki::Component");
+    return ComponentTypeInfo{ name,
+                              TypeShortName<T>(),
+                              typeId,
+                              detail::HandWrittenBaseId<T, Base>(),
+                              std::is_abstract<T>::value,
+                              declaresUpdate,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              nullptr,
+                              0,
+                              meta };
 }
 
 /**
@@ -178,7 +177,9 @@ const ComponentTypeInfo* TypeInfoFor()
 {
     static_assert(std::is_base_of<Component, T>::value, "AddComponent<T>: T must derive from Deki::Component");
     if (const ComponentTypeInfo* info = ComponentFactory::Instance().Find(TypeId<T>()))
+    {
         return info;
+    }
     static const ComponentTypeInfo fallback = MakeHandWrittenTypeInfo<T>(detail::DeclaresUpdate<T>());
     return &fallback;
 }

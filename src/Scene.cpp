@@ -100,8 +100,8 @@ bool AtomicWriteTextFile(const std::string& path, const std::string& content)
         // The temp file holds good content and the destination is untouched, so
         // leave both in place - the caller reports failure and the user's
         // previous save is still on disk.
-        DEKI_LOG_ERROR("AtomicWriteTextFile: rename '%s' -> '%s' failed: %s",
-                       tmp.string().c_str(), target.string().c_str(), ec.message().c_str());
+        DEKI_LOG_ERROR("AtomicWriteTextFile: rename '%s' -> '%s' failed: %s", tmp.string().c_str(),
+                       target.string().c_str(), ec.message().c_str());
         return false;
     }
 
@@ -158,7 +158,9 @@ void RegisterComponentsMigration(ComponentsMigration migration)
 {
     auto& list = ComponentsMigrations();
     if (migration && std::find(list.begin(), list.end(), migration) == list.end())
+    {
         list.push_back(migration);
+    }
 }
 
 void UnregisterComponentsMigration(ComponentsMigration migration)
@@ -170,9 +172,13 @@ void UnregisterComponentsMigration(ComponentsMigration migration)
 void RunComponentsMigrations(nlohmann::json& components)
 {
     if (!components.is_array())
+    {
         return;
+    }
     for (ComponentsMigration m : ComponentsMigrations())
+    {
         m(components);
+    }
 }
 
 #endif
@@ -206,14 +212,16 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 // AssetPipeline::CompileSceneFile, so the size must still agree across configs.
 // Measured at 120 in both after the destroy-callback moved to a side table.
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
-static_assert(sizeof(Scene) == 120,
-              "sizeof(Scene) changed. Verify the editor and a runtime config "
-              "(-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree, and bump "
-              "kDekiReflectionAbiVersion in interop/ReflectionAbi.h.");
+static_assert(sizeof(Scene) == 120, "sizeof(Scene) changed. Verify the editor and a runtime config "
+                                    "(-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree, and bump "
+                                    "kDekiReflectionAbiVersion in interop/ReflectionAbi.h.");
 #endif
 
 Scene::Scene()
-    : nextDekiObjectId(1), m_IsLoaded(false) {}
+    : nextDekiObjectId(1),
+      m_IsLoaded(false)
+{
+}
 
 #ifdef DEKI_EDITOR
 namespace
@@ -237,9 +245,13 @@ std::unordered_map<const Scene*, Scene::OnObjectsAboutToBeDestroyedFn>& DestroyC
 void Scene::SetOnObjectsAboutToBeDestroyed(OnObjectsAboutToBeDestroyedFn fn)
 {
     if (fn)
+    {
         DestroyCallbackTable()[this] = std::move(fn);
+    }
     else
+    {
         DestroyCallbackTable().erase(this);
+    }
 }
 #endif
 
@@ -277,7 +289,9 @@ bool FitsInMemory(size_t bytes)
 {
     void* probe = ::operator new(bytes ? bytes : 1, std::nothrow);
     if (!probe)
+    {
         return false;
+    }
     ::operator delete(probe);
     return true;
 }
@@ -293,7 +307,9 @@ Scene* Scene::Load(const char* path, bool cache)
 
     auto* mgr = Deki::AssetManager::Get();
     if (!mgr)
+    {
         return nullptr;
+    }
 
     return mgr->Load<Scene>(path, cache);
 }
@@ -482,8 +498,7 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
     // Fix ownerScene on the entire spawned subtree - LoadObjectFromJson set
     // them to &tempScene, which is about to be destroyed. Do this before
     // AddChild so the propagation check inside AddChild sees consistent state.
-    VisitSubtree(root, [targetScene](Object* obj)
-                 { obj->SetOwnerScene(targetScene); });
+    VisitSubtree(root, [targetScene](Object* obj) { obj->SetOwnerScene(targetScene); });
 
     // Attach under the target's root. The Behaviour lifecycle is picked
     // up via the behaviours cache rebuild on the next frame.
@@ -492,32 +507,40 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
 
     // Remap object IDs to avoid duplicates when multiple instances exist
     std::unordered_map<uint32_t, uint32_t> idRemap;
-    VisitSubtree(root, [&idRemap](Object* obj)
+    VisitSubtree(root,
+                 [&idRemap](Object* obj)
                  {
-        uint32_t oldId = obj->GetId();
-        uint32_t newId = Object::GenerateId();
-        idRemap[oldId] = newId;
-        obj->SetId(newId); });
+                     uint32_t oldId = obj->GetId();
+                     uint32_t newId = Object::GenerateId();
+                     idRemap[oldId] = newId;
+                     obj->SetId(newId);
+                 });
 
     // Update ObjectRef fields to point to remapped IDs
-    VisitSubtree(root, [&idRemap](Object* obj)
+    VisitSubtree(root,
+                 [&idRemap](Object* obj)
                  {
-        for (auto* comp : obj->GetComponents())
-            comp->RemapObjectRefs(idRemap); });
+                     for (auto* comp : obj->GetComponents())
+                     {
+                         comp->RemapObjectRefs(idRemap);
+                     }
+                 });
 
     // Resolve ObjectRefs immediately so they're available before the next lifecycle tick
     // (some components spawn objects in Start() and need their refs already resolved
     // when their Start() body runs in the same frame).
-    VisitSubtree(root, [targetScene](Object* obj)
+    VisitSubtree(root,
+                 [targetScene](Object* obj)
                  {
-        for (auto* comp : obj->GetComponents())
-        {
-            if (!comp->HasRefsResolved())
-            {
-                comp->ResolveObjectRefs(targetScene);
-                comp->MarkRefsResolved();
-            }
-        } });
+                     for (auto* comp : obj->GetComponents())
+                     {
+                         if (!comp->HasRefsResolved())
+                         {
+                             comp->ResolveObjectRefs(targetScene);
+                             comp->MarkRefsResolved();
+                         }
+                     }
+                 });
 
     return root;
 }
@@ -534,8 +557,7 @@ void Scene::AddObject(Object* obj)
     // via the runtime MessagePack path would have null owner_scene, breaking
     // any code that walks back up the scene from a child (anything that calls
     // GetOwnerScene() on a non-root object).
-    VisitSubtree(obj, [this](Object* o)
-                 { o->SetOwnerScene(this); });
+    VisitSubtree(obj, [this](Object* o) { o->SetOwnerScene(this); });
     objects.push_back(obj);
     DEKI_LOG_INTERNAL("Scene::AddObject: Added '%s', objects.size()=%zu, this=%p",
                       obj ? obj->GetName().c_str() : "null", objects.size(), (void*)this);
@@ -560,10 +582,11 @@ void AnnounceSubtreeDestroy(const Scene* scene, Object* obj)
     auto& destroyCallbacks = DestroyCallbackTable();
     auto callbackIt = destroyCallbacks.find(scene);
     if (callbackIt == destroyCallbacks.end() || !callbackIt->second)
+    {
         return;
+    }
     std::vector<Object*> dying;
-    VisitSubtree(obj, [&dying](Object* o)
-                 { dying.push_back(o); });
+    VisitSubtree(obj, [&dying](Object* o) { dying.push_back(o); });
     callbackIt->second(dying);
 }
 }  // namespace
@@ -571,7 +594,10 @@ void AnnounceSubtreeDestroy(const Scene* scene, Object* obj)
 
 void Scene::DestroyDekiObject(Object* obj)
 {
-    if (!obj) return;
+    if (!obj)
+    {
+        return;
+    }
 
 #ifdef DEKI_EDITOR
     // Notify subscribers before pointers go invalid.
@@ -590,7 +616,10 @@ void Scene::DestroyDekiObject(Object* obj)
 
 void Scene::RemoveObject(Object* obj)
 {
-    if (obj) obj->SetOwnerScene(nullptr);
+    if (obj)
+    {
+        obj->SetOwnerScene(nullptr);
+    }
     objects.erase(std::remove(objects.begin(), objects.end(), obj), objects.end());
     m_ComponentsCacheDirty = true;
 }
@@ -602,9 +631,11 @@ Object* Scene::FindDekiObject(const std::string& name)
     // nothing but Root.
     for (auto* obj : objects)
     {
-        Object* found = FindInSubtree(obj, [&name](Object* o)
-                                          { return o->GetName() == name; });
-        if (found) return found;
+        Object* found = FindInSubtree(obj, [&name](Object* o) { return o->GetName() == name; });
+        if (found)
+        {
+            return found;
+        }
     }
     return nullptr;
 }
@@ -613,9 +644,11 @@ Object* Scene::FindDekiObject(uint32_t id)
 {
     for (auto* obj : objects)
     {
-        Object* found = FindInSubtree(obj, [id](Object* o)
-                                          { return o->GetId() == id; });
-        if (found) return found;
+        Object* found = FindInSubtree(obj, [id](Object* o) { return o->GetId() == id; });
+        if (found)
+        {
+            return found;
+        }
     }
     return nullptr;
 }
@@ -636,10 +669,14 @@ void Scene::RebuildComponentsCache()
     // Inactive objects are skipped along with their whole subtree.
     for (auto* obj : objects)
     {
-        VisitActiveSubtree(obj, [this](Object* o)
+        VisitActiveSubtree(obj,
+                           [this](Object* o)
                            {
-            for (auto* comp : o->GetComponents())
-                m_ComponentsCache.push_back(comp); });
+                               for (auto* comp : o->GetComponents())
+                               {
+                                   m_ComponentsCache.push_back(comp);
+                               }
+                           });
     }
 
     m_ComponentsCacheDirty = false;
@@ -656,7 +693,10 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
     ClearScene();
     SceneFormat::SceneMsgPackParser parser(data, size);
     bool success = parser.ParseScene(this);
-    if (success) m_IsLoaded = true;
+    if (success)
+    {
+        m_IsLoaded = true;
+    }
     return success;
 }
 
@@ -670,11 +710,16 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
 
 void Scene::InsertObjectAt(Object* obj, size_t index)
 {
-    if (!obj) return;
+    if (!obj)
+    {
+        return;
+    }
     obj->SetOwnerScene(this);
 
     if (index > objects.size())
+    {
         index = objects.size();
+    }
 
     objects.insert(objects.begin() + index, obj);
     // Note: Do NOT call SortObjectsByOrder() here - we want manual ordering
@@ -685,7 +730,9 @@ int Scene::GetObjectIndex(Object* obj) const
 {
     auto it = std::find(objects.begin(), objects.end(), obj);
     if (it != objects.end())
+    {
         return static_cast<int>(std::distance(objects.begin(), it));
+    }
     return -1;
 }
 
@@ -728,7 +775,9 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
             Object* root = new Object("Root");
             root->SetOwnerScene(this);
             for (auto* obj : objects)
+            {
                 root->AddChild(obj);
+            }
             objects.clear();
             objects.push_back(root);
         }
@@ -766,7 +815,9 @@ bool Scene::SaveToFile(const std::string& filePath)
     for (const auto* obj : objects)
     {
         if (obj->IsEditorOnly())
+        {
             continue;  // Skip editor-only objects
+        }
         json["objects"].push_back(SaveObjectToJson(obj));
     }
 
@@ -779,10 +830,11 @@ bool Scene::LoadFromFile(const std::string& filePath)
 {
     std::ifstream file(filePath);
     if (!file.is_open())
+    {
         return false;
+    }
 
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
     return LoadData(reinterpret_cast<const uint8_t*>(content.data()), content.size());
 }
@@ -799,7 +851,9 @@ std::string Scene::SaveToJsonString()
     for (const auto* obj : objects)
     {
         if (obj->IsEditorOnly())
+        {
             continue;  // Skip editor-only objects
+        }
         json["objects"].push_back(SaveObjectToJson(obj));
     }
 
@@ -815,7 +869,9 @@ nlohmann::json Scene::ComponentPropertiesToJson(const Component* comp, const Com
 {
     nlohmann::json props = nlohmann::json::object();
     if (!comp)
+    {
         return props;
+    }
 
     // SavePropertyToJson is a member for symmetry with the loader; it reads
     // nothing from the scene, so a scratch instance serves.
@@ -824,21 +880,31 @@ nlohmann::json Scene::ComponentPropertiesToJson(const Component* comp, const Com
     if (meta.baseTypeId != 0)
     {
         if (const ComponentMeta* base = registry.GetMeta(meta.baseTypeId))
+        {
             for (int i = 0; i < base->propertyCount; ++i)
+            {
                 scratch.SavePropertyToJson(comp, base->properties[i], props);
+            }
+        }
     }
     for (int i = 0; i < meta.propertyCount; ++i)
+    {
         scratch.SavePropertyToJson(comp, meta.properties[i], props);
+    }
     return props;
 }
 
 nlohmann::json Scene::ComponentDefaultsToJson(const ComponentMeta& meta)
 {
     if (meta.isAbstract || !meta.createFunc)
+    {
         return nullptr;
+    }
     Component* comp = meta.createFunc();
     if (!comp)
+    {
         return nullptr;
+    }
     nlohmann::json props = ComponentPropertiesToJson(comp, meta);
     delete comp;
     return props;
@@ -853,24 +919,30 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     json["active"] = obj->IsActive();
 
 #ifdef DEKI_TRANSFORM_2D
-    json["transform"] = {
-        { "x", obj->GetX() },
-        { "y", obj->GetY() },
-        { "rotation", obj->GetLocalRotation() },
-        { "scaleX", obj->GetScaleX() },
-        { "scaleY", obj->GetScaleY() }
-    };
+    json["transform"] = { { "x", obj->GetX() },
+                          { "y", obj->GetY() },
+                          { "rotation", obj->GetLocalRotation() },
+                          { "scaleX", obj->GetScaleX() },
+                          { "scaleY", obj->GetScaleY() } };
 #ifdef DEKI_TRANSFORM_3D
     // Written only when set, so a 2D project's file is byte for byte what it
     // was, and a 2D device skips the keys it does not know.
     if (obj->GetZ() != 0.0f)
+    {
         json["transform"]["z"] = obj->GetZ();
+    }
     if (obj->GetRotationX() != 0.0f)
+    {
         json["transform"]["rotationX"] = obj->GetRotationX();
+    }
     if (obj->GetRotationY() != 0.0f)
+    {
         json["transform"]["rotationY"] = obj->GetRotationY();
+    }
     if (obj->GetScaleZ() != 1.0f)
+    {
         json["transform"]["scaleZ"] = obj->GetScaleZ();
+    }
 #endif
 #endif
 
@@ -888,7 +960,9 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
             // to drop every override of the instance, for good.
             overrides = nlohmann::json::parse(obj->GetInstanceOverridesJson(), nullptr, false);
             if (overrides.is_discarded() || !overrides.is_array())
+            {
                 overrides = nlohmann::json::array();
+            }
             DEKI_LOG_WARNING("Scene: the source of instance '%s' (%s) could not be loaded; its overrides "
                              "were saved as they were loaded",
                              obj->GetName().c_str(), obj->GetSourceSceneGuid().c_str());
@@ -916,7 +990,9 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
             auto* missing = static_cast<const MissingComponent*>(comp);
             compJson["type"] = missing->m_TypeName;
             if (!missing->m_ClassName.empty())
+            {
                 compJson["class"] = missing->m_ClassName;
+            }
             compJson["properties"] = missing->m_JsonProperties;
             json["components"].push_back(compJson);
             continue;
@@ -967,7 +1043,9 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
                 for (const auto& kv : it->second)
                 {
                     if (!compJson["properties"].contains(kv.first))
+                    {
                         compJson["properties"][kv.first] = kv.second;
+                    }
                 }
             }
         }
@@ -985,7 +1063,9 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     for (const auto* child : obj->GetChildren())
     {
         if (child->IsEditorOnly())
+        {
             continue;  // Skip editor-only objects
+        }
         json["children"].push_back(SaveObjectToJson(child));
     }
 
@@ -1002,36 +1082,20 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
         case PropertyType::Int16:
             propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<int16_t>(comp, prop));
             break;
-        case PropertyType::Int32:
-            propsJson[prop.name] = GetPropertyValue<int32_t>(comp, prop);
-            break;
-        case PropertyType::Int64:
-            propsJson[prop.name] = GetPropertyValue<int64_t>(comp, prop);
-            break;
+        case PropertyType::Int32: propsJson[prop.name] = GetPropertyValue<int32_t>(comp, prop); break;
+        case PropertyType::Int64: propsJson[prop.name] = GetPropertyValue<int64_t>(comp, prop); break;
         case PropertyType::UInt8:
             propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop));
             break;
         case PropertyType::UInt16:
             propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop));
             break;
-        case PropertyType::UInt32:
-            propsJson[prop.name] = GetPropertyValue<uint32_t>(comp, prop);
-            break;
-        case PropertyType::UInt64:
-            propsJson[prop.name] = GetPropertyValue<uint64_t>(comp, prop);
-            break;
-        case PropertyType::Float:
-            propsJson[prop.name] = GetPropertyValue<float>(comp, prop);
-            break;
-        case PropertyType::Double:
-            propsJson[prop.name] = GetPropertyValue<double>(comp, prop);
-            break;
-        case PropertyType::Bool:
-            propsJson[prop.name] = GetPropertyValue<bool>(comp, prop);
-            break;
-        case PropertyType::String:
-            propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop);
-            break;
+        case PropertyType::UInt32: propsJson[prop.name] = GetPropertyValue<uint32_t>(comp, prop); break;
+        case PropertyType::UInt64: propsJson[prop.name] = GetPropertyValue<uint64_t>(comp, prop); break;
+        case PropertyType::Float: propsJson[prop.name] = GetPropertyValue<float>(comp, prop); break;
+        case PropertyType::Double: propsJson[prop.name] = GetPropertyValue<double>(comp, prop); break;
+        case PropertyType::Bool: propsJson[prop.name] = GetPropertyValue<bool>(comp, prop); break;
+        case PropertyType::String: propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop); break;
         case PropertyType::Color:
         {
             // "#RRGGBBAA". A packed number is unreadable in a diff and freezes
@@ -1041,22 +1105,16 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             ColorToHex(GetPropertyRef<Deki::Color>(comp, prop), hex);
             propsJson[prop.name] = hex;
         }
-            break;
+        break;
         case PropertyType::Enum:
         {
             // Use enumSize to read the correct number of bytes
             int32_t enumValue = 0;
             switch (prop.enumSize)
             {
-                case 1:
-                    enumValue = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop));
-                    break;
-                case 2:
-                    enumValue = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop));
-                    break;
-                default:
-                    enumValue = GetPropertyValue<int32_t>(comp, prop);
-                    break;
+                case 1: enumValue = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop)); break;
+                case 2: enumValue = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop)); break;
+                default: enumValue = GetPropertyValue<int32_t>(comp, prop); break;
             }
             // Write the enumerator's NAME. A bare number would mean whatever sat
             // at that position when the file was written, so appending to an
@@ -1064,9 +1122,13 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             // name survives both. A value the enum does not declare has no name
             // to write, so it falls back to the number rather than being lost.
             if (const char* enumName = EnumNameForValue(prop, enumValue))
+            {
                 propsJson[prop.name] = enumName;
+            }
             else
+            {
                 propsJson[prop.name] = enumValue;
+            }
             break;
         }
         case PropertyType::Asset:
@@ -1098,28 +1160,36 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
                 {
                     const auto& vec = *reinterpret_cast<const std::vector<std::string>*>(ptr);
                     for (const auto& str : vec)
+                    {
                         arr.push_back(str);
+                    }
                     break;
                 }
                 case PropertyType::Int32:
                 {
                     const auto& vec = *reinterpret_cast<const std::vector<int32_t>*>(ptr);
                     for (auto v : vec)
+                    {
                         arr.push_back(v);
+                    }
                     break;
                 }
                 case PropertyType::Float:
                 {
                     const auto& vec = *reinterpret_cast<const std::vector<float>*>(ptr);
                     for (auto v : vec)
+                    {
                         arr.push_back(v);
+                    }
                     break;
                 }
                 case PropertyType::Bool:
                 {
                     const auto& vec = *reinterpret_cast<const std::vector<bool>*>(ptr);
                     for (auto v : vec)
+                    {
                         arr.push_back(v);
+                    }
                     break;
                 }
                 case PropertyType::ObjectRef:
@@ -1128,14 +1198,17 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
                     for (const auto& ref : vec)
                     {
                         if (ref.componentTypeId != 0)
+                        {
                             arr.push_back(nlohmann::json{ { "id", ref.id }, { "typeId", ref.componentTypeId } });
+                        }
                         else
+                        {
                             arr.push_back(ref.id);
+                        }
                     }
                     break;
                 }
-                default:
-                    break;
+                default: break;
             }
             propsJson[prop.name] = arr;
             break;
@@ -1161,20 +1234,17 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
         }
         case PropertyType::Vector2:
         {
-            const Vector2* ptr = reinterpret_cast<const Vector2*>(
-                reinterpret_cast<const char*>(comp) + prop.offset);
+            const Vector2* ptr = reinterpret_cast<const Vector2*>(reinterpret_cast<const char*>(comp) + prop.offset);
             propsJson[prop.name] = nlohmann::json::array({ ptr->x, ptr->y });
             break;
         }
         case PropertyType::Vector3:
         {
-            const Vector3* ptr = reinterpret_cast<const Vector3*>(
-                reinterpret_cast<const char*>(comp) + prop.offset);
+            const Vector3* ptr = reinterpret_cast<const Vector3*>(reinterpret_cast<const char*>(comp) + prop.offset);
             propsJson[prop.name] = nlohmann::json::array({ ptr->x, ptr->y, ptr->z });
             break;
         }
-        default:
-            break;
+        default: break;
     }
 }
 
@@ -1218,8 +1288,8 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         }
         if (!ExpandInstance(obj))
         {
-            DEKI_LOG_ERROR("Scene: Failed to expand instance '%s' (source GUID: %s)",
-                           name.c_str(), obj->GetSourceSceneGuid().c_str());
+            DEKI_LOG_ERROR("Scene: Failed to expand instance '%s' (source GUID: %s)", name.c_str(),
+                           obj->GetSourceSceneGuid().c_str());
         }
         // Preserve the saved name (ExpandInstance overwrites with source root's name,
         // but the user may have renamed the instance)
@@ -1242,7 +1312,8 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
             if (comp)
             {
                 // Load properties using reflection
-                const ComponentMeta* meta = registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
+                const ComponentMeta* meta =
+                    registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
                 if (meta && compJson.contains("properties"))
                 {
                     // Load base class properties first (e.g., sortingOrder from RendererComponent)
@@ -1279,14 +1350,19 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                         for (int i = 0; i < m->propertyCount; ++i)
                         {
                             const PropertyInfo& p = m->properties[i];
-                            if (!p.name) continue;
+                            if (!p.name)
+                            {
+                                continue;
+                            }
                             known.insert(p.name);
                             if (p.renamedFrom && *p.renamedFrom)
                             {
                                 known.insert(p.renamedFrom);
                                 const auto& props = compJson["properties"];
                                 if (props.contains(p.renamedFrom) && !props.contains(p.name))
+                                {
                                     LegacyPropsLog().emplace_back(meta->name ? meta->name : "<unnamed>", p.renamedFrom);
+                                }
                             }
                         }
                     };
@@ -1294,7 +1370,9 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                     {
                         const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
                         if (baseMeta)
+                        {
                             noteProps(baseMeta);
+                        }
                     }
                     noteProps(meta);
 
@@ -1302,17 +1380,23 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                     for (auto it = compJson["properties"].begin(); it != compJson["properties"].end(); ++it)
                     {
                         if (known.find(it.key()) == known.end())
+                        {
                             unknownsForComp[it.key()] = it.value();
+                        }
                     }
                     if (!unknownsForComp.empty())
                     {
                         auto& log = UnknownPropsLog();
                         for (const auto& kv : unknownsForComp)
+                        {
                             log.emplace_back(meta->name ? meta->name : "<unnamed>", kv.first);
+                        }
                         UnknownPropsTable()[comp] = std::move(unknownsForComp);
                     }
                     else
+                    {
                         UnknownPropsTable().erase(comp);
+                    }
                 }
             }
             else if (!typeName.empty() && typeName != "Unknown")
@@ -1356,7 +1440,10 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
 
 Object* Scene::DuplicateObject(const Object* source)
 {
-    if (!source) return nullptr;
+    if (!source)
+    {
+        return nullptr;
+    }
 
     nlohmann::json objJson = SaveObjectToJson(source);
     Object* cloned = LoadObjectFromJson(objJson);
@@ -1373,15 +1460,21 @@ Object* Scene::DuplicateObject(const Object* source)
         // the copies, as spawning a prefab already does. References out of
         // the copy keep pointing where the original's did.
         std::unordered_map<uint32_t, uint32_t> idRemap;
-        VisitSubtree(cloned, [&idRemap](Object* obj)
+        VisitSubtree(cloned,
+                     [&idRemap](Object* obj)
                      {
-            const uint32_t newId = Object::GenerateId();
-            idRemap[obj->GetId()] = newId;
-            obj->SetId(newId); });
-        VisitSubtree(cloned, [&idRemap](Object* obj)
+                         const uint32_t newId = Object::GenerateId();
+                         idRemap[obj->GetId()] = newId;
+                         obj->SetId(newId);
+                     });
+        VisitSubtree(cloned,
+                     [&idRemap](Object* obj)
                      {
-            for (auto* comp : obj->GetComponents())
-                comp->RemapObjectRefs(idRemap); });
+                         for (auto* comp : obj->GetComponents())
+                         {
+                             comp->RemapObjectRefs(idRemap);
+                         }
+                     });
     }
     return cloned;
 }
@@ -1389,7 +1482,9 @@ Object* Scene::DuplicateObject(const Object* source)
 void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, const nlohmann::json& propsJson)
 {
     if (!prop.name)
+    {
         return;
+    }
 
     // The current name wins; a file from before a rename is read through the
     // DEKI_RENAMED_FROM alias and written back under the current name on save.
@@ -1397,7 +1492,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
     if (!propsJson.contains(key))
     {
         if (!prop.renamedFrom || !*prop.renamedFrom || !propsJson.contains(prop.renamedFrom))
+        {
             return;
+        }
         key = prop.renamedFrom;
     }
 
@@ -1407,51 +1504,75 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
     {
         case PropertyType::Int8:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<int8_t>(comp, prop, static_cast<int8_t>(value.get<int32_t>()));
+            }
             break;
         case PropertyType::Int16:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<int16_t>(comp, prop, static_cast<int16_t>(value.get<int32_t>()));
+            }
             break;
         case PropertyType::Int32:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<int32_t>(comp, prop, value.get<int32_t>());
+            }
             break;
         case PropertyType::Int64:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<int64_t>(comp, prop, value.get<int64_t>());
+            }
             break;
         case PropertyType::UInt8:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<uint8_t>(comp, prop, static_cast<uint8_t>(value.get<int32_t>()));
+            }
             break;
         case PropertyType::UInt16:
             if (value.is_number_integer())
+            {
                 SetPropertyValue<uint16_t>(comp, prop, static_cast<uint16_t>(value.get<int32_t>()));
+            }
             break;
         case PropertyType::UInt32:
             if (value.is_number_unsigned())
+            {
                 SetPropertyValue<uint32_t>(comp, prop, value.get<uint32_t>());
+            }
             break;
         case PropertyType::UInt64:
             if (value.is_number_unsigned())
+            {
                 SetPropertyValue<uint64_t>(comp, prop, value.get<uint64_t>());
+            }
             break;
         case PropertyType::Float:
             if (value.is_number())
+            {
                 SetPropertyValue<float>(comp, prop, value.get<float>());
+            }
             break;
         case PropertyType::Double:
             if (value.is_number())
+            {
                 SetPropertyValue<double>(comp, prop, value.get<double>());
+            }
             break;
         case PropertyType::Bool:
             if (value.is_boolean())
+            {
                 SetPropertyValue<bool>(comp, prop, value.get<bool>());
+            }
             break;
         case PropertyType::String:
             if (value.is_string())
+            {
                 SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
+            }
             break;
         case PropertyType::Color:
             // "#RRGGBBAA" is what is written now; the packed number every file
@@ -1461,15 +1582,24 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             {
                 Deki::Color parsed;
                 if (ColorFromHex(value.get<std::string>().c_str(), parsed))
+                {
                     GetPropertyRef<Deki::Color>(comp, prop) = parsed;
+                }
                 else
+                {
                     DEKI_LOG_WARNING("Scene: '%s' is not a colour like #RRGGBBAA on property '%s'",
                                      value.get<std::string>().c_str(), prop.name);
+                }
             }
             else if (value.is_number_unsigned())
+            {
                 GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(value.get<uint32_t>());
+            }
             else if (value.is_number_integer())
-                GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(static_cast<uint32_t>(value.get<int64_t>()));
+            {
+                GetPropertyRef<Deki::Color>(comp, prop) =
+                    Deki::Color::FromRGBA8888(static_cast<uint32_t>(value.get<int64_t>()));
+            }
             break;
         case PropertyType::Enum:
         {
@@ -1485,8 +1615,10 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 const std::string name = value.get<std::string>();
                 haveValue = EnumValueForName(prop, name.c_str(), intVal);
                 if (!haveValue)
+                {
                     DEKI_LOG_WARNING("Scene: '%s' is not a value of enum property '%s'; leaving the default",
                                      name.c_str(), prop.name);
+                }
             }
             else if (value.is_number_integer())
             {
@@ -1498,15 +1630,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 // Use enumSize to write the correct number of bytes
                 switch (prop.enumSize)
                 {
-                    case 1:
-                        SetPropertyValue<uint8_t>(comp, prop, static_cast<uint8_t>(intVal));
-                        break;
-                    case 2:
-                        SetPropertyValue<uint16_t>(comp, prop, static_cast<uint16_t>(intVal));
-                        break;
-                    default:
-                        SetPropertyValue<int32_t>(comp, prop, intVal);
-                        break;
+                    case 1: SetPropertyValue<uint8_t>(comp, prop, static_cast<uint8_t>(intVal)); break;
+                    case 2: SetPropertyValue<uint16_t>(comp, prop, static_cast<uint16_t>(intVal)); break;
+                    default: SetPropertyValue<int32_t>(comp, prop, intVal); break;
                 }
             }
             break;
@@ -1514,7 +1640,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
         case PropertyType::Asset:
             // Asset paths are stored as strings
             if (value.is_string())
+            {
                 SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
+            }
             break;
         case PropertyType::ObjectRef:
         {
@@ -1547,7 +1675,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                         for (const auto& item : value)
                         {
                             if (item.is_string())
+                            {
                                 vec.push_back(item.get<std::string>());
+                            }
                         }
                         break;
                     }
@@ -1558,7 +1688,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                         for (const auto& item : value)
                         {
                             if (item.is_number_integer())
+                            {
                                 vec.push_back(item.get<int32_t>());
+                            }
                         }
                         break;
                     }
@@ -1569,7 +1701,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                         for (const auto& item : value)
                         {
                             if (item.is_number())
+                            {
                                 vec.push_back(item.get<float>());
+                            }
                         }
                         break;
                     }
@@ -1580,7 +1714,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                         for (const auto& item : value)
                         {
                             if (item.is_boolean())
+                            {
                                 vec.push_back(item.get<bool>());
+                            }
                         }
                         break;
                     }
@@ -1606,8 +1742,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                         }
                         break;
                     }
-                    default:
-                        break;
+                    default: break;
                 }
             }
             break;
@@ -1634,8 +1769,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
         case PropertyType::Vector2:
             if (value.is_array() && value.size() >= 2)
             {
-                Vector2* ptr = reinterpret_cast<Vector2*>(
-                    reinterpret_cast<char*>(comp) + prop.offset);
+                Vector2* ptr = reinterpret_cast<Vector2*>(reinterpret_cast<char*>(comp) + prop.offset);
                 ptr->x = value[0].get<float>();
                 ptr->y = value[1].get<float>();
             }
@@ -1643,15 +1777,13 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
         case PropertyType::Vector3:
             if (value.is_array() && value.size() >= 3)
             {
-                Vector3* ptr = reinterpret_cast<Vector3*>(
-                    reinterpret_cast<char*>(comp) + prop.offset);
+                Vector3* ptr = reinterpret_cast<Vector3*>(reinterpret_cast<char*>(comp) + prop.offset);
                 ptr->x = value[0].get<float>();
                 ptr->y = value[1].get<float>();
                 ptr->z = value[2].get<float>();
             }
             break;
-        default:
-            break;
+        default: break;
     }
 }
 
@@ -1667,7 +1799,9 @@ static thread_local std::set<std::string> s_ExpandingGuids;
 bool Scene::ExpandInstance(Object* instanceObj)
 {
     if (!instanceObj || !instanceObj->IsSceneInstance())
+    {
         return false;
+    }
 
     const std::string& guid = instanceObj->GetSourceSceneGuid();
 
@@ -1728,18 +1862,25 @@ bool Scene::ExpandInstance(Object* instanceObj)
                 Component* comp = Internal::AddComponentByName(*instanceObj, typeName, classHint);
                 if (comp)
                 {
-                    const ComponentMeta* meta = registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
+                    const ComponentMeta* meta =
+                        registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
                     if (meta && compJson.contains("properties"))
                     {
                         if (meta->baseTypeId != 0)
                         {
                             const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
                             if (baseMeta && baseMeta->propertyCount > 0)
+                            {
                                 for (int i = 0; i < baseMeta->propertyCount; ++i)
+                                {
                                     LoadPropertyFromJson(comp, baseMeta->properties[i], compJson["properties"]);
+                                }
+                            }
                         }
                         for (int i = 0; i < meta->propertyCount; ++i)
+                        {
                             LoadPropertyFromJson(comp, meta->properties[i], compJson["properties"]);
+                        }
                     }
                 }
                 else if (!typeName.empty() && typeName != "Unknown")
@@ -1749,19 +1890,25 @@ bool Scene::ExpandInstance(Object* instanceObj)
                     missing->m_ClassName = classHint;
                     missing->m_OriginalTypeId = HashString(typeName.c_str());
                     if (compJson.contains("properties"))
+                    {
                         missing->m_JsonProperties = compJson["properties"];
+                    }
                     Internal::AttachComponent(*instanceObj, missing);
                 }
             }
         }
 
         for (auto* child : sourceRoots[0]->GetChildren())
+        {
             objectsToClone.push_back(child);
+        }
     }
     else
     {
         for (auto* root : sourceRoots)
+        {
             objectsToClone.push_back(root);
+        }
     }
 
     // Accumulated ID remap across all cloned children (needed for instance root ObjectRefs)
@@ -1772,15 +1919,18 @@ bool Scene::ExpandInstance(Object* instanceObj)
     // ObjectRef inside the source pointing to the source root must remap to
     // the instance object's id.
     if (isSingleRoot)
+    {
         idRemap[sourceRoots[0]->GetId()] = instanceObj->GetId();
+    }
 
     // Clone source objects: serialize to JSON, then deserialize as child
     // Every id already in use in this scene, so the deterministic ids assigned
     // to the clones below never collide. Collected ONCE here.
     std::unordered_set<uint32_t> usedIds;
     for (auto* root : GetObjects())
-        VisitSubtree(root, [&usedIds](Object* o)
-                     { usedIds.insert(o->GetId()); });
+    {
+        VisitSubtree(root, [&usedIds](Object* o) { usedIds.insert(o->GetId()); });
+    }
 
     for (auto* sourceObj : objectsToClone)
     {
@@ -1797,8 +1947,7 @@ bool Scene::ExpandInstance(Object* instanceObj)
 #endif
 
             // Mark all cloned objects as part of instance
-            VisitSubtree(cloned, [](Object* o)
-                         { o->SetPartOfInstance(true); });
+            VisitSubtree(cloned, [](Object* o) { o->SetPartOfInstance(true); });
 
             // Remap object IDs to avoid duplicates across instances
             // Use deterministic IDs so external ObjectRefs pointing into this
@@ -1806,32 +1955,42 @@ bool Scene::ExpandInstance(Object* instanceObj)
             // usedIds was collected once before this loop (it used to be
             // rebuilt from the whole scene for every cloned root).
             const uint32_t instanceRootId = instanceObj->GetId();
-            VisitSubtree(cloned, [&](Object* obj)
+            VisitSubtree(cloned,
+                         [&](Object* obj)
                          {
-                uint32_t oldId = obj->GetId();
-                uint32_t newId = Object::GenerateDeterministicId(instanceRootId, oldId);
-                uint32_t salt = 0;
-                while (usedIds.count(newId))
-                {
-                    newId = Object::GenerateDeterministicId(newId, ++salt);
-                }
-                usedIds.insert(newId);
-                idRemap[oldId] = newId;
-                obj->SetId(newId); });
+                             uint32_t oldId = obj->GetId();
+                             uint32_t newId = Object::GenerateDeterministicId(instanceRootId, oldId);
+                             uint32_t salt = 0;
+                             while (usedIds.count(newId))
+                             {
+                                 newId = Object::GenerateDeterministicId(newId, ++salt);
+                             }
+                             usedIds.insert(newId);
+                             idRemap[oldId] = newId;
+                             obj->SetId(newId);
+                         });
 
             // Update ObjectRef fields to point to remapped IDs
-            VisitSubtree(cloned, [&idRemap](Object* obj)
+            VisitSubtree(cloned,
+                         [&idRemap](Object* obj)
                          {
-                for (auto* comp : obj->GetComponents())
-                    comp->RemapObjectRefs(idRemap); });
+                             for (auto* comp : obj->GetComponents())
+                             {
+                                 comp->RemapObjectRefs(idRemap);
+                             }
+                         });
 
             // Resolve ObjectRefs so .resolved pointers are set immediately
             // Don't MarkRefsResolved() - let ProcessInternalAwake() handle that
             // so it also resolves AssetRefs (sprite textures, etc.)
-            VisitSubtree(cloned, [this](Object* obj)
+            VisitSubtree(cloned,
+                         [this](Object* obj)
                          {
-                for (auto* comp : obj->GetComponents())
-                    comp->ResolveObjectRefs(this); });
+                             for (auto* comp : obj->GetComponents())
+                             {
+                                 comp->ResolveObjectRefs(this);
+                             }
+                         });
         }
     }
 
@@ -1865,10 +2024,14 @@ bool Scene::ExpandInstance(Object* instanceObj)
     // Reset resolution state on all expanded components so ProcessInternalAwake()
     // resolves AssetRefs (sprite textures, fonts, etc.) on the next frame.
     // This mirrors InvalidateAllAssets() which is what makes alt-tab fix rendering.
-    VisitSubtree(instanceObj, [](Object* obj)
+    VisitSubtree(instanceObj,
+                 [](Object* obj)
                  {
-        for (auto* comp : obj->GetComponents())
-            comp->ResetRefsResolved(); });
+                     for (auto* comp : obj->GetComponents())
+                     {
+                         comp->ResetRefsResolved();
+                     }
+                 });
 
     m_ComponentsCacheDirty = true;
     s_ExpandingGuids.erase(guid);
@@ -1877,7 +2040,10 @@ bool Scene::ExpandInstance(Object* instanceObj)
 
 void Scene::CollapseInstance(Object* instanceObj)
 {
-    if (!instanceObj) return;
+    if (!instanceObj)
+    {
+        return;
+    }
 
     // Delete all children (they are expanded from source). Announced like any
     // other destruction: the editor's undo history held pointers into them.
@@ -1896,7 +2062,10 @@ void Scene::CollapseInstance(Object* instanceObj)
 
 void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
 {
-    if (!overrides.is_array()) return;
+    if (!overrides.is_array())
+    {
+        return;
+    }
 
     auto& registry = ComponentRegistry::Instance();
 
@@ -1909,7 +2078,10 @@ void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
         {
             std::string objProp = override["objectProperty"].get<std::string>();
             Object* target = FindObjectByPath(instanceObj, objectPath);
-            if (!target) continue;
+            if (!target)
+            {
+                continue;
+            }
 
             if (objProp == "active" && override.contains("value"))
             {
@@ -1921,18 +2093,30 @@ void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
         std::string componentType = override.value("component", "");
         std::string propertyName = override.value("property", "");
 
-        if (componentType.empty() || propertyName.empty()) continue;
+        if (componentType.empty() || propertyName.empty())
+        {
+            continue;
+        }
 
         // Find target object
         Object* target = FindObjectByPath(instanceObj, objectPath);
-        if (!target) continue;
+        if (!target)
+        {
+            continue;
+        }
 
         // Find component
         const ComponentMeta* meta = registry.GetMeta(componentType);
-        if (!meta) continue;
+        if (!meta)
+        {
+            continue;
+        }
 
         Component* comp = target->GetComponentByTypeId(meta->typeId);
-        if (!comp) continue;
+        if (!comp)
+        {
+            continue;
+        }
 
         // Find property and apply value
         auto findAndApply = [&](const PropertyInfo* props, int count)
@@ -1957,7 +2141,9 @@ void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
             if (baseMeta && baseMeta->propertyCount > 0)
             {
                 if (findAndApply(baseMeta->properties, baseMeta->propertyCount))
+                {
                     continue;
+                }
             }
         }
 
@@ -1968,7 +2154,10 @@ void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
 
 Object* Scene::FindObjectByPath(Object* root, const std::string& path)
 {
-    if (path.empty()) return root;
+    if (path.empty())
+    {
+        return root;
+    }
 
     Object* current = root;
     size_t start = 0;
@@ -1976,9 +2165,7 @@ Object* Scene::FindObjectByPath(Object* root, const std::string& path)
     while (start < path.size())
     {
         size_t end = path.find('/', start);
-        std::string segment = (end == std::string::npos)
-                                  ? path.substr(start)
-                                  : path.substr(start, end - start);
+        std::string segment = (end == std::string::npos) ? path.substr(start) : path.substr(start, end - start);
 
         if (segment.empty())
         {
@@ -1996,7 +2183,10 @@ Object* Scene::FindObjectByPath(Object* root, const std::string& path)
             }
         }
 
-        if (!found) return nullptr;
+        if (!found)
+        {
+            return nullptr;
+        }
         current = found;
         start = (end == std::string::npos) ? path.size() : end + 1;
     }
@@ -2004,24 +2194,30 @@ Object* Scene::FindObjectByPath(Object* root, const std::string& path)
     return current;
 }
 
-void Scene::CollectOverrides(const Object* instanceRoot, const Object* obj,
-                             nlohmann::json& overrides) const
+void Scene::CollectOverrides(const Object* instanceRoot, const Object* obj, nlohmann::json& overrides) const
 {
     TryCollectOverrides(instanceRoot, obj, overrides);
 }
 
-bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
-                                nlohmann::json& overrides) const
+bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj, nlohmann::json& overrides) const
 {
     if (!instanceRoot->IsSceneInstance() || !s_GuidToPathResolver)
+    {
         return false;
+    }
 
     // Load source scene for comparison
     std::string sourcePath = s_GuidToPathResolver(instanceRoot->GetSourceSceneGuid());
-    if (sourcePath.empty()) return false;
+    if (sourcePath.empty())
+    {
+        return false;
+    }
 
     Scene sourceScene;
-    if (!sourceScene.LoadFromFile(sourcePath)) return false;
+    if (!sourceScene.LoadFromFile(sourcePath))
+    {
+        return false;
+    }
 
     auto& registry = ComponentRegistry::Instance();
 
@@ -2029,21 +2225,28 @@ bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
     std::function<void(const Object*, const Object*)> diffObjects =
         [&](const Object* instanceObj, const Object* sourceObj)
     {
-        if (!instanceObj || !sourceObj) return;
+        if (!instanceObj || !sourceObj)
+        {
+            return;
+        }
 
-        std::string objectPath = BuildObjectPath(
-            const_cast<Object*>(instanceObj),
-            const_cast<Object*>(instanceRoot));
+        std::string objectPath = BuildObjectPath(const_cast<Object*>(instanceObj), const_cast<Object*>(instanceRoot));
 
         // Compare components
         for (const auto* comp : instanceObj->GetComponents())
         {
             const ComponentMeta* meta = registry.GetMeta(comp->GetType());
-            if (!meta) continue;
+            if (!meta)
+            {
+                continue;
+            }
 
             // Find corresponding component in source
             const Component* sourceComp = sourceObj->GetComponentByTypeId(meta->typeId);
-            if (!sourceComp) continue;
+            if (!sourceComp)
+            {
+                continue;
+            }
 
             // Compare each property
             auto compareProps = [&](const PropertyInfo* props, int count)
@@ -2055,9 +2258,13 @@ bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
                     // Skip ObjectRef properties - IDs are remapped per-instance
                     // and cannot be meaningfully compared or stored as overrides
                     if (prop.type == PropertyType::ObjectRef)
+                    {
                         continue;
+                    }
                     if (prop.type == PropertyType::Array && prop.elementType == PropertyType::ObjectRef)
+                    {
                         continue;
+                    }
 
                     // Serialize both values to JSON for comparison
                     nlohmann::json currentJson, sourceJson;
@@ -2083,7 +2290,9 @@ bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
             {
                 const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
                 if (baseMeta && baseMeta->propertyCount > 0)
+                {
                     compareProps(baseMeta->properties, baseMeta->propertyCount);
+                }
             }
 
             // Check derived properties
@@ -2136,7 +2345,10 @@ bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj,
 
 std::string Scene::BuildObjectPath(Object* obj, Object* instanceRoot)
 {
-    if (obj == instanceRoot) return "";
+    if (obj == instanceRoot)
+    {
+        return "";
+    }
 
     std::string path;
     Object* current = obj;
@@ -2144,9 +2356,13 @@ std::string Scene::BuildObjectPath(Object* obj, Object* instanceRoot)
     while (current && current != instanceRoot)
     {
         if (!path.empty())
+        {
             path = current->GetName() + "/" + path;
+        }
         else
+        {
             path = current->GetName();
+        }
         current = current->GetParent();
     }
 

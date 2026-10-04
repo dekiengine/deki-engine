@@ -115,7 +115,6 @@ public:
      * path resolution appropriately for the platform.
      */
     static void SetDefaultFileSystem(IFileSystem* fs);
-
 };
 
 }  // namespace Deki

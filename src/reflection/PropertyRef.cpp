@@ -11,7 +11,6 @@
 namespace Deki
 {
 
-
 void PropertyRef::Rehash()
 {
 #ifdef DEKI_EDITOR
@@ -26,7 +25,9 @@ void PropertyRef::Rehash()
     {
         const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(component);
         if (meta && meta->serializedName && component != meta->serializedName)
+        {
             component = meta->serializedName;
+        }
     }
 #endif
     componentTypeId = component.empty() ? 0u : HashString(component.c_str());
@@ -62,18 +63,9 @@ const FieldRef kTransformFields[] = {
 
 const char* const kTransformFieldNames[] = {
 #ifdef DEKI_TRANSFORM_2D
-    "position",
-    "x",
-    "y",
-    "rotation",
-    "scale",
-    "scaleX",
-    "scaleY",
+    "position", "x",         "y",         "rotation", "scale", "scaleX", "scaleY",
 #ifdef DEKI_TRANSFORM_3D
-    "z",
-    "rotationX",
-    "rotationY",
-    "scaleZ",
+    "z",        "rotationX", "rotationY", "scaleZ",
 #endif
 #endif
     "active",
@@ -119,56 +111,72 @@ const FieldRef* DekiVariableFieldRef(PropertyType type)
 
 namespace
 {
-bool BindTransform(Object* object, uint32_t fieldHash, PropertyBinding& out,
-                   const char** outError)
+bool BindTransform(Object* object, uint32_t fieldHash, PropertyBinding& out, const char** outError)
 {
     int count = 0;
     const FieldRef* fields = TransformFields(count);
     for (int i = 0; i < count; ++i)
     {
         if (fields[i].nameHash != fieldHash)
+        {
             continue;
+        }
         out.object = object;
         out.transform = static_cast<TransformField>(fields[i].offset);
         out.info = &fields[i];
         out.field = nullptr;
         return true;
     }
-    if (outError) *outError = "the transform has no such field";
+    if (outError)
+    {
+        *outError = "the transform has no such field";
+    }
     return false;
 }
 }  // namespace
 
-bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& out,
-                     const char** outError)
+bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& out, const char** outError)
 {
     if (!object)
     {
-        if (outError) *outError = "no target object";
+        if (outError)
+        {
+            *outError = "no target object";
+        }
         return false;
     }
     if (!ref.IsSet())
     {
-        if (outError) *outError = "reference has no component/field picked";
+        if (outError)
+        {
+            *outError = "reference has no component/field picked";
+        }
         return false;
     }
 
     // The object's own transform, addressed like a component.
     if (ref.componentTypeId == HashString(kTransformRefComponent))
+    {
         return BindTransform(object, ref.fieldHash, out, outError);
+    }
 
     Component* comp = object->GetComponentByTypeId(ref.componentTypeId);
     if (!comp)
     {
-        if (outError) *outError = "object has no such component";
+        if (outError)
+        {
+            *outError = "object has no such component";
+        }
         return false;
     }
 
-    const FieldRef* info = ComponentRegistry::Instance().FindField(ref.componentTypeId,
-                                                                       ref.fieldHash);
+    const FieldRef* info = ComponentRegistry::Instance().FindField(ref.componentTypeId, ref.fieldHash);
     if (!info)
     {
-        if (outError) *outError = "component has no such field";
+        if (outError)
+        {
+            *outError = "component has no such field";
+        }
         return false;
     }
 
@@ -181,10 +189,14 @@ bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out, d
 {
     const auto type = static_cast<PropertyType>(info.type);
     if (type == PropertyType::String)
+    {
         return true;  // written verbatim, nothing to parse
+    }
 
     if (!text)
+    {
         return false;
+    }
 
     if (type == PropertyType::Bool)
     {
@@ -197,7 +209,9 @@ bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out, d
     char* end = nullptr;
     const double v = std::strtod(text, &end);
     if (end == text)
+    {
         return false;
+    }
     out = v;
 
     if (type == PropertyType::Vector2)
@@ -205,11 +219,15 @@ bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out, d
         // "x, y" - a Vector2 target needs both axes, so a single number is a
         // malformed literal rather than something to guess at.
         while (*end == ' ' || *end == ',')
+        {
             ++end;
+        }
         const char* second = end;
         const double v2 = std::strtod(second, &end);
         if (end == second)
+        {
             return false;
+        }
         out2 = v2;
     }
     return true;
@@ -349,8 +367,7 @@ double ReadNumeric(const PropertyBinding& b)
                     return v;
                 }
             }
-        default:
-            return 0.0;
+        default: return 0.0;
     }
 }
 }  // namespace
@@ -358,20 +375,30 @@ double ReadNumeric(const PropertyBinding& b)
 double ReadBoundProperty(const PropertyBinding& b)
 {
     if (!b.IsBound())
+    {
         return 0.0;
+    }
     return ReadNumeric(b);
 }
 
 double ReadBoundProperty2(const PropertyBinding& b)
 {
     if (!b.IsBound() || static_cast<PropertyType>(b.info->type) != PropertyType::Vector2)
+    {
         return 0.0;
+    }
 
     if (b.IsTransform())
     {
 #ifdef DEKI_TRANSFORM_2D
-        if (b.transform == TransformField::Position) return b.object->GetY();
-        if (b.transform == TransformField::Scale) return b.object->GetScaleY();
+        if (b.transform == TransformField::Position)
+        {
+            return b.object->GetY();
+        }
+        if (b.transform == TransformField::Scale)
+        {
+            return b.object->GetScaleY();
+        }
 #endif
         return 0.0;
     }
@@ -383,7 +410,9 @@ double ReadBoundProperty2(const PropertyBinding& b)
 void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
 {
     if (!b.IsBound())
+    {
         return;
+    }
 
     // Transform writes go through the setters so the world transform of this
     // object and every descendant is invalidated.
@@ -395,17 +424,11 @@ void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
 #ifdef DEKI_TRANSFORM_2D
             case TransformField::X: o->SetX(static_cast<float>(v)); break;
             case TransformField::Y: o->SetY(static_cast<float>(v)); break;
-            case TransformField::Position:
-                o->SetLocalPosition(static_cast<float>(v),
-                                    static_cast<float>(v2));
-                break;
+            case TransformField::Position: o->SetLocalPosition(static_cast<float>(v), static_cast<float>(v2)); break;
             case TransformField::Rotation: o->SetRotation(static_cast<float>(v)); break;
             case TransformField::ScaleX: o->SetScaleX(static_cast<float>(v)); break;
             case TransformField::ScaleY: o->SetScaleY(static_cast<float>(v)); break;
-            case TransformField::Scale:
-                o->SetScale(static_cast<float>(v),
-                            static_cast<float>(v2));
-                break;
+            case TransformField::Scale: o->SetScale(static_cast<float>(v), static_cast<float>(v2)); break;
 #ifdef DEKI_TRANSFORM_3D
             case TransformField::Z: o->SetZ(static_cast<float>(v)); break;
             case TransformField::RotationX: o->SetRotationX(static_cast<float>(v)); break;
@@ -436,11 +459,12 @@ void WriteBoundNumbers(const PropertyBinding& b, double v, double v2)
 void WriteBoundProperty(const PropertyBinding& b, const std::string& text)
 {
     if (!b.IsBound())
+    {
         return;
+    }
 
     // Transform and Vector2 targets are dispatched by WriteBoundNumbers.
-    if (b.IsTransform() ||
-        static_cast<PropertyType>(b.info->type) == PropertyType::Vector2)
+    if (b.IsTransform() || static_cast<PropertyType>(b.info->type) == PropertyType::Vector2)
     {
         WriteBoundNumbers(b, b.number, b.number2);
         return;
@@ -540,22 +564,31 @@ void WriteBoundProperty(const PropertyBinding& b, const std::string& text)
                 }
             }
             break;
-        default:
-            break;  // unsupported types are rejected at bind time by the caller
+        default: break;  // unsupported types are rejected at bind time by the caller
     }
 }
 
 int CompareBoundProperty(const PropertyBinding& b, const std::string& text)
 {
     if (!b.IsBound())
+    {
         return 0;
+    }
 
     if (static_cast<PropertyType>(b.info->type) == PropertyType::String)
+    {
         return static_cast<const std::string*>(b.field)->compare(text);
+    }
 
     const double live = ReadNumeric(b);
-    if (live < b.number) return -1;
-    if (live > b.number) return 1;
+    if (live < b.number)
+    {
+        return -1;
+    }
+    if (live > b.number)
+    {
+        return 1;
+    }
     return 0;
 }
 
