@@ -1,0 +1,60 @@
+# Name rules for Deki C++ code, as shown in docs/codestyle/CodeStyle.h.
+# Only the naming check is on. The editor and every package use a copy of this
+# file.
+Checks: '-*,readability-identifier-naming'
+HeaderFilterRegex: '.*'
+CheckOptions:
+  # Types and namespaces: PascalCase.
+  readability-identifier-naming.NamespaceCase: CamelCase
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+
+  # Functions: PascalCase. The standard container and range names are allowed,
+  # so a class can work with range-for and the standard algorithms.
+  readability-identifier-naming.FunctionCase: CamelCase
+  readability-identifier-naming.FunctionIgnoredRegexp: '^main$'
+  readability-identifier-naming.MethodCase: CamelCase
+  readability-identifier-naming.MethodIgnoredRegexp: '^(begin|end|cbegin|cend|rbegin|rend|size|empty|data|clear|push_back|emplace_back)$'
+
+  # Parameters and locals: camelCase.
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.LocalVariableCase: camelBack
+  readability-identifier-naming.LocalConstantCase: camelBack
+
+  # Data members: m_ + PascalCase when private or protected, camelCase when
+  # public, s_ + PascalCase when static.
+  readability-identifier-naming.PrivateMemberCase: CamelCase
+  readability-identifier-naming.PrivateMemberPrefix: m_
+  readability-identifier-naming.ProtectedMemberCase: CamelCase
+  readability-identifier-naming.ProtectedMemberPrefix: m_
+  readability-identifier-naming.PublicMemberCase: camelBack
+  readability-identifier-naming.ClassMemberCase: CamelCase
+  readability-identifier-naming.ClassMemberPrefix: s_
+
+  # Constants: k + PascalCase.
+  readability-identifier-naming.ConstexprVariableCase: CamelCase
+  readability-identifier-naming.ConstexprVariablePrefix: k
+  readability-identifier-naming.GlobalConstantCase: CamelCase
+  readability-identifier-naming.GlobalConstantPrefix: k
+  readability-identifier-naming.StaticConstantCase: CamelCase
+  readability-identifier-naming.StaticConstantPrefix: k
+  readability-identifier-naming.ClassConstantCase: CamelCase
+  readability-identifier-naming.ClassConstantPrefix: k
+
+  # Variables outside a function: s_ + PascalCase when only this file uses
+  # them, g_ + PascalCase when other files can see them. clang-tidy cannot tell
+  # the two apart, so it accepts either prefix; a review checks which.
+  readability-identifier-naming.GlobalVariableCase: CamelCase
+  readability-identifier-naming.GlobalVariableIgnoredRegexp: '^[sg]_[A-Z][A-Za-z0-9]*$'
+  # A static variable inside a function: s_ + PascalCase.
+  readability-identifier-naming.StaticVariableCase: CamelCase
+  readability-identifier-naming.StaticVariablePrefix: s_
+
+  # Macros: ALL_CAPS.
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE

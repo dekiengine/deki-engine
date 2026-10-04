@@ -1,0 +1,52 @@
+#!/bin/sh
+# Formats the C++ files being committed with clang-format, then commits them.
+#
+# Turn it on in a repository with:
+#   git config core.hooksPath <path to deki-engine>/tools/hooks
+#
+# A staged file that also has unstaged changes is only checked, not formatted:
+# formatting it would put the unstaged changes into the commit. If it needs
+# formatting the commit stops and says which file.
+#
+# Everyone uses the same clang-format version, because versions format a few
+# things differently. Set DEKI_CLANG_FORMAT to its path if it is not found.
+
+REQUIRED_MAJOR=22
+
+find_clang_format() {
+    for candidate in "$DEKI_CLANG_FORMAT" /c/msys64/mingw64/bin/clang-format.exe /mingw64/bin/clang-format.exe \
+        "clang-format-$REQUIRED_MAJOR" clang-format; do
+        [ -n "$candidate" ] || continue
+        if command -v "$candidate" >/dev/null 2>&1; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if ! CLANG_FORMAT=$(find_clang_format); then
+    echo "pre-commit: clang-format not found, so nothing was formatted. Install LLVM $REQUIRED_MAJOR or set DEKI_CLANG_FORMAT." >&2
+    exit 0
+fi
+
+MAJOR=$("$CLANG_FORMAT" --version | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p')
+if [ "$MAJOR" != "$REQUIRED_MAJOR" ]; then
+    echo "pre-commit: $CLANG_FORMAT is version $MAJOR, but Deki code is formatted with $REQUIRED_MAJOR. Nothing was formatted." >&2
+    exit 0
+fi
+
+FILES=$(git diff --cached --name-only --diff-filter=ACMR -- '*.h' '*.hpp' '*.c' '*.cpp' |
+    grep -v -E '(^|/)(third_party|generated|build)/')
+[ -n "$FILES" ] || exit 0
+
+STATUS=0
+for file in $FILES; do
+    if git diff --quiet -- "$file"; then
+        "$CLANG_FORMAT" -i "$file" && git add -- "$file"
+    elif ! git show ":$file" | "$CLANG_FORMAT" --dry-run --Werror --assume-filename="$file" >/dev/null 2>&1; then
+        echo "pre-commit: $file needs formatting, but it also has unstaged changes. Stage or stash them, or run: clang-format -i $file" >&2
+        STATUS=1
+    fi
+done
+exit $STATUS

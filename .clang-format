@@ -1,23 +1,11 @@
-# Formatting for the Deki engine.
-#
-# Matches the editor's config deliberately: the two are built and edited
-# together, and a file moving between them should not reformat.
-#
-# Measured here too: Allman braces beat K&R 1045 to 483, indentation is 4 spaces
-# (the 1- and 5-space runs are Doxygen comment continuations, not code), and
-# `T* p` beats `T *p` 877 to 27.
-#
-# Unlike the editor, applying this is NOT close to a no-op - it touches ~40% of
-# lines. That is the point: the engine had `   private:` at three spaces in some
-# files and zero in others, stray alignment padding, and K&R braces mixed into
-# an otherwise Allman codebase.
-#
-# Naming is a separate matter and clang-format does not enforce it. See the
-# Naming Convention section of CLAUDE.md.
+# Layout rules for Deki C++ code. The full style, names included, is in
+# docs/codestyle/: CodeStyle.h and CodeStyle.cpp show every rule, and
+# .clang-tidy checks the names. The editor and every package use a copy of
+# this file.
 Language: Cpp
 BasedOnStyle: LLVM
 
-# Braces on their own line, the dominant style here by a wide margin.
+# Braces on their own line.
 BreakBeforeBraces: Allman
 
 IndentWidth: 4
@@ -26,34 +14,29 @@ UseTab: Never
 AccessModifierOffset: -4
 NamespaceIndentation: None
 
-# 0 = never reflow a line the author already fitted. Adopting a column limit on
-# an existing codebase rewraps a third of it for no readability gain and buries
-# every future diff; the authors' own line breaks are already sensible here.
-ColumnLimit: 0
+ColumnLimit: 120
 
 PointerAlignment: Left
 ReferenceAlignment: Left
 DerivePointerAlignment: false
 
-# Trivial accessors are written inline throughout (GetId, IsActive, ...) and
-# should stay that way; anything longer gets expanded.
-AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: WithoutElse
+# Every if, for and while body has braces, and clang-format adds missing ones.
+InsertBraces: true
+AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
-# `case X: return "y";` on one line is used heavily in the type-mapping
-# switches; splitting them makes those tables far harder to read.
+AllowShortBlocksOnASingleLine: Never
+
+# Short accessors may stay on one line inside a class. Elsewhere, even an
+# empty body goes on its own lines.
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortLambdasOnASingleLine: All
+# `case X: return "y";` may stay on one line.
 AllowShortCaseLabelsOnASingleLine: true
 
-# Include order here is deliberate: a file's own header first, then project
-# headers, then engine, then third-party. Sorting would reorder that and produce
-# a large diff for no benefit - and in a few places the order is load-bearing.
+# Includes keep the order the author wrote; see CodeStyle.h for the order.
 SortIncludes: Never
-
-# Likewise leave using-declarations where the author put them; sorting them
-# reorders related lines apart for no benefit.
 SortUsingDeclarations: Never
 
-# Existing code aligns neither; leaving these off avoids reflowing whole blocks.
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignTrailingComments: true
@@ -63,21 +46,25 @@ SpacesBeforeTrailingComments: 2
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
 
-# Respect the author's braced-list layout instead of repacking it. Several
-# tables here are laid out one entry per line on purpose.
+# `template <...>` on its own line; a constructor's initializers start on the
+# next line, one per line.
+BreakTemplateDeclarations: Yes
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: Never
+
+# Braced lists have spaces inside: `{ 0 }`, `T{ x }`.
 Cpp11BracedListStyle: false
 BinPackArguments: true
 BinPackParameters: true
 IndentCaseLabels: true
 ---
-# clang-format 18 misparses the P2996 reflection attributes in
-# reflection/DekiProperty.h ([[=deki_refl::exported{}]]) as Objective-C message
-# sends and refuses to run without an ObjC section. This mirrors the C++ rules
-# so tools do not error; it is not an invitation to write Objective-C.
+# clang-format 18 reads the reflection attributes in reflection/DekiProperty.h
+# ([[=deki_refl::exported{}]]) as Objective-C and stops without this section.
+# It repeats the C++ rules so the tool runs.
 Language: ObjC
 BasedOnStyle: LLVM
 BreakBeforeBraces: Allman
 IndentWidth: 4
-ColumnLimit: 0
+ColumnLimit: 120
 PointerAlignment: Left
 SortIncludes: Never
