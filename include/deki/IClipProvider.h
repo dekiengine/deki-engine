@@ -11,14 +11,14 @@
  *
  * Implementing the interface is not enough on its own: the renderer discovers
  * it through ComponentInterfaceAdapters, so each component must also register an
- * adapter from its StaticType to this interface. Do that once, from the
+ * adapter from its kStaticType to this interface. Do that once, from the
  * package's registration path:
  *
  * @code
  * #include "ComponentInterfaceAdapters.h"
  *
  * ComponentInterfaceAdapters::Register(
- *     IClipProvider::InterfaceID,
+ *     IClipProvider::kInterfaceID,
  *     ::Deki::TypeId<MyComponent>(),
  *     [](Component* c) -> void* {
  *         return static_cast<IClipProvider*>(static_cast<MyComponent*>(c));
@@ -38,7 +38,7 @@ namespace Deki
 class IClipProvider
 {
 public:
-    static constexpr uint32_t InterfaceID = 0x434C4950;  // "CLIP"
+    static constexpr uint32_t kInterfaceID = 0x434C4950;  // "CLIP"
 
     virtual ~IClipProvider() = default;
     virtual float GetClipWidth() const = 0;

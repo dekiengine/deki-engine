@@ -34,11 +34,11 @@ SceneSystem::~SceneSystem()
     m_OwnsRootScene = false;
 
     // Clean up Persistent objects
-    for (Object* obj : persistentObjects)
+    for (Object* obj : m_PersistentObjects)
     {
         delete obj;
     }
-    persistentObjects.clear();
+    m_PersistentObjects.clear();
 }
 
 bool SceneSystem::Setup()
@@ -154,7 +154,7 @@ void SceneSystem::MarkPersistent(Object* obj)
     if (obj->IsPersistent())
     {
         // Check if already in our list
-        for (Object* existing : persistentObjects)
+        for (Object* existing : m_PersistentObjects)
         {
             if (existing == obj)
             {
@@ -179,19 +179,19 @@ void SceneSystem::MarkPersistent(Object* obj)
     }
 
     // Add to persistent storage
-    persistentObjects.push_back(obj);
+    m_PersistentObjects.push_back(obj);
 }
 
 void SceneSystem::ClearPersistentObjects(bool deleteObjects)
 {
     if (deleteObjects)
     {
-        for (Object* obj : persistentObjects)
+        for (Object* obj : m_PersistentObjects)
         {
             delete obj;
         }
     }
-    persistentObjects.clear();
+    m_PersistentObjects.clear();
     DEKI_LOG_INTERNAL("SceneSystem: Cleared Persistent objects");
 }
 

@@ -14,7 +14,7 @@ uint32_t Time::s_LastFrameTime = 0;
 uint32_t Time::s_DeltaTime = 0;
 float Time::s_DeltaTimeF = 0.0f;
 uint32_t Time::s_StartTime = 0;
-float Time::fps = 0.0f;
+float Time::s_Fps = 0.0f;
 uint32_t Time::s_FpsCounter = 0;
 uint32_t Time::s_FpsTime = 0;
 
@@ -36,7 +36,7 @@ void Time::Initialize()
     s_CurrentTime = 0;
     s_LastFrameTime = 0;
     s_DeltaTime = 0;
-    fps = 0.0f;
+    s_Fps = 0.0f;
     s_FpsCounter = 0;
     s_FpsTime = 0;
 
@@ -52,12 +52,12 @@ uint32_t Time::GetTime()
     return s_TimeProvider->GetTicksMs() - s_StartTime;
 }
 
-uint32_t Time::GetElapsed(uint32_t previous_time)
+uint32_t Time::GetElapsed(uint32_t previousTime)
 {
     uint32_t now = GetTime();
-    if (now >= previous_time)
+    if (now >= previousTime)
     {
-        return now - previous_time;
+        return now - previousTime;
     }
     // Handle wrap-around (unlikely with uint32_t milliseconds)
     return 0;
@@ -88,20 +88,20 @@ void Time::Update(uint32_t deltaTime)
 
     if (s_FpsTime >= 1000)  // One second has passed
     {
-        fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
+        s_Fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
         s_FpsCounter = 0;
         s_FpsTime = 0;
     }
 }
 
-void Time::UpdateF(float delta_time_ms)
+void Time::UpdateF(float deltaTimeMs)
 {
     // Update current time
     s_CurrentTime = GetTime();
 
     // Store both integer and float versions
-    s_DeltaTime = static_cast<uint32_t>(delta_time_ms + 0.5f);  // Round for integer version
-    s_DeltaTimeF = delta_time_ms;                               // Keep full precision
+    s_DeltaTime = static_cast<uint32_t>(deltaTimeMs + 0.5f);  // Round for integer version
+    s_DeltaTimeF = deltaTimeMs;                               // Keep full precision
 
     s_LastFrameTime = s_CurrentTime;
 
@@ -111,7 +111,7 @@ void Time::UpdateF(float delta_time_ms)
 
     if (s_FpsTime >= 1000)  // One second has passed
     {
-        fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
+        s_Fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
         s_FpsCounter = 0;
         s_FpsTime = 0;
     }
@@ -129,7 +129,7 @@ float Time::GetDeltaTimeF()
 
 float Time::GetFPS()
 {
-    return fps;
+    return s_Fps;
 }
 
 void Time::ResetFrameTime()

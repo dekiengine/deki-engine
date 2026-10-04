@@ -11,14 +11,14 @@
  *
  * Implementing the interface is not enough on its own: the renderer discovers
  * it through ComponentInterfaceAdapters, so each component must also register an
- * adapter from its StaticType to this interface. Do that once, from the
+ * adapter from its kStaticType to this interface. Do that once, from the
  * package's registration path:
  *
  * @code
  * #include "ComponentInterfaceAdapters.h"
  *
  * ComponentInterfaceAdapters::Register(
- *     ISortableProvider::InterfaceID,
+ *     ISortableProvider::kInterfaceID,
  *     ::Deki::TypeId<MyComponent>(),
  *     [](Component* c) -> void* {
  *         return static_cast<ISortableProvider*>(static_cast<MyComponent*>(c));
@@ -38,7 +38,7 @@ namespace Deki
 class ISortableProvider
 {
 public:
-    static constexpr uint32_t InterfaceID = 0x534F5254;  // "SORT"
+    static constexpr uint32_t kInterfaceID = 0x534F5254;  // "SORT"
 
     virtual ~ISortableProvider() = default;
     virtual int32_t GetSortingOrder() const = 0;

@@ -32,7 +32,7 @@
 namespace Deki
 {
 
-namespace detail
+namespace Detail
 {
 // Deliberately not templates: a Buffer<T> would otherwise emit a copy of the
 // allocate and free logic per element type, and this engine is built for parts
@@ -40,7 +40,7 @@ namespace detail
 // multiply.
 void* BufferAllocate(size_t bytes, Memory::Region region, AllocContext ctx);
 void BufferFree(void* ptr);
-}  // namespace detail
+}  // namespace Detail
 
 /**
  * @brief Owning array of `T`, freed when it goes out of scope
@@ -128,7 +128,7 @@ public:
 
         // ctx forwarded, never re-defaulted: it must name whoever called
         // Allocate, not this header.
-        m_Data = static_cast<T*>(detail::BufferAllocate(count * sizeof(T), region, ctx));
+        m_Data = static_cast<T*>(Detail::BufferAllocate(count * sizeof(T), region, ctx));
         m_Count = m_Data ? count : 0;
         return m_Data != nullptr;
     }
@@ -138,7 +138,7 @@ public:
     {
         if (m_Data)
         {
-            detail::BufferFree(m_Data);
+            Detail::BufferFree(m_Data);
             m_Data = nullptr;
         }
         m_Count = 0;

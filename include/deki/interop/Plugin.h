@@ -18,7 +18,7 @@
  * looked for. Two things had drifted before this header was made the single
  * source of truth:
  *
- *   - It declared DekiPlugin_GetReflectionJson, GetFeatureCount and GetFeature,
+ *   - It declared DekiPluginGetReflectionJson, GetFeatureCount and GetFeature,
  *     which all 24 packages dutifully exported and which no loader has ever
  *     resolved. Feature metadata is read from package.json, not from the DLL.
  *   - The loader resolved SetImGuiContext, GetImGuiContextSize, ClearRegistries,
@@ -28,11 +28,11 @@
  * @code
  * #include <DekiPlugin.h>
  *
- * DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)    { return "MyGame"; }
- * DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void) { return "1.0.0"; }
- * DEKI_PLUGIN_API int  DekiPlugin_Init(void)              { return 0; }
- * DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)          {}
- * DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void) { MyGame_Register(); }
+ * DEKI_PLUGIN_API const char* DekiPluginGetName(void)    { return "MyGame"; }
+ * DEKI_PLUGIN_API const char* DekiPluginGetVersion(void) { return "1.0.0"; }
+ * DEKI_PLUGIN_API int  DekiPluginInit(void)              { return 0; }
+ * DEKI_PLUGIN_API void DekiPluginShutdown(void)          {}
+ * DEKI_PLUGIN_API void DekiPluginRegisterComponents(void) { MyGame_Register(); }
  * @endcode
  */
 
@@ -59,24 +59,24 @@ extern "C"
      * @brief Get the plugin name for display in the editor
      * @return Human-readable plugin name (e.g., "Project-V Components")
      */
-    DEKI_PLUGIN_API const char* DekiPlugin_GetName(void);
+    DEKI_PLUGIN_API const char* DekiPluginGetName(void);
 
     /**
      * @brief Get the plugin version
      * @return Version string (e.g., "1.0.0")
      */
-    DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void);
+    DEKI_PLUGIN_API const char* DekiPluginGetVersion(void);
 
     /**
      * @brief Optional: Initialize the plugin
      * @return 0 on success, non-zero on failure
      */
-    DEKI_PLUGIN_API int DekiPlugin_Init(void);
+    DEKI_PLUGIN_API int DekiPluginInit(void);
 
     /**
      * @brief Optional: Shutdown the plugin
      */
-    DEKI_PLUGIN_API void DekiPlugin_Shutdown(void);
+    DEKI_PLUGIN_API void DekiPluginShutdown(void);
 
 // ============================================================================
 // Component Factory API (for plugins with actual component implementations)
@@ -94,7 +94,7 @@ extern "C"
      * @brief Get the number of components provided by this plugin
      * @return Number of components (0 if plugin only provides JSON metadata)
      */
-    DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void);
+    DEKI_PLUGIN_API int DekiPluginGetComponentCount(void);
 
 /**
  * @brief Get component metadata by index
@@ -106,9 +106,9 @@ extern "C"
  * plugin components for play mode.
  */
 #ifdef __cplusplus
-    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index);
+    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPluginGetComponentMeta(int index);
 #else
-DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
+DEKI_PLUGIN_API const void* DekiPluginGetComponentMeta(int index);
 #endif
 
     /**
@@ -117,7 +117,7 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * Called by the editor after loading the plugin DLL. This allows the plugin
      * to register its components so they appear in the Add Component menu.
      */
-    DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void);
+    DEKI_PLUGIN_API void DekiPluginRegisterComponents(void);
 
     // ============================================================================
     // Optional hooks
@@ -135,7 +135,7 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * currently do - they draw through deki-editor's EditorUI, which shares the
      * context via Deki::SetImGuiContext.
      */
-    DEKI_PLUGIN_API void DekiPlugin_SetImGuiContext(void* context);
+    DEKI_PLUGIN_API void DekiPluginSetImGuiContext(void* context);
 
     /**
      * @brief Report sizeof(ImGuiContext) as this package compiled it.
@@ -145,7 +145,7 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * that does not export it is loaded unchecked - so export it if you touch
      * ImGui at all.
      */
-    DEKI_PLUGIN_API unsigned int DekiPlugin_GetImGuiContextSize(void);
+    DEKI_PLUGIN_API unsigned int DekiPluginGetImGuiContextSize(void);
 
     /**
      * @brief Drop everything this package registered into engine-side registries.
@@ -154,13 +154,13 @@ DEKI_PLUGIN_API const void* DekiPlugin_GetComponentMeta(int index);
      * holding a pointer into this DLL - factories, std::function callbacks,
      * metadata - must go here, or it dangles the moment FreeLibrary runs.
      */
-    DEKI_PLUGIN_API void DekiPlugin_ClearRegistries(void);
+    DEKI_PLUGIN_API void DekiPluginClearRegistries(void);
 
     /// @brief Play mode is starting, for the given Deki::Scene*.
-    DEKI_PLUGIN_API void DekiPlugin_OnPlayModeStart(void* scene);
+    DEKI_PLUGIN_API void DekiPluginOnPlayModeStart(void* scene);
 
     /// @brief Play mode has stopped.
-    DEKI_PLUGIN_API void DekiPlugin_OnPlayModeStop(void);
+    DEKI_PLUGIN_API void DekiPluginOnPlayModeStop(void);
 
 #ifdef __cplusplus
 }

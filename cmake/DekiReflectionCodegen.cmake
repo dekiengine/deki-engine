@@ -224,7 +224,7 @@ function(deki_reflection_codegen)
   # the engine headers it includes, and GCC does NOT gracefully ignore a .gch whose
   # headers changed on disk - it loads the old definitions and the TU's own fresh
   # #include then redefines every type (a wall of "redefinition of 'struct
-  # deki_refl::exported'" errors). So the .gch must be rebuilt whenever anything in
+  # DekiRefl::Exported'" errors). So the .gch must be rebuilt whenever anything in
   # its include closure changes: the compile emits a depfile (-MD), the configure-
   # time gate checks every path recorded in it, and under Ninja a build-time rule
   # with DEPFILE regenerates the .gch before any build-time codegen consumes it.
@@ -342,7 +342,7 @@ function(deki_reflection_codegen)
         # one a rebuild rule and every other one none: those were then refreshed
         # only at configure time, so editing an engine reflection header and
         # rebuilding left them stale. A stale .gch does not fail quietly - it
-        # surfaces as "redefinition of struct Deki::deki_refl::..." from the
+        # surfaces as "redefinition of struct Deki::DekiRefl::..." from the
         # header the .gch already contains. Keying by _pch_key keeps the
         # duplicate-rule protection the comment below describes while giving
         # every distinct PCH its own rule.

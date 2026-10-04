@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <string>
-#include <deki/reflection/Property.h>  // deki_refl namespace + DEKI_* macros (under DEKI_REFLECT)
+#include <deki/reflection/Property.h>  // DekiRefl namespace + DEKI_* macros (under DEKI_REFLECT)
 #include <deki/Vector.h>               // ::Deki::Vector2 / ::Deki::Vector3
 #include <deki/Color.h>
 #include <deki/assets/AssetRef.h>
@@ -72,7 +72,7 @@ consteval bool skip_namespace(m::info ns)
         return true;  // anonymous: nothing reflectable lives there
     }
     std::string_view id = m::identifier_of(ns);
-    return id == "std" || id == "deki_refl" || id == "nlohmann" || id == "__gnu_cxx" || id == "__cxxabiv1" ||
+    return id == "std" || id == "DekiRefl" || id == "nlohmann" || id == "__gnu_cxx" || id == "__cxxabiv1" ||
            (id.size() >= 2 && id[0] == '_' && id[1] == '_');
 }
 consteval void collect_scope(m::info ns, std::vector<m::info>& out)
@@ -270,7 +270,7 @@ consteval const char* int_name(m::info d)
     }
     return "Unknown";
 }
-consteval const char* deki_type_name(m::info t)
+consteval const char* DekiTypeName(m::info t)
 {
     if (is_assetref(t))
     {
@@ -518,7 +518,7 @@ consteval bool is_exported(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::exported)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Exported)
         {
             return true;
         }
@@ -529,7 +529,7 @@ consteval bool is_editor_only(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::editor_only)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::EditorOnly)
         {
             return true;
         }
@@ -540,7 +540,7 @@ consteval bool is_serializable(m::info type)
 {
     for (m::info a : m::annotations_of(type))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::serializable)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Serializable)
         {
             return true;
         }
@@ -551,7 +551,7 @@ consteval bool has_no_serialize(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::no_serialize)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::NoSerialize)
         {
             return true;
         }
@@ -665,9 +665,9 @@ consteval const char* unit_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::unit)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Unit)
         {
-            return m::extract<Deki::deki_refl::unit>(a).name;
+            return m::extract<Deki::DekiRefl::Unit>(a).name;
         }
     }
     return nullptr;
@@ -676,9 +676,9 @@ consteval const char* vw_prop(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::VisibleWhen)
         {
-            return m::extract<Deki::deki_refl::visible_when>(a).prop;
+            return m::extract<Deki::DekiRefl::VisibleWhen>(a).prop;
         }
     }
     return nullptr;
@@ -687,9 +687,9 @@ consteval const char* vw_vals(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::visible_when)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::VisibleWhen)
         {
-            return m::extract<Deki::deki_refl::visible_when>(a).values;
+            return m::extract<Deki::DekiRefl::VisibleWhen>(a).values;
         }
     }
     return nullptr;
@@ -698,9 +698,9 @@ consteval const char* tooltip_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::tooltip)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Tooltip)
         {
-            return m::extract<Deki::deki_refl::tooltip>(a).text;
+            return m::extract<Deki::DekiRefl::Tooltip>(a).text;
         }
     }
     return nullptr;
@@ -709,9 +709,9 @@ consteval const char* group_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::group)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Group)
         {
-            return m::extract<Deki::deki_refl::group>(a).name;
+            return m::extract<Deki::DekiRefl::Group>(a).name;
         }
     }
     return nullptr;
@@ -720,9 +720,9 @@ consteval const char* toggle_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::toggle_object)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::ToggleObject)
         {
-            return m::extract<Deki::deki_refl::toggle_object>(a).field;
+            return m::extract<Deki::DekiRefl::ToggleObject>(a).field;
         }
     }
     return nullptr;
@@ -733,9 +733,9 @@ consteval const char* objname_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::object_name)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::ObjectName)
         {
-            return m::extract<Deki::deki_refl::object_name>(a).component;
+            return m::extract<Deki::DekiRefl::ObjectName>(a).component;
         }
     }
     return nullptr;
@@ -746,9 +746,9 @@ consteval const char* valueof_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::value_of)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::ValueOf)
         {
-            return m::extract<Deki::deki_refl::value_of>(a).prop;
+            return m::extract<Deki::DekiRefl::ValueOf>(a).prop;
         }
     }
     return nullptr;
@@ -758,9 +758,9 @@ consteval const char* renamed_from_of(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::renamed_from)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::RenamedFrom)
         {
-            return m::extract<Deki::deki_refl::renamed_from>(a).name;
+            return m::extract<Deki::DekiRefl::RenamedFrom>(a).name;
         }
     }
     return nullptr;
@@ -769,7 +769,7 @@ consteval bool has_range(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Range)
         {
             return true;
         }
@@ -780,9 +780,9 @@ consteval const char* range_lo(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Range)
         {
-            return m::extract<Deki::deki_refl::range>(a).lo;
+            return m::extract<Deki::DekiRefl::Range>(a).lo;
         }
     }
     return nullptr;
@@ -791,9 +791,9 @@ consteval const char* range_hi(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Range)
         {
-            return m::extract<Deki::deki_refl::range>(a).hi;
+            return m::extract<Deki::DekiRefl::Range>(a).hi;
         }
     }
     return nullptr;
@@ -802,9 +802,9 @@ consteval bool range_slider(m::info mem)
 {
     for (m::info a : m::annotations_of(mem))
     {
-        if (m::remove_cv(m::type_of(a)) == ^^Deki::deki_refl::range)
+        if (m::remove_cv(m::type_of(a)) == ^^Deki::DekiRefl::Range)
         {
-            return m::extract<Deki::deki_refl::range>(a).slider;
+            return m::extract<Deki::DekiRefl::Range>(a).slider;
         }
     }
     return false;
@@ -1045,7 +1045,7 @@ consteval VisInfo resolve_vis(m::info ctrlType, std::string_view vals)
 
 // ---- markers above the class (DEKI_CATEGORY, DEKI_DESCRIPTION, ...) ----
 // Under DEKI_REFLECT each marker expands to a namespace-scope constant of a
-// deki_refl tag type. A marker belongs to the first component declared after it
+// DekiRefl tag type. A marker belongs to the first component declared after it
 // in the same file; one that no component follows is reported as an error.
 enum TagKind
 {
@@ -1063,23 +1063,23 @@ consteval int tag_kind(m::info x)
         return TAG_NONE;
     }
     m::info t = bare(m::type_of(x));
-    if (t == ^^Deki::deki_refl::category_tag)
+    if (t == ^^Deki::DekiRefl::CategoryTag)
     {
         return TAG_CATEGORY;
     }
-    if (t == ^^Deki::deki_refl::description_tag)
+    if (t == ^^Deki::DekiRefl::DescriptionTag)
     {
         return TAG_DESCRIPTION;
     }
-    if (t == ^^Deki::deki_refl::display_name_tag)
+    if (t == ^^Deki::DekiRefl::DisplayNameTag)
     {
         return TAG_DISPLAY_NAME;
     }
-    if (t == ^^Deki::deki_refl::settings_section_tag)
+    if (t == ^^Deki::DekiRefl::SettingsSectionTag)
     {
         return TAG_SETTINGS_SECTION;
     }
-    if (t == ^^Deki::deki_refl::former_name_tag)
+    if (t == ^^Deki::DekiRefl::FormerNameTag)
     {
         return TAG_FORMER_NAME;
     }
@@ -1089,11 +1089,11 @@ consteval const char* tag_text(m::info x)
 {
     switch (tag_kind(x))
     {
-        case TAG_CATEGORY: return m::extract<Deki::deki_refl::category_tag>(x).text;
-        case TAG_DESCRIPTION: return m::extract<Deki::deki_refl::description_tag>(x).text;
-        case TAG_DISPLAY_NAME: return m::extract<Deki::deki_refl::display_name_tag>(x).text;
-        case TAG_SETTINGS_SECTION: return m::extract<Deki::deki_refl::settings_section_tag>(x).text;
-        case TAG_FORMER_NAME: return m::extract<Deki::deki_refl::former_name_tag>(x).text;
+        case TAG_CATEGORY: return m::extract<Deki::DekiRefl::CategoryTag>(x).text;
+        case TAG_DESCRIPTION: return m::extract<Deki::DekiRefl::DescriptionTag>(x).text;
+        case TAG_DISPLAY_NAME: return m::extract<Deki::DekiRefl::DisplayNameTag>(x).text;
+        case TAG_SETTINGS_SECTION: return m::extract<Deki::DekiRefl::SettingsSectionTag>(x).text;
+        case TAG_FORMER_NAME: return m::extract<Deki::DekiRefl::FormerNameTag>(x).text;
         default: return nullptr;
     }
 }
@@ -1663,7 +1663,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
             ++fieldCount;
             out << "    { ::Deki::HashString(\"" << m::identifier_of(mem) << "\"), "
                 << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
-                << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
+                << "(uint8_t)::Deki::PropertyType::" << DekiTypeName(t) << ", ";
             if constexpr (is_enum(t))
             {
                 out << sizeof(typename[:bare(t):]);
@@ -1680,7 +1680,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 ++fieldCount;
                 out << "    { ::Deki::HashString(\"" << renamed_from_of(mem) << "\"), "
                     << "(uint16_t)offsetof(" << QN << ", " << m::identifier_of(mem) << "), "
-                    << "(uint8_t)::Deki::PropertyType::" << deki_type_name(t) << ", ";
+                    << "(uint8_t)::Deki::PropertyType::" << DekiTypeName(t) << ", ";
                 if constexpr (is_enum(t))
                 {
                     out << sizeof(typename[:bare(t):]);
@@ -1777,7 +1777,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
             }
             first = false;
             ++count;
-            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << deki_type_name(t)
+            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << DekiTypeName(t)
                 << ", offsetof(" << QN << ", " << m::identifier_of(mem) << "),\n";
             out << "      ";
             constexpr const char* tip = tooltip_of(mem);
@@ -2530,7 +2530,7 @@ void emit_node(std::ostream& out, std::string_view srcdir)
             }
             first = false;
             ++count;
-            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << deki_type_name(t)
+            out << "    { \"" << m::identifier_of(mem) << "\", nullptr, ::Deki::PropertyType::" << DekiTypeName(t)
                 << ", offsetof(" << CLS << ", " << m::identifier_of(mem) << "),\n";
             out << "      ";
             constexpr const char* tip = tooltip_of(mem);
@@ -2706,9 +2706,9 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     out << "        sizeof(" << CLS << "),\n";
     // Trailing fields are APPEND-ONLY (see DekiNodeMeta): displayName, then
     // childCategory, then titleProperty, then permanent.
-    if constexpr (has_static_member(NODE, "StaticNodeDisplayName"))
+    if constexpr (has_static_member(NODE, "kStaticNodeDisplayName"))
     {
-        out << "        " << CLS << "::StaticNodeDisplayName,\n";
+        out << "        " << CLS << "::kStaticNodeDisplayName,\n";
     }
     else
     {
@@ -2762,9 +2762,9 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     {
         out << "        nullptr,   // subgraphEntry (no seeded entry node)\n";
     }
-    if constexpr (has_static_member(NODE, "StaticNodeDescription"))
+    if constexpr (has_static_member(NODE, "kStaticNodeDescription"))
     {
-        out << "        " << CLS << "::StaticNodeDescription\n";
+        out << "        " << CLS << "::kStaticNodeDescription\n";
     }
     else
     {
@@ -2942,9 +2942,9 @@ inline void emit_meta_accessors(std::ostream& out, std::vector<CompInfo> comps, 
             concrete.push_back(&c);
         }
     }
-    out << "int " << prefix << "_GetAutoComponentCount() {\n    return " << concrete.size() << ";\n}\n\n";
+    out << "int " << prefix << "GetAutoComponentCount() {\n    return " << concrete.size() << ";\n}\n\n";
     out << "#ifdef DEKI_EDITOR\n";
-    out << "const ::Deki::ComponentMeta* " << prefix << "_GetAutoComponentMeta(int index) {\n";
+    out << "const ::Deki::ComponentMeta* " << prefix << "GetAutoComponentMeta(int index) {\n";
     out << "    switch (index) {\n";
     for (size_t i = 0; i < concrete.size(); ++i)
     {
@@ -2966,19 +2966,19 @@ void emit_registration(std::ostream& out, std::vector<CompInfo> comps, const Cod
     }
     out << "// AUTO-GENERATED by the Deki reflection codegen: " << pkg.prefix << " package registration\n";
     out << "// " << (comps.size() - nAbstract) << " concrete + " << nAbstract << " abstract component(s)\n\n";
-    emit_registration_body(out, comps, std::string(pkg.prefix) + "_RegisterComponents", pkg.adapters, pkg.adapterCount,
+    emit_registration_body(out, comps, std::string(pkg.prefix) + "RegisterComponents", pkg.adapters, pkg.adapterCount,
                            /*editorRegistries=*/true, /*pluginSettings=*/true);
     emit_meta_accessors(out, comps, pkg.prefix);
 }
 
-// PluginRegistration.gen.cpp (project plugin): Plugin_RegisterComponents() for the
+// PluginRegistration.gen.cpp (project plugin): PluginRegisterComponents() for the
 // static firmware/simulator builds, and the DekiPlugin_* component exports the
 // editor's PluginLoader reads. The editor-side registries are left to the loader.
 void emit_plugin_registration(std::ostream& out, std::vector<CompInfo> comps, const CodegenPackage& pkg)
 {
     out << "// AUTO-GENERATED by the Deki reflection codegen: project plugin registration\n";
     out << "// " << comps.size() << " component(s)\n\n";
-    emit_registration_body(out, comps, std::string(pkg.prefix) + "_RegisterComponents", pkg.adapters, pkg.adapterCount,
+    emit_registration_body(out, comps, std::string(pkg.prefix) + "RegisterComponents", pkg.adapters, pkg.adapterCount,
                            /*editorRegistries=*/false, /*pluginSettings=*/true);
     std::sort(comps.begin(), comps.end(), by_name);
     out << "#ifdef DEKI_EDITOR\n";
@@ -2992,40 +2992,40 @@ void emit_plugin_registration(std::ostream& out, std::vector<CompInfo> comps, co
     out << "#ifdef _WIN32\n#define DEKI_GEN_PLUGIN_API __declspec(dllexport)\n#else\n#define DEKI_GEN_PLUGIN_API "
            "__attribute__((visibility(\"default\")))\n#endif\n";
     out << "extern \"C\" {\n";
-    out << "DEKI_GEN_PLUGIN_API int DekiPlugin_GetComponentCount() { return " << pkg.prefix
-        << "_GetAutoComponentCount(); }\n";
-    out << "DEKI_GEN_PLUGIN_API const ::Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index) { return "
-        << pkg.prefix << "_GetAutoComponentMeta(index); }\n";
+    out << "DEKI_GEN_PLUGIN_API int DekiPluginGetComponentCount() { return " << pkg.prefix
+        << "GetAutoComponentCount(); }\n";
+    out << "DEKI_GEN_PLUGIN_API const ::Deki::ComponentMeta* DekiPluginGetComponentMeta(int index) { return "
+        << pkg.prefix << "GetAutoComponentMeta(index); }\n";
     out << "}\n#endif // DEKI_EDITOR\n";
 }
 
-// CoreRegistration.gen.cpp (engine-core build): DekiCore_RegisterComponents(), run
-// from a static initializer in the editor and from deki_register_core_components()
+// CoreRegistration.gen.cpp (engine-core build): DekiCoreRegisterComponents(), run
+// from a static initializer in the editor and from DekiRegisterCoreComponents()
 // on the runtime, where static initializers are not relied on.
 void emit_core_registration(std::ostream& out, std::vector<CompInfo> comps)
 {
     out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
     out << "// Core engine component registration (" << comps.size() << " components)\n\n";
-    emit_registration_body(out, comps, "DekiCore_RegisterComponents", nullptr, 0,
+    emit_registration_body(out, comps, "DekiCoreRegisterComponents", nullptr, 0,
                            /*editorRegistries=*/true, /*pluginSettings=*/false);
     out << "#ifdef DEKI_EDITOR\n";
-    out << "namespace {\nstruct DekiCoreRegistrar {\n    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }\n} "
+    out << "namespace {\nstruct DekiCoreRegistrar {\n    DekiCoreRegistrar() { DekiCoreRegisterComponents(); }\n} "
            "s_DekiCoreRegistrar;\n}  // namespace\n";
     out << "#else\n";
     out << "// Static initializers are unreliable on ESP-IDF, so the runtime registers explicitly.\n";
-    out << "extern \"C\" void deki_register_core_components(void)\n{\n    DekiCore_RegisterComponents();\n}\n";
+    out << "extern \"C\" void DekiRegisterCoreComponents(void)\n{\n    DekiCoreRegisterComponents();\n}\n";
     out << "#endif\n";
 }
 
-// AllComponentRegistration.gen.cpp: the one deki_register_all_components() the engine calls.
+// AllComponentRegistration.gen.cpp: the one DekiRegisterAllComponents() the engine calls.
 // In-tree there are no component packages, so it registers the core components only.
 void emit_all_component_registration(std::ostream& out, std::vector<CompInfo> comps)
 {
     out << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n";
     out << "// Single registration function for the " << comps.size() << " core components.\n";
     out << "// DekiEngine calls this ONE function - it knows nothing about individual packages.\n\n";
-    out << "void DekiCore_RegisterComponents();\n\n";
-    out << "extern \"C\" void deki_register_all_components(void)\n{\n    DekiCore_RegisterComponents();\n}\n";
+    out << "void DekiCoreRegisterComponents();\n\n";
+    out << "extern \"C\" void DekiRegisterAllComponents(void)\n{\n    DekiCoreRegisterComponents();\n}\n";
 }
 
 int main()
@@ -3259,12 +3259,12 @@ int main()
             buf << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n"
                 << "// Package manifest for editor auto-registration\n#pragma once\n\n"
                 << "#ifdef DEKI_EDITOR\n\nextern \"C\" {\n\n}\n\n"
-                << "inline void DekiPackages_RegisterAll(void* imguiCtx)\n{\n\n}\n\n#endif // DEKI_EDITOR\n";
+                << "inline void DekiPackagesRegisterAll(void* imguiCtx)\n{\n\n}\n\n#endif // DEKI_EDITOR\n";
             write_if_changed(dir + "/PackageManifest.gen.h", take());
             buf << "// AUTO-GENERATED by the Deki reflection codegen - DO NOT EDIT\n"
                 << "// No packages with PACKAGE_HAS_SYSTEM_INIT found.\n\n"
-                << "extern \"C\" void deki_init_package_systems(void) {}\n"
-                << "extern \"C\" void deki_shutdown_package_systems(void) {}\n";
+                << "extern \"C\" void DekiInitPackageSystems(void) {}\n"
+                << "extern \"C\" void DekiShutdownPackageSystems(void) {}\n";
             write_if_changed(dir + "/AllPackageInit.gen.cpp", take());
 #else
             emit_registration(buf, comps[i], kPackages[i]);

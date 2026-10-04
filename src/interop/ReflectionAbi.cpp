@@ -32,7 +32,7 @@ extern "C"
      * when the target happens to define DEKI_PLUGIN_EXPORTS, and this must be
      * exported from every package unconditionally or the guard silently does nothing.
      */
-    DEKI_ABI_EXPORT const DekiReflectionAbi* DekiPlugin_GetReflectionAbi()
+    DEKI_ABI_EXPORT const DekiReflectionAbi* DekiPluginGetReflectionAbi()
     {
         // Function-local static: filled on first call from THIS DLL's headers, and
         // its address stays valid for as long as the DLL is loaded.

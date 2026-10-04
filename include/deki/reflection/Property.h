@@ -3,7 +3,7 @@
 // clang-format off
 //
 // Excluded on purpose. The P2996 reflection attributes below
-// ([[=deki_refl::exported{}]]) are parsed by clang-format 18 as Objective-C
+// ([[=DekiRefl::Exported{}]]) are parsed by clang-format 18 as Objective-C
 // message sends, so it either refuses to run or reformats this file by
 // Objective-C rules -- inconsistently with the rest of the codebase, and over
 // syntax it does not actually understand. The engine's codegen needs GCC 16
@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <type_traits>  // For std::remove_reference_t, std::declval in DEKI_PROP_ENUM
 #if defined(DEKI_REFLECT)
 #include <meta>
@@ -80,35 +81,35 @@ namespace SceneFormat { class SceneMsgPackParser; }
 // pointer cannot be reconstituted as a constant when extracted, but a define_static_string
 // result has stable static storage and round-trips.
 #if defined(DEKI_REFLECT)
-namespace deki_refl {
-    struct exported {};
-    struct unit { const char* name; };                              // DEKI_UNIT(Distance) -> name="Distance"
-    struct visible_when { const char* prop; const char* values; };  // controlling prop + stringized value list
-    struct editor_only {};                                          // DEKI_EDITOR_ONLY: deserialize case is editor-gated
-    struct serializable {};                                         // DEKI_SERIALIZABLE: struct gets Serialize/Deserialize
-    struct no_serialize {};                                         // DEKI_NO_SERIALIZE: field excluded from serialization
-    struct tooltip { const char* text; };                           // DEKI_TOOLTIP("...")
-    struct group { const char* name; };                             // DEKI_GROUP("...")
-    struct toggle_object { const char* field; };                    // DEKI_TOGGLE_OBJECT(field)
-    struct range { const char* lo; const char* hi; bool slider; };  // DEKI_RANGE/DEKI_SLIDER (stringized args)
-    struct visible_when_range { const char* prop; const char* lo; const char* hi; };
-    struct object_name { const char* component; };                  // DEKI_OBJECT_NAME(Comp) -> component="Comp" ("" = any)
-    struct value_of { const char* prop; };                          // DEKI_VALUE_OF(target) -> prop="target"
-    struct renamed_from { const char* name; };                      // DEKI_RENAMED_FROM("oldName")
+namespace DekiRefl {
+    struct Exported {};
+    struct Unit { const char* name; };                              // DEKI_UNIT(Distance) -> name="Distance"
+    struct VisibleWhen { const char* prop; const char* values; };  // controlling prop + stringized value list
+    struct EditorOnly {};                                          // DEKI_EDITOR_ONLY: deserialize case is editor-gated
+    struct Serializable {};                                         // DEKI_SERIALIZABLE: struct gets Serialize/Deserialize
+    struct NoSerialize {};                                         // DEKI_NO_SERIALIZE: field excluded from serialization
+    struct Tooltip { const char* text; };                           // DEKI_TOOLTIP("...")
+    struct Group { const char* name; };                             // DEKI_GROUP("...")
+    struct ToggleObject { const char* field; };                    // DEKI_TOGGLE_OBJECT(field)
+    struct Range { const char* lo; const char* hi; bool slider; };  // DEKI_RANGE/DEKI_SLIDER (stringized args)
+    struct VisibleWhenRange { const char* prop; const char* lo; const char* hi; };
+    struct ObjectName { const char* component; };                  // DEKI_OBJECT_NAME(Comp) -> component="Comp" ("" = any)
+    struct ValueOf { const char* prop; };                          // DEKI_VALUE_OF(target) -> prop="target"
+    struct RenamedFrom { const char* name; };                      // DEKI_RENAMED_FROM("oldName")
 }
-#define DEKI_EXPORT                                   [[=::Deki::deki_refl::exported{}]]
-#define DEKI_EDITOR_ONLY                              [[=::Deki::deki_refl::editor_only{}]]
-#define DEKI_UNIT(u)                                  [[=::Deki::deki_refl::unit{ std::define_static_string(#u) }]]
-#define DEKI_VISIBLE_WHEN(prop, ...)                  [[=::Deki::deki_refl::visible_when{ std::define_static_string(#prop), std::define_static_string(#__VA_ARGS__) }]]
-#define DEKI_TOOLTIP(text)                            [[=::Deki::deki_refl::tooltip{ std::define_static_string(text) }]]
-#define DEKI_TOGGLE_OBJECT(field)                     [[=::Deki::deki_refl::toggle_object{ std::define_static_string(#field) }]]
-#define DEKI_VISIBLE_WHEN_RANGE(prop, minVal, maxVal) [[=::Deki::deki_refl::visible_when_range{ std::define_static_string(#prop), std::define_static_string(#minVal), std::define_static_string(#maxVal) }]]
-#define DEKI_RANGE(minVal, maxVal)                    [[=::Deki::deki_refl::range{ std::define_static_string(#minVal), std::define_static_string(#maxVal), false }]]
-#define DEKI_SLIDER(minVal, maxVal)                   [[=::Deki::deki_refl::range{ std::define_static_string(#minVal), std::define_static_string(#maxVal), true }]]
-#define DEKI_GROUP(name)                              [[=::Deki::deki_refl::group{ std::define_static_string(name) }]]
-#define DEKI_OBJECT_NAME(...)                         [[=::Deki::deki_refl::object_name{ std::define_static_string(#__VA_ARGS__) }]]
-#define DEKI_VALUE_OF(prop)                           [[=::Deki::deki_refl::value_of{ std::define_static_string(#prop) }]]
-#define DEKI_RENAMED_FROM(oldName)                    [[=::Deki::deki_refl::renamed_from{ std::define_static_string(oldName) }]]
+#define DEKI_EXPORT                                   [[=::Deki::DekiRefl::Exported{}]]
+#define DEKI_EDITOR_ONLY                              [[=::Deki::DekiRefl::EditorOnly{}]]
+#define DEKI_UNIT(u)                                  [[=::Deki::DekiRefl::Unit{ std::define_static_string(#u) }]]
+#define DEKI_VISIBLE_WHEN(prop, ...)                  [[=::Deki::DekiRefl::VisibleWhen{ std::define_static_string(#prop), std::define_static_string(#__VA_ARGS__) }]]
+#define DEKI_TOOLTIP(text)                            [[=::Deki::DekiRefl::Tooltip{ std::define_static_string(text) }]]
+#define DEKI_TOGGLE_OBJECT(field)                     [[=::Deki::DekiRefl::ToggleObject{ std::define_static_string(#field) }]]
+#define DEKI_VISIBLE_WHEN_RANGE(prop, minVal, maxVal) [[=::Deki::DekiRefl::VisibleWhenRange{ std::define_static_string(#prop), std::define_static_string(#minVal), std::define_static_string(#maxVal) }]]
+#define DEKI_RANGE(minVal, maxVal)                    [[=::Deki::DekiRefl::Range{ std::define_static_string(#minVal), std::define_static_string(#maxVal), false }]]
+#define DEKI_SLIDER(minVal, maxVal)                   [[=::Deki::DekiRefl::Range{ std::define_static_string(#minVal), std::define_static_string(#maxVal), true }]]
+#define DEKI_GROUP(name)                              [[=::Deki::DekiRefl::Group{ std::define_static_string(name) }]]
+#define DEKI_OBJECT_NAME(...)                         [[=::Deki::DekiRefl::ObjectName{ std::define_static_string(#__VA_ARGS__) }]]
+#define DEKI_VALUE_OF(prop)                           [[=::Deki::DekiRefl::ValueOf{ std::define_static_string(#prop) }]]
+#define DEKI_RENAMED_FROM(oldName)                    [[=::Deki::DekiRefl::RenamedFrom{ std::define_static_string(oldName) }]]
 #else
 #define DEKI_EXPORT
 #define DEKI_EDITOR_ONLY
@@ -175,8 +176,8 @@ namespace deki_refl {
 //   };
 //
 #if defined(DEKI_REFLECT)
-#define DEKI_SERIALIZABLE   [[=::Deki::deki_refl::serializable{}]]
-#define DEKI_NO_SERIALIZE   [[=::Deki::deki_refl::no_serialize{}]]
+#define DEKI_SERIALIZABLE   [[=::Deki::DekiRefl::Serializable{}]]
+#define DEKI_NO_SERIALIZE   [[=::Deki::DekiRefl::NoSerialize{}]]
 #else
 #define DEKI_SERIALIZABLE
 #define DEKI_NO_SERIALIZE
@@ -361,21 +362,76 @@ inline const char* EnumNameForValue(const PropertyInfo& prop, int32_t value)
     return nullptr;
 }
 
+/// True when `a` and `b` are the same name once underscores are dropped and
+/// letter case is ignored: "Portrait_180" and "Portrait180", "READ_BINARY"
+/// and "ReadBinary".
+inline bool SameNameIgnoringStyle(const char* a, const char* b)
+{
+    auto lower = [](char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c; };
+    while (true)
+    {
+        while (*a == '_')
+        {
+            ++a;
+        }
+        while (*b == '_')
+        {
+            ++b;
+        }
+        if (*a == 0 || *b == 0)
+        {
+            return *a == *b;
+        }
+        if (lower(*a) != lower(*b))
+        {
+            return false;
+        }
+        ++a;
+        ++b;
+    }
+}
+
 /// Underlying value of the enumerator called `name`. False when the enum has no
 /// enumerator by that name, leaving `out` untouched.
+///
+/// A name saved before its enumerator was renamed to the code style
+/// (Portrait_180 -> Portrait180) still loads: when no name matches exactly,
+/// one that differs only in underscores and letter case is used, as long as
+/// only one does.
 inline bool EnumValueForName(const PropertyInfo& prop, const char* name, int32_t& out)
 {
-    if (!prop.enumValues || !prop.enumInts || !name) return false;
+    if (!prop.enumValues || !prop.enumInts || !name)
+    {
+        return false;
+    }
     for (int i = 0; i < prop.enumCount; ++i)
     {
         const char* candidate = prop.enumValues[i];
-        if (!candidate) continue;
-        const char* a = candidate;
-        const char* b = name;
-        while (*a && *a == *b) { ++a; ++b; }
-        if (*a == 0 && *b == 0) { out = prop.enumInts[i]; return true; }
+        if (candidate && std::strcmp(candidate, name) == 0)
+        {
+            out = prop.enumInts[i];
+            return true;
+        }
     }
-    return false;
+    int found = -1;
+    for (int i = 0; i < prop.enumCount; ++i)
+    {
+        const char* candidate = prop.enumValues[i];
+        if (candidate && SameNameIgnoringStyle(candidate, name))
+        {
+            if (found >= 0)
+            {
+                return false;  // two enumerators fit; neither is safe to pick
+            }
+            found = i;
+        }
+    }
+    if (found < 0)
+    {
+        return false;
+    }
+    out = prop.enumInts[found];
+    return true;
 }
 
 /// Position of `value` in the enum tables, for a UI that works in list indices
@@ -556,22 +612,22 @@ inline const T& GetNodePropertyRef(const void* base, const PropertyInfo& prop) {
 // nothing. Exported fields must be public: the generated code reaches them
 // from outside the class.
 #if defined(DEKI_REFLECT)
-namespace deki_refl {
-    struct category_tag { const char* text; };
-    struct description_tag { const char* text; };
-    struct display_name_tag { const char* text; };
-    struct settings_section_tag { const char* text; };
-    struct former_name_tag { const char* text; };  // DEKI_FORMER_NAME("Old::Name")
+namespace DekiRefl {
+    struct CategoryTag { const char* text; };
+    struct DescriptionTag { const char* text; };
+    struct DisplayNameTag { const char* text; };
+    struct SettingsSectionTag { const char* text; };
+    struct FormerNameTag { const char* text; };  // DEKI_FORMER_NAME("Old::Name")
 }
 #define DEKI_REFL_CONCAT2(a, b) a##b
 #define DEKI_REFL_CONCAT(a, b) DEKI_REFL_CONCAT2(a, b)
 #define DEKI_REFL_TAG(Tag, text) \
-    inline constexpr ::Deki::deki_refl::Tag DEKI_REFL_CONCAT(deki_refl_tag_, __COUNTER__){ std::define_static_string(text) };
-#define DEKI_CATEGORY(text)         DEKI_REFL_TAG(category_tag, text)
-#define DEKI_DESCRIPTION(text)      DEKI_REFL_TAG(description_tag, text)
-#define DEKI_DISPLAY_NAME(text)     DEKI_REFL_TAG(display_name_tag, text)
-#define DEKI_SETTINGS_SECTION(text) DEKI_REFL_TAG(settings_section_tag, text)
-#define DEKI_FORMER_NAME(text)      DEKI_REFL_TAG(former_name_tag, text)
+    inline constexpr ::Deki::DekiRefl::Tag DEKI_REFL_CONCAT(kDekiReflTag, __COUNTER__){ std::define_static_string(text) };
+#define DEKI_CATEGORY(text)         DEKI_REFL_TAG(CategoryTag, text)
+#define DEKI_DESCRIPTION(text)      DEKI_REFL_TAG(DescriptionTag, text)
+#define DEKI_DISPLAY_NAME(text)     DEKI_REFL_TAG(DisplayNameTag, text)
+#define DEKI_SETTINGS_SECTION(text) DEKI_REFL_TAG(SettingsSectionTag, text)
+#define DEKI_FORMER_NAME(text)      DEKI_REFL_TAG(FormerNameTag, text)
 #else
 #define DEKI_CATEGORY(text)
 #define DEKI_DESCRIPTION(text)
@@ -602,7 +658,7 @@ namespace deki_refl {
 // graph-domain scoping key (matched against DekiNodeGraphDomain::domainKey);
 // the remainder groups the add-node context menu.
 //
-// StaticType is intentionally NOT declared here (that would require the string
+// kStaticType is intentionally NOT declared here (that would require the string
 // hash in the node header); the codegen computes HashString(StaticNodeName)
 // in the generated .gen.cpp, keeping node headers decoupled from Component.
 #ifdef DEKI_EDITOR
@@ -712,13 +768,13 @@ namespace deki_refl {
         static constexpr bool StaticNodeVariables = true;
 
 // For one line on what the node does, declare `static constexpr const char*
-// StaticNodeDescription = "Waits until the clock is inside the window.";`
+// kStaticNodeDescription = "Waits until the clock is inside the window.";`
 // beside the display name. The add picker shows it under the name, which is
 // what tells two similarly named nodes apart before you add the wrong one.
 //
 // For a human-readable editor label (add-node menu + canvas title), declare a
 // plain member in the node struct: `static constexpr const char*
-// StaticNodeDisplayName = "Time Window";`. The codegen picks it up into
+// kStaticNodeDisplayName = "Time Window";`. The codegen picks it up into
 // DekiNodeMeta::displayName; without it the editor nicifies the node name. The
 // node name (StaticNodeName) stays the stable serialization id.
 

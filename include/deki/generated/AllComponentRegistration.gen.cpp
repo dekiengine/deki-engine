@@ -2,9 +2,9 @@
 // Single registration function for the 4 core components.
 // DekiEngine calls this ONE function - it knows nothing about individual packages.
 
-void DekiCore_RegisterComponents();
+void DekiCoreRegisterComponents();
 
-extern "C" void deki_register_all_components(void)
+extern "C" void DekiRegisterAllComponents(void)
 {
-    DekiCore_RegisterComponents();
+    DekiCoreRegisterComponents();
 }

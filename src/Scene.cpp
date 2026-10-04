@@ -123,8 +123,8 @@ namespace
 using UnknownProps = std::unordered_map<std::string, nlohmann::json>;
 std::unordered_map<const Component*, UnknownProps>& UnknownPropsTable()
 {
-    static std::unordered_map<const Component*, UnknownProps> table;
-    return table;
+    static std::unordered_map<const Component*, UnknownProps> s_Table;
+    return s_Table;
 }
 
 // Diagnostic record of the same keys, as {component type name, key}.
@@ -136,21 +136,21 @@ std::unordered_map<const Component*, UnknownProps>& UnknownPropsTable()
 // time, while the component is unquestionably alive, and holds no pointer.
 std::vector<std::pair<std::string, std::string>>& UnknownPropsLog()
 {
-    static std::vector<std::pair<std::string, std::string>> log;
-    return log;
+    static std::vector<std::pair<std::string, std::string>> s_Log;
+    return s_Log;
 }
 
 // Keys read through a DEKI_RENAMED_FROM alias, same shape and lifetime rules.
 std::vector<std::pair<std::string, std::string>>& LegacyPropsLog()
 {
-    static std::vector<std::pair<std::string, std::string>> log;
-    return log;
+    static std::vector<std::pair<std::string, std::string>> s_Log;
+    return s_Log;
 }
 
 std::vector<ComponentsMigration>& ComponentsMigrations()
 {
-    static std::vector<ComponentsMigration> list;
-    return list;
+    static std::vector<ComponentsMigration> s_List;
+    return s_List;
 }
 }  // namespace
 
@@ -218,7 +218,7 @@ static_assert(sizeof(Scene) == 120, "sizeof(Scene) changed. Verify the editor an
 #endif
 
 Scene::Scene()
-    : nextDekiObjectId(1),
+    : m_NextDekiObjectId(1),
       m_IsLoaded(false)
 {
 }
@@ -237,8 +237,8 @@ namespace
 // DestroyDekiObject, so the lookup is nowhere near a hot path.
 std::unordered_map<const Scene*, Scene::OnObjectsAboutToBeDestroyedFn>& DestroyCallbackTable()
 {
-    static std::unordered_map<const Scene*, Scene::OnObjectsAboutToBeDestroyedFn> table;
-    return table;
+    static std::unordered_map<const Scene*, Scene::OnObjectsAboutToBeDestroyedFn> s_Table;
+    return s_Table;
 }
 }  // namespace
 
@@ -267,11 +267,11 @@ Scene::~Scene()
 
 void Scene::ClearScene()
 {
-    for (auto* obj : objects)
+    for (auto* obj : m_Objects)
     {
         delete obj;
     }
-    objects.clear();
+    m_Objects.clear();
     m_ComponentsCache.clear();
     m_ComponentsCacheDirty = true;
     m_IsLoaded = false;
@@ -337,7 +337,7 @@ Scene* Scene::LoadInternal(const char* path)
     }
 
     // Open file
-    IFileSystem::FileHandle handle = fs->OpenFile(path, IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle handle = fs->OpenFile(path, IFileSystem::OpenMode::ReadBinary);
     if (!handle)
     {
         DEKI_LOG_ERROR("Scene::LoadInternal: Failed to open file '%s'", path);
@@ -394,11 +394,11 @@ Scene* Scene::LoadInternal(const char* path)
     size_t lastSlash = pathStr.find_last_of("/\\");
     if (lastSlash != std::string::npos)
     {
-        scene->name = pathStr.substr(lastSlash + 1);
+        scene->m_Name = pathStr.substr(lastSlash + 1);
     }
     else
     {
-        scene->name = path;
+        scene->m_Name = path;
     }
 
     return scene;
@@ -558,7 +558,7 @@ void Scene::AddObject(Object* obj)
     // any code that walks back up the scene from a child (anything that calls
     // GetOwnerScene() on a non-root object).
     VisitSubtree(obj, [this](Object* o) { o->SetOwnerScene(this); });
-    objects.push_back(obj);
+    m_Objects.push_back(obj);
     DEKI_LOG_INTERNAL("Scene::AddObject: Added '%s', objects.size()=%zu, this=%p",
                       obj ? obj->GetName().c_str() : "null", objects.size(), (void*)this);
     m_ComponentsCacheDirty = true;
@@ -620,7 +620,7 @@ void Scene::RemoveObject(Object* obj)
     {
         obj->SetOwnerScene(nullptr);
     }
-    objects.erase(std::remove(objects.begin(), objects.end(), obj), objects.end());
+    m_Objects.erase(std::remove(m_Objects.begin(), m_Objects.end(), obj), m_Objects.end());
     m_ComponentsCacheDirty = true;
 }
 
@@ -629,7 +629,7 @@ Object* Scene::FindDekiObject(const std::string& name)
     // Whole tree, like the id overload. This only looked at the root list,
     // and since every scene is migrated to a single "Root", it could find
     // nothing but Root.
-    for (auto* obj : objects)
+    for (auto* obj : m_Objects)
     {
         Object* found = FindInSubtree(obj, [&name](Object* o) { return o->GetName() == name; });
         if (found)
@@ -642,7 +642,7 @@ Object* Scene::FindDekiObject(const std::string& name)
 
 Object* Scene::FindDekiObject(uint32_t id)
 {
-    for (auto* obj : objects)
+    for (auto* obj : m_Objects)
     {
         Object* found = FindInSubtree(obj, [id](Object* o) { return o->GetId() == id; });
         if (found)
@@ -667,7 +667,7 @@ void Scene::RebuildComponentsCache()
     m_ComponentsCache.clear();
 
     // Inactive objects are skipped along with their whole subtree.
-    for (auto* obj : objects)
+    for (auto* obj : m_Objects)
     {
         VisitActiveSubtree(obj,
                            [this](Object* o)
@@ -716,22 +716,22 @@ void Scene::InsertObjectAt(Object* obj, size_t index)
     }
     obj->SetOwnerScene(this);
 
-    if (index > objects.size())
+    if (index > m_Objects.size())
     {
-        index = objects.size();
+        index = m_Objects.size();
     }
 
-    objects.insert(objects.begin() + index, obj);
+    m_Objects.insert(m_Objects.begin() + index, obj);
     // Note: Do NOT call SortObjectsByOrder() here - we want manual ordering
     m_ComponentsCacheDirty = true;
 }
 
 int Scene::GetObjectIndex(Object* obj) const
 {
-    auto it = std::find(objects.begin(), objects.end(), obj);
-    if (it != objects.end())
+    auto it = std::find(m_Objects.begin(), m_Objects.end(), obj);
+    if (it != m_Objects.end())
     {
-        return static_cast<int>(std::distance(objects.begin(), it));
+        return static_cast<int>(std::distance(m_Objects.begin(), it));
     }
     return -1;
 }
@@ -748,11 +748,11 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
         // A file from a newer editor is refused whole, not loaded partially: a
         // half-understood scene saved back would lose whatever the newer format
         // carried. Files without the key predate it and are version 1.
-        const int32_t fileVersion = json.value(Deki::AuthoredFormat::VersionKey, 1);
-        if (fileVersion > Deki::AuthoredFormat::SceneVersion)
+        const int32_t fileVersion = json.value(Deki::AuthoredFormat::kVersionKey, 1);
+        if (fileVersion > Deki::AuthoredFormat::kSceneVersion)
         {
             DEKI_LOG_ERROR("Scene: file is formatVersion %d but this editor reads up to %d; update the editor",
-                           fileVersion, Deki::AuthoredFormat::SceneVersion);
+                           fileVersion, Deki::AuthoredFormat::kSceneVersion);
             ClearScene();
             return false;
         }
@@ -770,20 +770,20 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
 
         // Migration: enforce single-root model
         // If scene has zero or multiple roots, wrap them under a "Root" container
-        if (objects.size() != 1)
+        if (m_Objects.size() != 1)
         {
             Object* root = new Object("Root");
             root->SetOwnerScene(this);
-            for (auto* obj : objects)
+            for (auto* obj : m_Objects)
             {
                 root->AddChild(obj);
             }
-            objects.clear();
-            objects.push_back(root);
+            m_Objects.clear();
+            m_Objects.push_back(root);
         }
 
         // Recalculate all world transforms after hierarchy is fully loaded
-        for (Object* obj : objects)
+        for (Object* obj : m_Objects)
         {
 #ifdef DEKI_TRANSFORM_2D
             obj->SetLocalPosition(obj->GetX(), obj->GetY());
@@ -806,13 +806,13 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
 bool Scene::SaveToFile(const std::string& filePath)
 {
     nlohmann::json json;
-    json[Deki::AuthoredFormat::VersionKey] = Deki::AuthoredFormat::SceneVersion;
+    json[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kSceneVersion;
 
     // Note: name and clearColor are no longer stored in Scene
     // clearColor is now in CameraComponent
 
     json["objects"] = nlohmann::json::array();
-    for (const auto* obj : objects)
+    for (const auto* obj : m_Objects)
     {
         if (obj->IsEditorOnly())
         {
@@ -842,13 +842,13 @@ bool Scene::LoadFromFile(const std::string& filePath)
 std::string Scene::SaveToJsonString()
 {
     nlohmann::json json;
-    json[Deki::AuthoredFormat::VersionKey] = Deki::AuthoredFormat::SceneVersion;
+    json[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kSceneVersion;
 
     // Note: name and clearColor are no longer stored in Scene
     // clearColor is now in CameraComponent
 
     json["objects"] = nlohmann::json::array();
-    for (const auto* obj : objects)
+    for (const auto* obj : m_Objects)
     {
         if (obj->IsEditorOnly())
         {
@@ -985,15 +985,15 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         nlohmann::json compJson;
 
         // MissingComponent - write back preserved type name and JSON properties
-        if (comp->GetType() == MissingComponent::StaticType)
+        if (comp->GetType() == MissingComponent::kStaticType)
         {
             auto* missing = static_cast<const MissingComponent*>(comp);
-            compJson["type"] = missing->m_TypeName;
-            if (!missing->m_ClassName.empty())
+            compJson["type"] = missing->typeName;
+            if (!missing->className.empty())
             {
-                compJson["class"] = missing->m_ClassName;
+                compJson["class"] = missing->className;
             }
-            compJson["properties"] = missing->m_JsonProperties;
+            compJson["properties"] = missing->jsonProperties;
             json["components"].push_back(compJson);
             continue;
         }
@@ -1403,12 +1403,12 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
             {
                 // Component type not found - create MissingComponent to preserve data
                 auto* missing = new MissingComponent();
-                missing->m_TypeName = typeName;
-                missing->m_ClassName = classHint;
-                missing->m_OriginalTypeId = HashString(typeName.c_str());
+                missing->typeName = typeName;
+                missing->className = classHint;
+                missing->originalTypeId = HashString(typeName.c_str());
                 if (compJson.contains("properties"))
                 {
-                    missing->m_JsonProperties = compJson["properties"];
+                    missing->jsonProperties = compJson["properties"];
                 }
                 Internal::AttachComponent(*obj, missing);
             }
@@ -1886,12 +1886,12 @@ bool Scene::ExpandInstance(Object* instanceObj)
                 else if (!typeName.empty() && typeName != "Unknown")
                 {
                     auto* missing = new MissingComponent();
-                    missing->m_TypeName = typeName;
-                    missing->m_ClassName = classHint;
-                    missing->m_OriginalTypeId = HashString(typeName.c_str());
+                    missing->typeName = typeName;
+                    missing->className = classHint;
+                    missing->originalTypeId = HashString(typeName.c_str());
                     if (compJson.contains("properties"))
                     {
-                        missing->m_JsonProperties = compJson["properties"];
+                        missing->jsonProperties = compJson["properties"];
                     }
                     Internal::AttachComponent(*instanceObj, missing);
                 }

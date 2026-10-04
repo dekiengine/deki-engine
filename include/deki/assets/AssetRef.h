@@ -11,7 +11,7 @@
  *       AssetRef<SomeAsset> ref;  // Single field handles everything
  *   };
  *
- * Works with any asset type that has a static AssetTypeName member.
+ * Works with any asset type that has a static kAssetTypeName member.
  * No per-type registration needed in this file.
  */
 
@@ -53,9 +53,9 @@ struct AssetRefBase
  *
  * Provides transparent access to the underlying asset pointer while
  * storing the GUID for asset loading. Works with any type T that has
- * a static constexpr const char* AssetTypeName member.
+ * a static constexpr const char* kAssetTypeName member.
  *
- * @tparam T The asset type (must expose a static `AssetTypeName` member)
+ * @tparam T The asset type (must expose a static `kAssetTypeName` member)
  */
 template <typename T>
 struct AssetRef : AssetRefBase
@@ -76,7 +76,7 @@ struct AssetRef : AssetRefBase
         if (!ptr && !guid.empty() && !loadAttempted && mgr)
         {
             loadAttempted = true;  // Set before loading to prevent retry spam on failure
-            ptr = mgr->LoadByGuidAndType(guid, T::AssetTypeName);
+            ptr = mgr->LoadByGuidAndType(guid, T::kAssetTypeName);
             // Only re-arm the retry when the asset system simply wasn't ready
             // yet (startup race, before the filesystem / GUID table are up). A
             // genuine miss - a deleted or missing asset while the system IS

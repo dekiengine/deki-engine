@@ -26,7 +26,7 @@ private:
     int32_t m_DisplayWidth;
     int32_t m_DisplayHeight;
     ColorFormat m_Format = ColorFormat::RGB565;
-    bool initialized;
+    bool m_Initialized;
 
 public:
     EditorDisplay();
@@ -50,7 +50,7 @@ public:
     bool UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
                          const uint32_t* pixels) override;
     bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
-                                 const uint8_t* rgb565a8_pixels) override;
+                                 const uint8_t* rgb565a8Pixels) override;
     void DestroyUIOverlay(void* overlay) override;
     void SetActiveUIOverlay(void* overlay) override;
     void ClearActiveUIOverlay() override;

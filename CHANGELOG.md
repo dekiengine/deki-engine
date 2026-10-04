@@ -6,6 +6,30 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Changed
+- **Code style.** docs/codestyle holds the C++ style as a compiled example
+  (CodeStyle.h, CodeStyle.cpp), with `.clang-format`, `.clang-tidy` and a
+  pre-commit hook (tools/hooks). All engine code is formatted with
+  clang-format 22 and named to the style.
+- **Public names follow it.** Breaking for code using them:
+  - `IFileSystem::OpenMode` values are `ReadBinary`, `WriteBinary`,
+    `ReadText`, `WriteText`; `SeekOrigin` values are `Begin`, `Current`, `End`.
+  - Constants take `k`: `kAssetTypeName`, `kInterfaceID`,
+    `ProjectSettings::kMagic`, ... `InputKeys` codes are PascalCase (`Space`).
+  - `MPType` values are PascalCase (`Nil`, `Int8`, `Str16`, ...).
+  - The reflection attributes live in `Deki::DekiRefl` with PascalCase types
+    (`Exported`, `Tooltip`, ...); the `DEKI_*` macros are unchanged.
+  - The exports a package or project plugin provides are PascalCase:
+    `DekiPluginRegisterComponents`, `DekiPluginGetReflectionAbi`,
+    `DekiPluginInit`, ... A project's `src/PluginExports.cpp` written before
+    this has to use the new names.
+- **Reflection ABI 21.** Packages built before this are rebuilt.
+
+### Added
+- An enum value saved by name still loads after its enumerator is renamed to
+  the style: a name that differs only in underscores and letter case is used
+  when no name matches exactly (`Portrait_180` loads as `Portrait180`).
+
 ### Fixed
 - The boot memory line no longer says "0 bytes free" on a host heap (editor,
   desktop simulator), which does not measure free space. It says so instead.

@@ -95,22 +95,22 @@ private:
 
     // Local transform (relative to parent) - use setters to modify.
     // rotation is in radians; the inspector displays degrees.
-    float x = 0.0f, y = 0.0f;
-    float rotation = 0.0f;
+    float m_X = 0.0f, m_Y = 0.0f;
+    float m_Rotation = 0.0f;
     float m_ScaleX = 1.0f, m_ScaleY = 1.0f;
 #ifdef DEKI_TRANSFORM_3D
     // The third axis. `rotation` stays the Z angle (COMPATIBILITY.md); these
     // are rotation about X and Y, radians, applied X then Y then Z.
-    float z = 0.0f;
-    float rotationX = 0.0f, rotationY = 0.0f;
+    float m_Z = 0.0f;
+    float m_RotationX = 0.0f, m_RotationY = 0.0f;
     float m_ScaleZ = 1.0f;
 #endif
 #endif  // DEKI_TRANSFORM_2D
     static uint32_t s_NextId;
-    uint32_t id;
-    std::string name;
-    std::vector<Component*> components;
-    bool active = true;
+    uint32_t m_Id;
+    std::string m_Name;
+    std::vector<Component*> m_Components;
+    bool m_Active = true;
     bool m_EditorOnly = false;  // Editor-only objects are not serialized
     bool m_Persistent = false;  // Persist across scene changes
 
@@ -126,15 +126,15 @@ private:
     // cold (touched only on expand/collapse, override collect/apply and
     // serialization) and lives in a side table in Object.cpp, so the runtime
     // build carries none of it, not even a pointer.
-    static constexpr uint8_t EditorFlag_SceneInstance = 1u << 0;
-    static constexpr uint8_t EditorFlag_PartOfInstance = 1u << 1;
+    static constexpr uint8_t kEditorFlagSceneInstance = 1u << 0;
+    static constexpr uint8_t kEditorFlagPartOfInstance = 1u << 1;
     uint8_t m_EditorFlags = 0;
 
-    Scene* ownerScene = nullptr;
+    Scene* m_OwnerScene = nullptr;
 
     // Hierarchy support
-    Object* parent = nullptr;
-    std::vector<Object*> children;
+    Object* m_Parent = nullptr;
+    std::vector<Object*> m_Children;
 
 public:
     Object();
@@ -153,7 +153,7 @@ public:
     /// layout dependency this design removes.
     ~Object();
 
-    uint32_t GetId() const { return id; }
+    uint32_t GetId() const { return m_Id; }
     void SetId(uint32_t newId);
     static uint32_t GenerateId() { return s_NextId++; }
     static uint32_t GenerateDeterministicId(uint32_t seed1, uint32_t seed2)
@@ -169,16 +169,16 @@ public:
         }
         return hash;
     }
-    const std::string& GetName() const { return name; }
-    void SetName(const std::string& newName) { name = newName; }
-    bool IsActive() const { return active; }            // Getter for active
-    void SetActive(bool value) { active = value; }      // Setter for active
+    const std::string& GetName() const { return m_Name; }
+    void SetName(const std::string& newName) { m_Name = newName; }
+    bool IsActive() const { return m_Active; }          // Getter for active
+    void SetActive(bool value) { m_Active = value; }    // Setter for active
     bool IsEditorOnly() const { return m_EditorOnly; }  // Editor-only objects are not serialized
     void SetEditorOnly(bool value) { m_EditorOnly = value; }
     bool IsPersistent() const { return m_Persistent; }  // Persist across scene changes
     void SetPersistent(bool value) { m_Persistent = value; }
-    void SetOwnerScene(Scene* scene) { ownerScene = scene; }
-    Scene* GetOwnerScene() const { return ownerScene; }
+    void SetOwnerScene(Scene* scene) { m_OwnerScene = scene; }
+    Scene* GetOwnerScene() const { return m_OwnerScene; }
 
 #ifdef DEKI_EDITOR
     // Scene instance support. Declared editor-only, which is layout-neutral:
@@ -188,17 +188,17 @@ public:
     // The predicates stay inline - IsSceneInstance() is called per-object
     // per-frame from HierarchyPanel - and read the flag byte directly. The
     // string accessors are out of line because their storage is the side table.
-    bool IsSceneInstance() const { return (m_EditorFlags & EditorFlag_SceneInstance) != 0; }
-    bool IsPartOfInstance() const { return (m_EditorFlags & EditorFlag_PartOfInstance) != 0; }
+    bool IsSceneInstance() const { return (m_EditorFlags & kEditorFlagSceneInstance) != 0; }
+    bool IsPartOfInstance() const { return (m_EditorFlags & kEditorFlagPartOfInstance) != 0; }
     void SetPartOfInstance(bool value)
     {
         if (value)
         {
-            m_EditorFlags |= EditorFlag_PartOfInstance;
+            m_EditorFlags |= kEditorFlagPartOfInstance;
         }
         else
         {
-            m_EditorFlags &= static_cast<uint8_t>(~EditorFlag_PartOfInstance);
+            m_EditorFlags &= static_cast<uint8_t>(~kEditorFlagPartOfInstance);
         }
     }
     /// Empty when this object is not a scene instance. The reference is valid
@@ -213,8 +213,8 @@ public:
     void AddChild(Object* child);
     void RemoveChild(Object* child);
     void SetParent(Object* newParent);
-    Object* GetParent() const { return parent; }
-    const std::vector<Object*>& GetChildren() const { return children; }
+    Object* GetParent() const { return m_Parent; }
+    const std::vector<Object*>& GetChildren() const { return m_Children; }
     Object* FindChild(uint32_t childId);
     Object* FindChildByName(const std::string& name);
     void RemoveFromParent();
@@ -281,9 +281,9 @@ public:
     void MarkWorldTransformDirty();
 
     // Local transform getters
-    float GetX() const { return x; }
-    float GetY() const { return y; }
-    float GetLocalRotation() const { return rotation; }
+    float GetX() const { return m_X; }
+    float GetY() const { return m_Y; }
+    float GetLocalRotation() const { return m_Rotation; }
     float GetScaleX() const { return m_ScaleX; }
     float GetScaleY() const { return m_ScaleY; }
 
@@ -296,9 +296,9 @@ public:
 #ifdef DEKI_TRANSFORM_3D
     // The third axis. Absent at the 2D width, so code that uses these is
     // code that declared transform_3d.
-    float GetZ() const { return z; }
-    float GetRotationX() const { return rotationX; }
-    float GetRotationY() const { return rotationY; }
+    float GetZ() const { return m_Z; }
+    float GetRotationX() const { return m_RotationX; }
+    float GetRotationY() const { return m_RotationY; }
     float GetScaleZ() const { return m_ScaleZ; }
     void SetZ(float newZ);
     void SetRotationX(float radians);
@@ -342,7 +342,7 @@ public:
             component->SetTypeInfo(TypeInfoFor<T>());
         }
         component->SetOwner(this);
-        components.push_back(component);
+        m_Components.push_back(component);
         return component;
     }
 
@@ -353,7 +353,7 @@ private:
     void AddComponent(Component* component)
     {
         component->SetOwner(this);
-        components.push_back(component);
+        m_Components.push_back(component);
     }
 #ifdef DEKI_EDITOR
     friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName,
@@ -372,7 +372,7 @@ public:
     template <typename T>
     T* GetComponent()
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
@@ -385,7 +385,7 @@ public:
     template <typename T>
     const T* GetComponent() const
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
@@ -400,7 +400,7 @@ public:
      */
     Component* GetComponentByTypeId(uint32_t typeId)
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == typeId)
             {
@@ -412,7 +412,7 @@ public:
 
     const Component* GetComponentByTypeId(uint32_t typeId) const
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == typeId)
             {
@@ -430,7 +430,7 @@ public:
     std::vector<T*> GetComponents()
     {
         std::vector<T*> result;
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
@@ -446,7 +446,7 @@ public:
     template <typename T>
     bool HasComponent() const
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
             if (comp->GetType() == TypeId<T>() || comp->GetBaseType() == TypeId<T>())
             {
@@ -459,12 +459,12 @@ public:
     template <typename T>
     void RemoveComponent()
     {
-        for (auto it = components.begin(); it != components.end(); ++it)
+        for (auto it = m_Components.begin(); it != m_Components.end(); ++it)
         {
             if ((*it)->GetType() == TypeId<T>())
             {
                 delete *it;
-                components.erase(it);
+                m_Components.erase(it);
                 break;
             }
         }
@@ -476,12 +476,12 @@ public:
      */
     void RemoveComponent(Component* comp)
     {
-        for (auto it = components.begin(); it != components.end(); ++it)
+        for (auto it = m_Components.begin(); it != m_Components.end(); ++it)
         {
             if (*it == comp)
             {
                 delete *it;
-                components.erase(it);
+                m_Components.erase(it);
                 break;
             }
         }
@@ -491,19 +491,19 @@ public:
      * @brief Get all components on this object
      * @return Reference to the vector of components
      */
-    const std::vector<Component*>& GetComponents() const { return components; }
+    const std::vector<Component*>& GetComponents() const { return m_Components; }
 
     /**
      * @brief Find a component implementing a given interface
      * No RTTI needed - uses ComponentInterfaceAdapters registry.
-     * T must have a static constexpr uint32_t InterfaceID member.
+     * T must have a static constexpr uint32_t kInterfaceID member.
      */
     template <typename T>
     T* FindInterface()
     {
-        for (auto* comp : components)
+        for (auto* comp : m_Components)
         {
-            void* iface = ComponentInterfaceAdapters::Query(T::InterfaceID, comp);
+            void* iface = ComponentInterfaceAdapters::Query(T::kInterfaceID, comp);
             if (iface)
             {
                 return static_cast<T*>(iface);

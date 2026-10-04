@@ -5,8 +5,8 @@ namespace Deki
 
 ComponentFactory& ComponentFactory::Instance()
 {
-    static ComponentFactory instance;
-    return instance;
+    static ComponentFactory s_Instance;
+    return s_Instance;
 }
 
 }  // namespace Deki

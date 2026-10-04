@@ -20,20 +20,20 @@ namespace ProjectSettings
 {
 
 // File format constants
-constexpr const char* FILENAME = "F:/project_data.bin";      // Runtime virtual path (internal storage)
-constexpr const char* EXPORT_FILENAME = "project_data.bin";  // Plain filename for editor export
-constexpr uint32_t MAGIC = 0x444B5052;                       // "DKPR" in little-endian
-constexpr uint16_t VERSION = 6;
+constexpr const char* kFilename = "F:/project_data.bin";     // Runtime virtual path (internal storage)
+constexpr const char* kExportFilename = "project_data.bin";  // Plain filename for editor export
+constexpr uint32_t kMagic = 0x444B5052;                      // "DKPR" in little-endian
+constexpr uint16_t kVersion = 6;
 
 // FileHeader::flags (version 6+)
-constexpr uint16_t FLAG_ASSETS_EXTERNAL = 1u << 0;  // the assets are on external storage
+constexpr uint16_t kFlagAssetsExternal = 1u << 0;  // the assets are on external storage
 
 // Largest project_data.bin LoadFromFile will accept. The v5 packageSettings chunk
 // grows with every installed package, so this is a real bound, not a formality
 // - it must be the ONLY one. It was previously two numbers (a 16384 size check
 // guarding an 8192 stack buffer), which meant any file in between overflowed
 // the stack by up to 8 KB while passing the check.
-constexpr size_t MAX_FILE_SIZE = 16384;
+constexpr size_t kMaxFileSize = 16384;
 
 /**
  * @brief Binary file header for project settings
@@ -156,7 +156,7 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
  * know the size up front - the previous signature took a bare uint8_t* with no
  * capacity argument and a doc comment claiming 256 bytes would do, while the
  * three call sites each guessed a 4096-byte stack array and LoadFromFile
- * accepted files up to MAX_FILE_SIZE (16384) back.
+ * accepted files up to kMaxFileSize (16384) back.
  *
  * @param targetFPS Target FPS (0 = no limit)
  * @param startupScene Startup scene path (can be nullptr)

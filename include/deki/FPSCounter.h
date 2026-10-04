@@ -15,9 +15,9 @@ namespace Deki
 class FPSCounter
 {
 private:
-    static constexpr int SAMPLE_COUNT = 30;  // Number of frames to average
+    static constexpr int kSampleCount = 30;  // Number of frames to average
 
-    uint32_t m_FrameTimes[SAMPLE_COUNT];  // Rolling buffer of frame times
+    uint32_t m_FrameTimes[kSampleCount];  // Rolling buffer of frame times
     uint32_t m_FrameTimeSum;              // Sum of the samples in the buffer
     int m_CurrentIndex;                   // Current position in buffer
     int m_SamplesCollected;               // How many samples we have

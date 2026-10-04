@@ -32,10 +32,10 @@ public:
 
     /**
      * @brief Get elapsed time since a previous timestamp
-     * @param previous_time Previous time value from GetTime()
+     * @param previousTime Previous time value from GetTime()
      * @return Elapsed time in milliseconds
      */
-    static uint32_t GetElapsed(uint32_t previous_time);
+    static uint32_t GetElapsed(uint32_t previousTime);
 
     /**
      * @brief Update the timing system
@@ -58,9 +58,9 @@ public:
 
     /**
      * @brief Update with float delta time for high precision (used by editor FPS limiter)
-     * @param delta_time_ms Frame delta time in milliseconds (float for sub-ms precision)
+     * @param deltaTimeMs Frame delta time in milliseconds (float for sub-ms precision)
      */
-    static void UpdateF(float delta_time_ms);
+    static void UpdateF(float deltaTimeMs);
 
     /**
      * @brief Get frames per second
@@ -100,7 +100,7 @@ private:
     static uint32_t s_DeltaTime;      // Delta time between frames (integer)
     static float s_DeltaTimeF;        // Delta time between frames (float, high precision)
     static uint32_t s_StartTime;      // Time when system was initialized
-    static float fps;                 // Current frames per second
+    static float s_Fps;               // Current frames per second
     static uint32_t s_FpsCounter;     // Frame counter for FPS calculation
     static uint32_t s_FpsTime;        // Time accumulator for FPS calculation
 };

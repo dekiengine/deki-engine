@@ -41,8 +41,8 @@ struct LoaderEntry
 
 static std::unordered_map<std::string, LoaderEntry>& GetLoaderRegistry()
 {
-    static std::unordered_map<std::string, LoaderEntry> reg;
-    return reg;
+    static std::unordered_map<std::string, LoaderEntry> s_Reg;
+    return s_Reg;
 }
 
 void AssetManager::RegisterLoader(const char* typeName, AssetLoadFn loader, AssetUnloadFn unloader,
@@ -217,7 +217,7 @@ bool AssetManager::ReadWholeFile(const std::string& path, std::vector<uint8_t>& 
     {
         return false;
     }
-    IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
         return false;
@@ -244,7 +244,7 @@ bool AssetManager::ReadWholeFile(const std::string& path, Buffer<uint8_t>& out, 
     {
         return false;
     }
-    IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle file = fs->OpenFile(path.c_str(), IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
         return false;
@@ -361,7 +361,7 @@ bool AssetManager::LoadAssetRoot(const char* root)
         DEKI_LOG_ERROR("AssetManager: no filesystem for %s", tablePath.c_str());
         return false;
     }
-    IFileSystem::FileHandle handle = fs->OpenFile(tablePath.c_str(), IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle handle = fs->OpenFile(tablePath.c_str(), IFileSystem::OpenMode::ReadBinary);
     if (!handle)
     {
         DEKI_LOG_ERROR("AssetManager: %s is missing; the build's assets are not there", tablePath.c_str());

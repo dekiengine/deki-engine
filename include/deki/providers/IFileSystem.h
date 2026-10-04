@@ -27,10 +27,10 @@ public:
      */
     enum class OpenMode
     {
-        READ_BINARY,
-        WRITE_BINARY,
-        READ_TEXT,
-        WRITE_TEXT
+        ReadBinary,
+        WriteBinary,
+        ReadText,
+        WriteText
     };
 
     /**
@@ -38,9 +38,9 @@ public:
      */
     enum class SeekOrigin
     {
-        BEGIN,
-        CURRENT,
-        END
+        Begin,
+        Current,
+        End
     };
 
     virtual ~IFileSystem() = default;

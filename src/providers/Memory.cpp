@@ -11,7 +11,7 @@
 namespace Deki
 {
 
-static constexpr size_t CACHE_LINE_SIZE = 64;
+static constexpr size_t kCacheLineSize = 64;
 
 // Bookkeeping stored in the 16 bytes right before every user pointer handed
 // out by Allocate(). It carries which region the block came from, so Free()
@@ -67,12 +67,12 @@ static inline AllocHeader* HeaderOf(void* userPtr)
 
 // Static member definitions
 std::unique_ptr<IMemoryProvider> Memory::s_CurrentBackend = nullptr;
-bool Memory::initialized = false;
+bool Memory::s_Initialized = false;
 bool Memory::s_ExternalAvailable = false;
 bool Memory::s_ExternalEnabled = false;
-uint32_t Memory::totalAllocated = 0;
-uint32_t Memory::externalAllocated = 0;
-uint32_t Memory::internalRamAllocated = 0;
+uint32_t Memory::s_TotalAllocated = 0;
+uint32_t Memory::s_ExternalAllocated = 0;
+uint32_t Memory::s_InternalRamAllocated = 0;
 
 #ifdef DEBUG
 Memory::AllocationRecord* Memory::s_AllocationRecords = nullptr;
@@ -88,7 +88,7 @@ uint32_t Memory::s_NextAllocationId = 1;
 
 bool Memory::Initialize()
 {
-    if (initialized)
+    if (s_Initialized)
     {
         return true;
     }
@@ -118,9 +118,9 @@ bool Memory::Initialize()
     s_ExternalEnabled = s_ExternalAvailable;
 
     // Reset all counters
-    totalAllocated = 0;
-    externalAllocated = 0;
-    internalRamAllocated = 0;
+    s_TotalAllocated = 0;
+    s_ExternalAllocated = 0;
+    s_InternalRamAllocated = 0;
 #ifdef DEBUG
     activeAllocations = 0;
     peakAllocations = 0;
@@ -134,7 +134,7 @@ bool Memory::Initialize()
     }
 #endif
 
-    initialized = true;
+    s_Initialized = true;
 
     // What the board actually has, once, at startup. A project is sized
     // against these two numbers - whether a full-screen bake fits, whether a
@@ -209,7 +209,7 @@ size_t Memory::GetAvailableInternal()
 // the configuration you ship.)
 static size_t s_RawAllocated = 0;
 
-namespace detail
+namespace Detail
 {
 
 void* RawAllocate(size_t size)
@@ -253,7 +253,7 @@ void RawFree(void* ptr)
     Memory::s_CurrentBackend->FreeRaw(ptr);
 }
 
-}  // namespace detail
+}  // namespace Detail
 
 size_t Memory::GetRawAllocated()
 {
@@ -308,7 +308,7 @@ void Memory::LogStats(const char* label)
 
 void Memory::Shutdown()
 {
-    if (!initialized)
+    if (!s_Initialized)
     {
         return;
     }
@@ -316,9 +316,9 @@ void Memory::Shutdown()
 #ifdef DEBUG
     CheckForLeaks();
 #else
-    if (totalAllocated > 0)
+    if (s_TotalAllocated > 0)
     {
-        DEKI_LOG_WARNING("Memory leak detected: %u bytes still allocated at shutdown", totalAllocated);
+        DEKI_LOG_WARNING("Memory leak detected: %u bytes still allocated at shutdown", s_TotalAllocated);
     }
 #endif
 
@@ -339,9 +339,9 @@ void Memory::Shutdown()
     s_ExternalEnabled = false;
 
     // Reset all tracking
-    totalAllocated = 0;
-    externalAllocated = 0;
-    internalRamAllocated = 0;
+    s_TotalAllocated = 0;
+    s_ExternalAllocated = 0;
+    s_InternalRamAllocated = 0;
 #ifdef DEBUG
     activeAllocations = 0;
     peakAllocations = 0;
@@ -358,7 +358,7 @@ void Memory::Shutdown()
     }
 #endif
 
-    initialized = false;
+    s_Initialized = false;
 }
 
 void Memory::SetBackend(IMemoryProvider* backend)
@@ -450,7 +450,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // header and rounding below wrapped to a small total on a 32-bit board,
     // and the caller then wrote its full size into that. The header also
     // records the size in 32 bits.
-    if (size > UINT32_MAX || size > SIZE_MAX - 2 * CACHE_LINE_SIZE)
+    if (size > UINT32_MAX || size > SIZE_MAX - 2 * kCacheLineSize)
     {
         DEKI_LOG_ERROR("Refused to allocate %zu bytes: larger than any allocation can be (a corrupt size?)", size);
         return nullptr;
@@ -463,9 +463,9 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // header and no rounding: giving them the cache-line treatment would cost
     // a minimum of 128 bytes for a 16-byte request, on a part with a few
     // hundred KB of RAM.
-    void* raw_ptr = nullptr;
-    size_t header_size = kInternalHeaderSize;
-    size_t total_size = size + header_size;
+    void* rawPtr = nullptr;
+    size_t headerSize = kInternalHeaderSize;
+    size_t totalSize = size + headerSize;
 
     // A board with no external RAM has exactly one region, so an External
     // request resolves to Internal there. That is not a fallback - there is no
@@ -480,9 +480,9 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // cache-line-rounded payload.
     if (usedExternal)
     {
-        const size_t aligned_size = (size + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
-        header_size = CACHE_LINE_SIZE;
-        total_size = aligned_size + CACHE_LINE_SIZE;
+        const size_t alignedSize = (size + kCacheLineSize - 1) & ~(kCacheLineSize - 1);
+        headerSize = kCacheLineSize;
+        totalSize = alignedSize + kCacheLineSize;
     }
 
     // One region, one attempt. Substituting another when the chosen one is
@@ -492,30 +492,30 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
     // below names it.
     if (s_CurrentBackend)
     {
-        raw_ptr = s_CurrentBackend->Allocate(placed, total_size, needsDma);
+        rawPtr = s_CurrentBackend->Allocate(placed, totalSize, needsDma);
     }
     else
     {
-        raw_ptr = malloc(total_size);  // host builds, before a backend is set
+        rawPtr = malloc(totalSize);  // host builds, before a backend is set
     }
 
-    if (raw_ptr)
+    if (rawPtr)
     {
-        void* user_ptr = static_cast<uint8_t*>(raw_ptr) + header_size;
-        AllocHeader* header = HeaderOf(user_ptr);
+        void* userPtr = static_cast<uint8_t*>(rawPtr) + headerSize;
+        AllocHeader* header = HeaderOf(userPtr);
         header->size = static_cast<uint32_t>(size);
         header->regionId = placed.id;
         header->magic = kAllocMagic;
 
         // Zero initialize only the user portion
-        memset(user_ptr, 0, size);
+        memset(userPtr, 0, size);
 
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
-        header->SetPacked(static_cast<uint32_t>(header_size),
-                          UpdateTracking(static_cast<int32_t>(size), usedExternal, user_ptr, ctx.Name(), ctx.Line()));
+        header->SetPacked(static_cast<uint32_t>(headerSize),
+                          UpdateTracking(static_cast<int32_t>(size), usedExternal, userPtr, ctx.Name(), ctx.Line()));
 
-        return user_ptr;
+        return userPtr;
     }
     else
     {
@@ -535,7 +535,7 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         // The region's own name, not a guess from a bool: a board that does
         // not serve "rtc" has to say "rtc", or the message sends a reader
         // looking at the wrong memory entirely.
-        const char* region_name = placed.name;
+        const char* regionName = placed.name;
 
         // Every word here is one a reader needs: what, how big, which
         // region, how much was left in it, and who asked. The placement rule
@@ -545,11 +545,11 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u "
                            "(%zu bytes free there)",
-                           size, region_name, ctx.Name(), BaseName(ctx.File()), ctx.Line(), freeHere);
+                           size, regionName, ctx.Name(), BaseName(ctx.File()), ctx.Line(), freeHere);
         }
         else
         {
-            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u", size, region_name, ctx.Name(),
+            DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' at %s:%u", size, regionName, ctx.Name(),
                            BaseName(ctx.File()), ctx.Line());
         }
 #else
@@ -563,13 +563,13 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s' "
                            "(%zu bytes free there); build with DEBUG for the call site",
-                           size, region_name, ctx.Name(), freeHere);
+                           size, regionName, ctx.Name(), freeHere);
         }
         else
         {
             DEKI_LOG_ERROR("Failed to allocate %zu bytes in '%s' for '%s'; "
                            "build with DEBUG for the call site",
-                           size, region_name, ctx.Name());
+                           size, regionName, ctx.Name());
         }
 #endif
     }
@@ -647,8 +647,8 @@ void Memory::Free(void* ptr, AllocContext ctx)
         return;
     }
     header->magic = 0;  // double free shows up as the error above, not as heap corruption
-    void* raw_ptr = static_cast<uint8_t*>(ptr) - header->HeaderSize();
-    const size_t freed_size = header->size;
+    void* rawPtr = static_cast<uint8_t*>(ptr) - header->HeaderSize();
+    const size_t freedSize = header->size;
 
 #ifdef DEBUG
     UntrackAllocation(ptr, header->TrackSlot());
@@ -667,23 +667,23 @@ void Memory::Free(void* ptr, AllocContext ctx)
 
     if (s_CurrentBackend)
     {
-        s_CurrentBackend->Free(region, raw_ptr);
+        s_CurrentBackend->Free(region, rawPtr);
     }
     else
     {
-        free(raw_ptr);
+        free(rawPtr);
     }
 
     // Always update tracking (both DEBUG and RELEASE builds)
-    UpdateTracking(-static_cast<int32_t>(freed_size), wasExternal, ptr, ctx.Name(), ctx.Line());
+    UpdateTracking(-static_cast<int32_t>(freedSize), wasExternal, ptr, ctx.Name(), ctx.Line());
 }
 
 MemoryStats Memory::GetStats()
 {
     MemoryStats stats;
-    stats.totalAllocated = totalAllocated;
-    stats.externalAllocated = externalAllocated;
-    stats.internalRamAllocated = internalRamAllocated;
+    stats.totalAllocated = s_TotalAllocated;
+    stats.externalAllocated = s_ExternalAllocated;
+    stats.internalRamAllocated = s_InternalRamAllocated;
 #ifdef DEBUG
     stats.activeAllocations = activeAllocations;
     stats.peakAllocations = peakAllocations;
@@ -694,14 +694,14 @@ MemoryStats Memory::GetStats()
 uint32_t Memory::UpdateTracking(int32_t size, bool isExternal, void* ptr, const char* context, uint32_t line)
 {
     // Update global counters only - no subsystem overhead
-    totalAllocated += size;
+    s_TotalAllocated += size;
     if (isExternal)
     {
-        externalAllocated += size;
+        s_ExternalAllocated += size;
     }
     else
     {
-        internalRamAllocated += size;
+        s_InternalRamAllocated += size;
     }
 
 #ifdef DEBUG
@@ -723,7 +723,7 @@ size_t Memory::GetAvailableExternal()
 
 bool Memory::IsInitialized()
 {
-    return initialized;
+    return s_Initialized;
 }
 
 bool Memory::IsExternalAvailable()

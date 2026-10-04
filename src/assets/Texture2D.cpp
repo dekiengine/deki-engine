@@ -67,7 +67,7 @@ Texture2D* Texture2D::Load(const char* file_path)
     }
 
     // Open file
-    Deki::IFileSystem::FileHandle file = fs->OpenFile(file_path, Deki::IFileSystem::OpenMode::READ_BINARY);
+    Deki::IFileSystem::FileHandle file = fs->OpenFile(file_path, Deki::IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
         DEKI_LOG_ERROR("Failed to open texture file: %s", file_path);
@@ -113,20 +113,20 @@ Texture2D* Texture2D::Load(const char* file_path)
     }
 
     // Read pixel data
-    uint8_t* pixel_data = (uint8_t*)Deki::Memory::Allocate(header.dataSize, Deki::Memory::External);
+    uint8_t* pixelData = (uint8_t*)Deki::Memory::Allocate(header.dataSize, Deki::Memory::External);
 
-    if (!pixel_data)
+    if (!pixelData)
     {
         DEKI_LOG_ERROR("Failed to allocate memory for texture data");
         fs->CloseFile(file);
         return nullptr;
     }
 
-    bytes_read = fs->ReadFile(file, pixel_data, header.dataSize);
+    bytes_read = fs->ReadFile(file, pixelData, header.dataSize);
     if (bytes_read != header.dataSize)
     {
         DEKI_LOG_ERROR("Failed to read texture pixel data");
-        Deki::Memory::Free(pixel_data);
+        Deki::Memory::Free(pixelData);
         fs->CloseFile(file);
         return nullptr;
     }
@@ -135,16 +135,16 @@ Texture2D* Texture2D::Load(const char* file_path)
 
     // Create texture instance
     Texture2D* texture = new Texture2D();
-    if (!texture->LoadFromMemory(header, pixel_data))
+    if (!texture->LoadFromMemory(header, pixelData))
     {
         DEKI_LOG_ERROR("Failed to load texture from memory");
-        Deki::Memory::Free(pixel_data);
+        Deki::Memory::Free(pixelData);
         delete texture;
         return nullptr;
     }
 
     // Pixel data is now owned by texture
-    texture->data = pixel_data;
+    texture->data = pixelData;
 
     DEKI_LOG_INTERNAL("Loaded texture: %s (%dx%d, %s)", file_path, texture->width, texture->height,
                       GetFormatName(texture->format));
@@ -153,9 +153,9 @@ Texture2D* Texture2D::Load(const char* file_path)
 }
 #endif  // !DEKI_EDITOR
 
-bool Texture2D::LoadFromMemory(const Texture2D::Header& header, const uint8_t* pixel_data)
+bool Texture2D::LoadFromMemory(const Texture2D::Header& header, const uint8_t* pixelData)
 {
-    if (!pixel_data)
+    if (!pixelData)
     {
         return false;
     }
@@ -220,8 +220,8 @@ bool Texture2D::ValidateHeader(const Texture2D::Header& header)
     }
 
     // Check format
-    uint32_t bytes_per_pixel = GetBytesPerPixel(header.format);
-    if (bytes_per_pixel == 0)
+    uint32_t bytesPerPixel = GetBytesPerPixel(header.format);
+    if (bytesPerPixel == 0)
     {
         DEKI_LOG_ERROR("Unknown texture format: %u", static_cast<uint32_t>(header.format));
         return false;
@@ -229,10 +229,10 @@ bool Texture2D::ValidateHeader(const Texture2D::Header& header)
 
     // Validate data size, in 64 bits: width * height * bpp wrapped in 32,
     // so a huge corrupt image could match a small dataSize.
-    const uint64_t expected_data_size = uint64_t(header.width) * uint64_t(header.height) * bytes_per_pixel;
-    if (uint64_t(header.dataSize) != expected_data_size)
+    const uint64_t expectedDataSize = uint64_t(header.width) * uint64_t(header.height) * bytesPerPixel;
+    if (uint64_t(header.dataSize) != expectedDataSize)
     {
-        DEKI_LOG_ERROR("Data size mismatch. Expected: %llu, Got: %u", (unsigned long long)expected_data_size,
+        DEKI_LOG_ERROR("Data size mismatch. Expected: %llu, Got: %u", (unsigned long long)expectedDataSize,
                        header.dataSize);
         return false;
     }

@@ -25,7 +25,7 @@ namespace Deki
 
 class IMemoryProvider;
 
-namespace detail
+namespace Detail
 {
 // The raw allocation path, used by the global operator new on builds with
 // exceptions off (src/providers/OperatorNew.cpp). Deliberately not on Memory
@@ -35,7 +35,7 @@ namespace detail
 // or Memory::Allocate.
 void* RawAllocate(size_t size);
 void RawFree(void* ptr);
-}  // namespace detail
+}  // namespace Detail
 
 /**
  * @brief Who asked for an allocation. Filled in by the compiler.
@@ -137,20 +137,20 @@ class Memory
     // The raw path needs the backend, which is private and should stay that
     // way. Friending the two functions is narrower than exposing a second
     // allocation API on Memory that components would find and misuse.
-    friend void* detail::RawAllocate(size_t size);
-    friend void detail::RawFree(void* ptr);
+    friend void* Detail::RawAllocate(size_t size);
+    friend void Detail::RawFree(void* ptr);
 
 private:
     // Platform-specific memory provider
     static std::unique_ptr<IMemoryProvider> s_CurrentBackend;
-    static bool initialized;
+    static bool s_Initialized;
     static bool s_ExternalAvailable;
     static bool s_ExternalEnabled;
 
     // Global tracking
-    static uint32_t totalAllocated;
-    static uint32_t externalAllocated;
-    static uint32_t internalRamAllocated;
+    static uint32_t s_TotalAllocated;
+    static uint32_t s_ExternalAllocated;
+    static uint32_t s_InternalRamAllocated;
 
 #ifdef DEBUG
     // Lightweight leak detection (debug only)
@@ -210,9 +210,9 @@ public:
         uint32_t id;       ///< HashName(name); what the provider dispatches on
         const char* name;  ///< what a failure prints
 
-        constexpr explicit Region(const char* region_name)
-            : id(HashName(region_name)),
-              name(region_name)
+        constexpr explicit Region(const char* regionName)
+            : id(HashName(regionName)),
+              name(regionName)
         {
         }
 
@@ -224,14 +224,17 @@ public:
         /// name was never stored. Private, and Memory is the only caller: a
         /// public form would let anyone make a Region whose id and name
         /// disagree, and the id is what every provider dispatches on.
-        constexpr Region(uint32_t stored_id, const char* placeholder_name)
-            : id(stored_id),
-              name(placeholder_name)
+        constexpr Region(uint32_t storedId, const char* placeholderName)
+            : id(storedId),
+              name(placeholderName)
         {
         }
 
         friend class Memory;
     };
+
+    // The two regions are named values, used like enum values.
+    // NOLINTBEGIN(readability-identifier-naming)
 
     /// Internal RAM. Fast, and the scarce one - a few hundred KB on an ESP32-S3.
     static const Region Internal;
@@ -241,6 +244,7 @@ public:
     /// belong here. Asking for it is a claim that this buffer's latency does
     /// not matter.
     static const Region External;
+    // NOLINTEND(readability-identifier-naming)
 
     /**
      * @brief Initialize memory backend
@@ -450,7 +454,9 @@ private:
 // defined out of line. inline gives them one definition across every
 // translation unit; constexpr belongs on the definition of a variable, not on
 // the declaration ([dcl.constexpr]).
+// NOLINTBEGIN(readability-identifier-naming)
 inline constexpr Memory::Region Memory::Internal{ "internal" };
 inline constexpr Memory::Region Memory::External{ "external" };
+// NOLINTEND(readability-identifier-naming)
 
 }  // namespace Deki

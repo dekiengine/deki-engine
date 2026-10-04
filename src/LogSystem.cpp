@@ -10,7 +10,7 @@
 namespace Deki
 {
 
-static int log_count = 0;
+static int s_LogCount = 0;
 
 // Static callback member
 LogCallback LogSystem::s_LogCallback = nullptr;
@@ -60,12 +60,12 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     // used to copy it into a std::string, substr it, and concatenate the
     // callback message from parts. Three heap allocations per log line, on
     // paths that can log every frame.
-    const char* display_name = file ? file : "";
-    for (const char* p = display_name; *p; ++p)
+    const char* displayName = file ? file : "";
+    for (const char* p = displayName; *p; ++p)
     {
         if (*p == '/' || *p == '\\')
         {
-            display_name = p + 1;
+            displayName = p + 1;
         }
     }
 
@@ -73,7 +73,7 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     if (s_LogCallback)
     {
         char full[640];
-        snprintf(full, sizeof(full), "%s:%d -> %s", display_name, line, buffer);
+        snprintf(full, sizeof(full), "%s:%d -> %s", displayName, line, buffer);
         s_LogCallback(level, std::string(full), file, line);
     }
 
@@ -84,32 +84,32 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     }
 
     const char* color = "";
-    const char* level_text = "[INFO]";
+    const char* levelText = "[INFO]";
 
     if (level == LogLevel::Error)
     {
         color = "\033[1;91m";  // Bright red
-        level_text = "[ERROR]";
+        levelText = "[ERROR]";
     }
     else if (level == LogLevel::Warning)
     {
         color = "\033[1;93m";  // Bright yellow
-        level_text = "[WARN]";
+        levelText = "[WARN]";
     }
     else if (level == LogLevel::Internal)
     {
         color = "\033[0;90m";  // Dim gray
-        level_text = "[INTERNAL]";
+        levelText = "[INTERNAL]";
     }
     else if (level == LogLevel::Debug)
     {
         color = "\033[1;92m";  // Bright green
-        level_text = "[DEBUG]";
+        levelText = "[DEBUG]";
     }
     else
     {                          // Info
         color = "\033[1;36m";  // Bright cyan
-        level_text = "[INFO]";
+        levelText = "[INFO]";
     }
     const char* reset = "\033[0m";
     const char* arrow = "->";
@@ -121,7 +121,7 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     // it, the escape lands at the start of whatever is written next, which
     // is invisible on a terminal but prefixes the following line wherever
     // stdout and stderr are combined into one stream.
-    fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, level_text, arrow, display_name, line, arrow, buffer, reset);
+    fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, levelText, arrow, displayName, line, arrow, buffer, reset);
 }
 
 }  // namespace Deki

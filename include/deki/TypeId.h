@@ -61,7 +61,7 @@ constexpr uint32_t HashStringView(std::string_view s)
     return hash;
 }
 
-namespace detail
+namespace Detail
 {
 
 template <class T>
@@ -80,9 +80,9 @@ constexpr std::string_view RawTypeSignature()
 // compiler spells the same way. The prefix and suffix are the same for any T.
 struct TypeNameProbe
 {
-    static constexpr std::string_view probe = RawTypeSignature<double>();
-    static constexpr size_t prefix = probe.find("double");
-    static constexpr size_t suffix = probe.size() - prefix - 6;
+    static constexpr std::string_view kProbe = RawTypeSignature<double>();
+    static constexpr size_t kPrefix = kProbe.find("double");
+    static constexpr size_t kSuffix = kProbe.size() - kPrefix - 6;
 };
 
 constexpr bool StartsWith(std::string_view s, std::string_view p)
@@ -90,7 +90,7 @@ constexpr bool StartsWith(std::string_view s, std::string_view p)
     return s.size() >= p.size() && s.substr(0, p.size()) == p;
 }
 
-}  // namespace detail
+}  // namespace Detail
 
 /**
  * @brief The fully qualified name of T, e.g. "Game::Health", as a string_view.
@@ -99,15 +99,15 @@ template <class T>
 constexpr std::string_view TypeNameOf()
 {
     static_assert(std::is_class<T>::value, "Deki::TypeNameOf: only class types have a component identity");
-    std::string_view s = detail::RawTypeSignature<T>();
-    s.remove_prefix(detail::TypeNameProbe::prefix);
-    s.remove_suffix(detail::TypeNameProbe::suffix);
+    std::string_view s = Detail::RawTypeSignature<T>();
+    s.remove_prefix(Detail::TypeNameProbe::kPrefix);
+    s.remove_suffix(Detail::TypeNameProbe::kSuffix);
     // MSVC spells class types with their class-key.
-    if (detail::StartsWith(s, "class "))
+    if (Detail::StartsWith(s, "class "))
     {
         s.remove_prefix(6);
     }
-    else if (detail::StartsWith(s, "struct "))
+    else if (Detail::StartsWith(s, "struct "))
     {
         s.remove_prefix(7);
     }
@@ -137,7 +137,7 @@ constexpr ComponentType TypeId()
     return HashStringView(TypeNameOf<T>());
 }
 
-namespace detail
+namespace Detail
 {
 
 template <class T, class Seq>
@@ -145,7 +145,7 @@ struct TypeNameStorage;
 template <class T, size_t... I>
 struct TypeNameStorage<T, std::index_sequence<I...>>
 {
-    static constexpr char value[sizeof...(I) + 1] = { TypeNameOf<T>()[I]..., '\0' };
+    static constexpr char kValue[sizeof...(I) + 1] = { TypeNameOf<T>()[I]..., '\0' };
 };
 
 template <class T, class Seq>
@@ -153,10 +153,10 @@ struct TypeShortNameStorage;
 template <class T, size_t... I>
 struct TypeShortNameStorage<T, std::index_sequence<I...>>
 {
-    static constexpr char value[sizeof...(I) + 1] = { TypeShortNameOf<T>()[I]..., '\0' };
+    static constexpr char kValue[sizeof...(I) + 1] = { TypeShortNameOf<T>()[I]..., '\0' };
 };
 
-}  // namespace detail
+}  // namespace Detail
 
 /**
  * @brief The fully qualified name of T as a null-terminated string with static storage.
@@ -164,7 +164,7 @@ struct TypeShortNameStorage<T, std::index_sequence<I...>>
 template <class T>
 constexpr const char* TypeName()
 {
-    return detail::TypeNameStorage<T, std::make_index_sequence<TypeNameOf<T>().size()>>::value;
+    return Detail::TypeNameStorage<T, std::make_index_sequence<TypeNameOf<T>().size()>>::kValue;
 }
 
 /**
@@ -173,7 +173,7 @@ constexpr const char* TypeName()
 template <class T>
 constexpr const char* TypeShortName()
 {
-    return detail::TypeShortNameStorage<T, std::make_index_sequence<TypeShortNameOf<T>().size()>>::value;
+    return Detail::TypeShortNameStorage<T, std::make_index_sequence<TypeShortNameOf<T>().size()>>::kValue;
 }
 
 }  // namespace Deki

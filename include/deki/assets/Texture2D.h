@@ -85,10 +85,10 @@ public:
 
     /**
      * @brief Load texture from V-Engine texture format (.vtex)
-     * @param file_path Path to the .vtex file
+     * @param filePath Path to the .vtex file
      * @return Pointer to loaded texture or nullptr on failure
      */
-    static Texture2D* Load(const char* file_path);
+    static Texture2D* Load(const char* filePath);
 
     /**
      * @brief Get bytes per pixel for a format
@@ -114,23 +114,23 @@ public:
 #ifdef DEKI_EDITOR
     /**
      * @brief Load texture from file and return as RGBA8888 pixel data (for editor)
-     * @param file_path Path to the .tex file
-     * @param out_width Output width
-     * @param out_height Output height
-     * @param out_has_alpha Output whether texture has alpha
+     * @param filePath Path to the .tex file
+     * @param outWidth Output width
+     * @param outHeight Output height
+     * @param outHasAlpha Output whether texture has alpha
      * @return RGBA8888 pixel data (caller owns memory, use delete[]), or nullptr on failure
      */
-    static uint8_t* LoadAsRGBA(const char* file_path, int32_t& out_width, int32_t& out_height, bool& out_has_alpha);
+    static uint8_t* LoadAsRGBA(const char* filePath, int32_t& outWidth, int32_t& outHeight, bool& outHasAlpha);
 
     /**
      * @brief Convert texture pixel data to RGBA8888 format
-     * @param src_data Source pixel data
+     * @param srcData Source pixel data
      * @param width Texture width
      * @param height Texture height
      * @param format Source format
      * @return RGBA8888 pixel data (caller owns memory, use delete[]), or nullptr on failure
      */
-    static uint8_t* ConvertToRGBA(const uint8_t* src_data, int32_t width, int32_t height, TextureFormat format);
+    static uint8_t* ConvertToRGBA(const uint8_t* srcData, int32_t width, int32_t height, TextureFormat format);
 #endif
 
 protected:

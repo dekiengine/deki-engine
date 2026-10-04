@@ -47,7 +47,7 @@ public:
     struct SleepInfo
     {
         SleepMode mode;
-        const char* m_PlatformModeName;  // diagnostic, e.g. "esp_light_sleep"
+        const char* platformModeName;  // diagnostic, e.g. "esp_light_sleep"
     };
 
     virtual bool Initialize() = 0;
@@ -69,7 +69,7 @@ public:
     virtual void RequestSleep(SleepMode mode) = 0;
 
     // GPIO that wakes the device (touch / button). level: 0 wake on low, 1 wake on high.
-    virtual void SetWakeGpio(int gpio_num, int level) = 0;
+    virtual void SetWakeGpio(int gpioNum, int level) = 0;
 
     using SleepCallback = std::function<void(SleepInfo)>;
     virtual void RegisterOnScreenOn(SleepCallback cb) = 0;     // fired after wake

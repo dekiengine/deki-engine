@@ -445,7 +445,7 @@ private:
     Engine();
     ~Engine();
 
-    static bool s_runtimeMode;
+    static bool s_RuntimeMode;
 };
 
 }  // namespace Deki

@@ -99,14 +99,14 @@ struct EditorInstanceData
 
 std::unordered_map<const Object*, EditorInstanceData>& EditorInstanceTable()
 {
-    static std::unordered_map<const Object*, EditorInstanceData> table;
-    return table;
+    static std::unordered_map<const Object*, EditorInstanceData> s_Table;
+    return s_Table;
 }
 
 const std::string& EmptyString()
 {
-    static const std::string empty;
-    return empty;
+    static const std::string kEmpty;
+    return kEmpty;
 }
 }  // namespace
 
@@ -123,7 +123,7 @@ void Object::SetSourceSceneGuid(const std::string& guid)
     // used to compute directly from the string.
     if (guid.empty())
     {
-        m_EditorFlags &= static_cast<uint8_t>(~EditorFlag_SceneInstance);
+        m_EditorFlags &= static_cast<uint8_t>(~kEditorFlagSceneInstance);
         auto& table = EditorInstanceTable();
         auto it = table.find(this);
         if (it != table.end())
@@ -138,7 +138,7 @@ void Object::SetSourceSceneGuid(const std::string& guid)
         return;
     }
 
-    m_EditorFlags |= EditorFlag_SceneInstance;
+    m_EditorFlags |= kEditorFlagSceneInstance;
     EditorInstanceTable()[this].sourceSceneGuid = guid;
 }
 
@@ -172,7 +172,7 @@ void Object::SetInstanceOverridesJson(const std::string& json)
 
 void Object::SetId(uint32_t newId)
 {
-    id = newId;
+    m_Id = newId;
     if (newId >= s_NextId)
     {
         s_NextId = newId + 1;
@@ -180,20 +180,20 @@ void Object::SetId(uint32_t newId)
 }
 
 Object::Object()
-    : id(s_NextId++),
-      name("DekiObject"),
-      active(true),
-      ownerScene(nullptr),
-      parent(nullptr)
+    : m_Id(s_NextId++),
+      m_Name("DekiObject"),
+      m_Active(true),
+      m_OwnerScene(nullptr),
+      m_Parent(nullptr)
 {
 }
 
 Object::Object(const std::string& objectName)
-    : id(s_NextId++),
-      name(objectName),
-      active(true),
-      ownerScene(nullptr),
-      parent(nullptr)
+    : m_Id(s_NextId++),
+      m_Name(objectName),
+      m_Active(true),
+      m_OwnerScene(nullptr),
+      m_Parent(nullptr)
 {
 }
 
@@ -207,52 +207,52 @@ Object::~Object()
 #endif
 
     // Remove from parent if exists
-    if (parent)
+    if (m_Parent)
     {
-        parent->RemoveChild(this);
+        m_Parent->RemoveChild(this);
     }
 
     // Delete all children
-    for (auto* child : children)
+    for (auto* child : m_Children)
     {
-        child->parent = nullptr;  // Prevent child from trying to remove itself from this object
+        child->m_Parent = nullptr;  // Prevent child from trying to remove itself from this object
         delete child;
     }
-    children.clear();
+    m_Children.clear();
 
     // Delete all components
-    for (auto* comp : components)
+    for (auto* comp : m_Components)
     {
 #ifdef DEKI_EDITOR
         Internal::ForgetComponentData(comp);
 #endif
         delete comp;
     }
-    components.clear();
+    m_Components.clear();
 }
 
 // Hierarchy management implementations
 void Object::AddChild(Object* child)
 {
-    if (!child || child == this || child->parent == this)
+    if (!child || child == this || child->m_Parent == this)
     {
         return;
     }
 
     // Remove from previous parent
-    if (child->parent)
+    if (child->m_Parent)
     {
-        child->parent->RemoveChild(child);
+        child->m_Parent->RemoveChild(child);
     }
 
     // Add to our children
-    children.push_back(child);
-    child->parent = this;
+    m_Children.push_back(child);
+    child->m_Parent = this;
 
     // Propagate scene to child (always update if different, handles stale/dangling pointers)
-    if (ownerScene && child->ownerScene != ownerScene)
+    if (m_OwnerScene && child->m_OwnerScene != m_OwnerScene)
     {
-        child->SetOwnerScene(ownerScene);
+        child->SetOwnerScene(m_OwnerScene);
     }
 
     // Mark child's world transform dirty (parent changed)
@@ -266,18 +266,18 @@ void Object::RemoveChild(Object* child)
         return;
     }
 
-    auto it = std::find(children.begin(), children.end(), child);
-    if (it != children.end())
+    auto it = std::find(m_Children.begin(), m_Children.end(), child);
+    if (it != m_Children.end())
     {
-        (*it)->parent = nullptr;
+        (*it)->m_Parent = nullptr;
         (*it)->MarkWorldTransformDirty();  // Parent changed, world transform needs recalc
-        children.erase(it);
+        m_Children.erase(it);
     }
 }
 
 void Object::SetParent(Object* newParent)
 {
-    if (newParent == parent)
+    if (newParent == m_Parent)
     {
         return;
     }
@@ -300,39 +300,39 @@ void Object::SetParent(Object* newParent)
 
 void Object::RemoveFromParent()
 {
-    if (parent)
+    if (m_Parent)
     {
-        parent->RemoveChild(this);
+        m_Parent->RemoveChild(this);
     }
 }
 
 void Object::InsertChildAt(Object* child, size_t index)
 {
-    if (!child || child == this || child->parent == this)
+    if (!child || child == this || child->m_Parent == this)
     {
         return;
     }
 
     // Remove from previous parent
-    if (child->parent)
+    if (child->m_Parent)
     {
-        child->parent->RemoveChild(child);
+        child->m_Parent->RemoveChild(child);
     }
 
     // Clamp index to valid range
-    if (index > children.size())
+    if (index > m_Children.size())
     {
-        index = children.size();
+        index = m_Children.size();
     }
 
     // Insert at position
-    children.insert(children.begin() + index, child);
-    child->parent = this;
+    m_Children.insert(m_Children.begin() + index, child);
+    child->m_Parent = this;
 
     // Propagate scene to child (always update if different, handles stale/dangling pointers)
-    if (ownerScene && child->ownerScene != ownerScene)
+    if (m_OwnerScene && child->m_OwnerScene != m_OwnerScene)
     {
-        child->SetOwnerScene(ownerScene);
+        child->SetOwnerScene(m_OwnerScene);
     }
 
     // Mark child's world transform dirty (parent changed)
@@ -341,17 +341,17 @@ void Object::InsertChildAt(Object* child, size_t index)
 
 int Object::GetChildIndex(Object* child) const
 {
-    auto it = std::find(children.begin(), children.end(), child);
-    if (it != children.end())
+    auto it = std::find(m_Children.begin(), m_Children.end(), child);
+    if (it != m_Children.end())
     {
-        return static_cast<int>(std::distance(children.begin(), it));
+        return static_cast<int>(std::distance(m_Children.begin(), it));
     }
     return -1;
 }
 
 Object* Object::FindChild(uint32_t childId)
 {
-    for (auto* child : children)
+    for (auto* child : m_Children)
     {
         if (child->GetId() == childId)
         {
@@ -370,7 +370,7 @@ Object* Object::FindChild(uint32_t childId)
 
 Object* Object::FindChildByName(const std::string& searchName)
 {
-    for (auto* child : children)
+    for (auto* child : m_Children)
     {
         if (child->GetName() == searchName)
         {
@@ -394,14 +394,14 @@ bool Object::IsDescendantOf(Object* ancestor) const
         return false;
     }
 
-    Object* current = parent;
+    Object* current = m_Parent;
     while (current)
     {
         if (current == ancestor)
         {
             return true;
         }
-        current = current->parent;
+        current = current->m_Parent;
     }
     return false;
 }
@@ -409,9 +409,9 @@ bool Object::IsDescendantOf(Object* ancestor) const
 bool Object::IsActiveInHierarchy() const
 {
     // Walk up without recursing: one frame, no call per ancestor.
-    for (const Object* o = this; o; o = o->parent)
+    for (const Object* o = this; o; o = o->m_Parent)
     {
-        if (!o->active)
+        if (!o->m_Active)
         {
             return false;
         }
@@ -490,81 +490,82 @@ void ApplyInverse(const float m[9], float x, float y, float z, float& ox, float&
 
 void Object::RecomputeWorldTransform() const
 {
-    if (parent)
+    if (m_Parent)
     {
         // Ensure parent is valid first (recursive up the chain)
-        parent->EnsureWorldTransformValid();
+        m_Parent->EnsureWorldTransformValid();
 
 #ifdef DEKI_TRANSFORM_3D
         // Only when something in the chain rotates about X or Y does the
         // composition need matrices. Everything else takes the path below,
         // which is the 2D engine's exactly, so 2D content is bit-identical.
-        const bool needsMatrices = parent->m_WorldRotationX != 0.0f || parent->m_WorldRotationY != 0.0f ||
-                                   rotationX != 0.0f || rotationY != 0.0f;
+        const bool needsMatrices = m_Parent->m_WorldRotationX != 0.0f || m_Parent->m_WorldRotationY != 0.0f ||
+                                   m_RotationX != 0.0f || m_RotationY != 0.0f;
         if (needsMatrices)
         {
-            m_WorldScaleX = m_ScaleX * parent->m_WorldScaleX;
-            m_WorldScaleY = m_ScaleY * parent->m_WorldScaleY;
-            m_WorldScaleZ = m_ScaleZ * parent->m_WorldScaleZ;
+            m_WorldScaleX = m_ScaleX * m_Parent->m_WorldScaleX;
+            m_WorldScaleY = m_ScaleY * m_Parent->m_WorldScaleY;
+            m_WorldScaleZ = m_ScaleZ * m_Parent->m_WorldScaleZ;
 
             float rp[9], rl[9], rw[9];
-            RotationFromAngles(parent->m_WorldRotationX, parent->m_WorldRotationY, parent->m_WorldRotation, rp);
-            RotationFromAngles(rotationX, rotationY, rotation, rl);
+            RotationFromAngles(m_Parent->m_WorldRotationX, m_Parent->m_WorldRotationY, m_Parent->m_WorldRotation, rp);
+            RotationFromAngles(m_RotationX, m_RotationY, m_Rotation, rl);
             Multiply(rp, rl, rw);
             AnglesFromRotation(rw, m_WorldRotationX, m_WorldRotationY, m_WorldRotation);
 
             float ox, oy, oz;
-            Apply(rp, x * parent->m_WorldScaleX, y * parent->m_WorldScaleY, z * parent->m_WorldScaleZ, ox, oy, oz);
-            m_WorldX = parent->m_WorldX + ox;
-            m_WorldY = parent->m_WorldY + oy;
-            m_WorldZ = parent->m_WorldZ + oz;
+            Apply(rp, m_X * m_Parent->m_WorldScaleX, m_Y * m_Parent->m_WorldScaleY, m_Z * m_Parent->m_WorldScaleZ, ox,
+                  oy, oz);
+            m_WorldX = m_Parent->m_WorldX + ox;
+            m_WorldY = m_Parent->m_WorldY + oy;
+            m_WorldZ = m_Parent->m_WorldZ + oz;
 
             m_WorldTransformDirty = false;
             return;
         }
         // Z-only rotation leaves the third axis alone.
-        m_WorldZ = parent->m_WorldZ + z * parent->m_WorldScaleZ;
-        m_WorldScaleZ = m_ScaleZ * parent->m_WorldScaleZ;
+        m_WorldZ = m_Parent->m_WorldZ + m_Z * m_Parent->m_WorldScaleZ;
+        m_WorldScaleZ = m_ScaleZ * m_Parent->m_WorldScaleZ;
         m_WorldRotationX = 0.0f;
         m_WorldRotationY = 0.0f;
 #endif
 
         // Calculate world transform from parent
-        m_WorldScaleX = m_ScaleX * parent->m_WorldScaleX;
-        m_WorldScaleY = m_ScaleY * parent->m_WorldScaleY;
-        m_WorldRotation = rotation + parent->m_WorldRotation;
+        m_WorldScaleX = m_ScaleX * m_Parent->m_WorldScaleX;
+        m_WorldScaleY = m_ScaleY * m_Parent->m_WorldScaleY;
+        m_WorldRotation = m_Rotation + m_Parent->m_WorldRotation;
 
-        const float scaled_x = x * parent->m_WorldScaleX;
-        const float scaled_y = y * parent->m_WorldScaleY;
+        const float scaledX = m_X * m_Parent->m_WorldScaleX;
+        const float scaledY = m_Y * m_Parent->m_WorldScaleY;
 
-        if (parent->m_WorldRotation == 0.0f)
+        if (m_Parent->m_WorldRotation == 0.0f)
         {
             // The overwhelmingly common case: no cos/sin. Bit-identical to the
             // trig path (cos 0 = 1, sin 0 = 0 exactly, and a + (b * 0) == a).
-            m_WorldX = parent->m_WorldX + scaled_x;
-            m_WorldY = parent->m_WorldY + scaled_y;
+            m_WorldX = m_Parent->m_WorldX + scaledX;
+            m_WorldY = m_Parent->m_WorldY + scaledY;
         }
         else
         {
             // Apply parent rotation (radians) to local position.
-            const float cos_r = std::cos(parent->m_WorldRotation);
-            const float sin_r = std::sin(parent->m_WorldRotation);
-            m_WorldX = parent->m_WorldX + (scaled_x * cos_r - scaled_y * sin_r);
-            m_WorldY = parent->m_WorldY + (scaled_x * sin_r + scaled_y * cos_r);
+            const float cosR = std::cos(m_Parent->m_WorldRotation);
+            const float sinR = std::sin(m_Parent->m_WorldRotation);
+            m_WorldX = m_Parent->m_WorldX + (scaledX * cosR - scaledY * sinR);
+            m_WorldY = m_Parent->m_WorldY + (scaledX * sinR + scaledY * cosR);
         }
     }
     else
     {
         // No parent, world transform equals local
-        m_WorldX = x;
-        m_WorldY = y;
-        m_WorldRotation = rotation;
+        m_WorldX = m_X;
+        m_WorldY = m_Y;
+        m_WorldRotation = m_Rotation;
         m_WorldScaleX = m_ScaleX;
         m_WorldScaleY = m_ScaleY;
 #ifdef DEKI_TRANSFORM_3D
-        m_WorldZ = z;
-        m_WorldRotationX = rotationX;
-        m_WorldRotationY = rotationY;
+        m_WorldZ = m_Z;
+        m_WorldRotationX = m_RotationX;
+        m_WorldRotationY = m_RotationY;
         m_WorldScaleZ = m_ScaleZ;
 #endif
     }
@@ -582,7 +583,7 @@ void Object::MarkWorldTransformDirty()
     m_WorldTransformDirty = true;
 
     // Recursively mark all children dirty
-    for (auto* child : children)
+    for (auto* child : m_Children)
     {
         child->MarkWorldTransformDirty();
     }
@@ -590,57 +591,57 @@ void Object::MarkWorldTransformDirty()
 
 void Object::SetLocalPosition(float newX, float newY)
 {
-    x = newX;
-    y = newY;
+    m_X = newX;
+    m_Y = newY;
     MarkWorldTransformDirty();
 }
 
 void Object::SetWorldPosition(float worldX, float worldY)
 {
-    if (parent)
+    if (m_Parent)
     {
 #ifdef DEKI_TRANSFORM_3D
         // A parent turned about X or Y mixes all three axes, so the plane
         // arithmetic below does not apply; undo its rotation properly, keeping
         // this object's current depth.
-        if (parent->GetWorldRotationX() != 0.0f || parent->GetWorldRotationY() != 0.0f)
+        if (m_Parent->GetWorldRotationX() != 0.0f || m_Parent->GetWorldRotationY() != 0.0f)
         {
             float rp[9];
-            RotationFromAngles(parent->GetWorldRotationX(), parent->GetWorldRotationY(), parent->GetWorldRotation(),
-                               rp);
+            RotationFromAngles(m_Parent->GetWorldRotationX(), m_Parent->GetWorldRotationY(),
+                               m_Parent->GetWorldRotation(), rp);
             float lx, ly, lz;
-            ApplyInverse(rp, worldX - parent->GetWorldX(), worldY - parent->GetWorldY(),
-                         GetWorldZ() - parent->GetWorldZ(), lx, ly, lz);
-            x = lx / parent->GetWorldScaleX();
-            y = ly / parent->GetWorldScaleY();
-            z = lz / parent->GetWorldScaleZ();
+            ApplyInverse(rp, worldX - m_Parent->GetWorldX(), worldY - m_Parent->GetWorldY(),
+                         GetWorldZ() - m_Parent->GetWorldZ(), lx, ly, lz);
+            m_X = lx / m_Parent->GetWorldScaleX();
+            m_Y = ly / m_Parent->GetWorldScaleY();
+            m_Z = lz / m_Parent->GetWorldScaleZ();
             MarkWorldTransformDirty();
             return;
         }
 #endif
         // Calculate local position from world position
         // Use getters to ensure parent's world transform is valid
-        float dx = worldX - parent->GetWorldX();
-        float dy = worldY - parent->GetWorldY();
+        float dx = worldX - m_Parent->GetWorldX();
+        float dy = worldY - m_Parent->GetWorldY();
 
         // Inverse rotation: negate parent's rotation (radians).
-        float negRot = -parent->GetWorldRotation();
-        float cos_r = std::cos(negRot);
-        float sin_r = std::sin(negRot);
+        float negRot = -m_Parent->GetWorldRotation();
+        float cosR = std::cos(negRot);
+        float sinR = std::sin(negRot);
 
         // Unrotate
-        float unrotated_x = dx * cos_r - dy * sin_r;
-        float unrotated_y = dx * sin_r + dy * cos_r;
+        float unrotatedX = dx * cosR - dy * sinR;
+        float unrotatedY = dx * sinR + dy * cosR;
 
         // Unscale
-        x = unrotated_x / parent->GetWorldScaleX();
-        y = unrotated_y / parent->GetWorldScaleY();
+        m_X = unrotatedX / m_Parent->GetWorldScaleX();
+        m_Y = unrotatedY / m_Parent->GetWorldScaleY();
     }
     else
     {
         // No parent, local = world
-        x = worldX;
-        y = worldY;
+        m_X = worldX;
+        m_Y = worldY;
     }
 
     MarkWorldTransformDirty();
@@ -665,19 +666,19 @@ void Object::SetScale(float scaleX, float scaleY)
 void Object::SetRotation(float newRotation)
 {
     // Radians (engine convention).
-    rotation = newRotation;
+    m_Rotation = newRotation;
     MarkWorldTransformDirty();
 }
 
 void Object::SetX(float newX)
 {
-    x = newX;
+    m_X = newX;
     MarkWorldTransformDirty();
 }
 
 void Object::SetY(float newY)
 {
-    y = newY;
+    m_Y = newY;
     MarkWorldTransformDirty();
 }
 
@@ -696,19 +697,19 @@ void Object::SetScaleY(float newScaleY)
 #ifdef DEKI_TRANSFORM_3D
 void Object::SetZ(float newZ)
 {
-    z = newZ;
+    m_Z = newZ;
     MarkWorldTransformDirty();
 }
 
 void Object::SetRotationX(float radians)
 {
-    rotationX = radians;
+    m_RotationX = radians;
     MarkWorldTransformDirty();
 }
 
 void Object::SetRotationY(float radians)
 {
-    rotationY = radians;
+    m_RotationY = radians;
     MarkWorldTransformDirty();
 }
 
@@ -734,7 +735,7 @@ Component* Internal::AddComponentByName(Object& object, const std::string& typeN
 
 int Internal::DetachComponent(Object& object, Component* component)
 {
-    auto& comps = object.components;
+    auto& comps = object.m_Components;
     for (size_t i = 0; i < comps.size(); ++i)
     {
         if (comps[i] == component)
@@ -753,7 +754,7 @@ void Internal::ReattachComponent(Object& object, Component* component, size_t in
         return;
     }
     component->SetOwner(&object);
-    auto& comps = object.components;
+    auto& comps = object.m_Components;
     if (index > comps.size())
     {
         index = comps.size();
@@ -783,33 +784,33 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
             DEKI_LOG(LogLevel::Warning,
                      "AddComponent: type '%s' is not registered; resolved '%s' by class name "
                      "(object='%s' id=%u). Re-save the scene to write the current type.",
-                     typeName.c_str(), classHint.c_str(), name.c_str(), id);
+                     typeName.c_str(), classHint.c_str(), m_Name.c_str(), m_Id);
         }
     }
     if (!meta)
     {
         const bool looksLikeGuid = typeName.size() == 36 && typeName[8] == '-';
-        const char* sceneName = ownerScene ? ownerScene->GetName().c_str() : "<no scene>";
+        const char* sceneName = m_OwnerScene ? m_OwnerScene->GetName().c_str() : "<no scene>";
         if (!classHint.empty())
         {
             DEKI_LOG(LogLevel::Warning,
                      "AddComponent: '%s' (type %s) not registered on object '%s' (id=%u, scene='%s'). "
                      "Package providing this component is likely not loaded.",
-                     classHint.c_str(), typeName.c_str(), name.c_str(), id, sceneName);
+                     classHint.c_str(), typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
         }
         else if (looksLikeGuid)
         {
             DEKI_LOG(LogLevel::Warning,
                      "AddComponent: 0.10 GUID '%s' not registered - class name unknown "
                      "(object='%s' id=%u scene='%s'). Re-save this scene in the editor to embed a class-name hint.",
-                     typeName.c_str(), name.c_str(), id, sceneName);
+                     typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
         }
         else
         {
             DEKI_LOG(LogLevel::Warning,
                      "AddComponent: class '%s' not registered "
                      "(object='%s' id=%u scene='%s'). Check spelling or that its package is loaded.",
-                     typeName.c_str(), name.c_str(), id, sceneName);
+                     typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
         }
         return nullptr;
     }
@@ -821,7 +822,7 @@ Component* Object::AddComponent(const std::string& typeName, const std::string& 
     if (comp)
     {
         comp->SetOwner(this);
-        components.push_back(comp);
+        m_Components.push_back(comp);
     }
     return comp;
 }

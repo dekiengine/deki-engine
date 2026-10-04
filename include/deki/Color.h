@@ -82,6 +82,7 @@ public:
     bool operator!=(const Color& other) const { return !(*this == other); }
 
     // Predefined colors (declared here, defined below after class is complete)
+    // NOLINTBEGIN(readability-identifier-naming): named values, used like enum values
     static const Color Black;
     static const Color White;
     static const Color Red;
@@ -104,12 +105,14 @@ public:
     static const Color GrassGreen;
     static const Color SunsetOrange;
     static const Color NightBlue;
+    // NOLINTEND(readability-identifier-naming)
 };
 
 // =============================================================================
 // Inline definitions of predefined colors (for DLL export compatibility)
 // =============================================================================
 // These are inline to avoid linker errors when multiple DLLs use them.
+// NOLINTBEGIN(readability-identifier-naming)
 inline const Color Color::Black{ 0, 0, 0 };
 inline const Color Color::White{ 255, 255, 255 };
 inline const Color Color::Red{ 255, 0, 0 };
@@ -130,6 +133,7 @@ inline const Color Color::SkyBlue{ 135, 206, 235 };
 inline const Color Color::GrassGreen{ 124, 252, 0 };
 inline const Color Color::SunsetOrange{ 255, 94, 77 };
 inline const Color Color::NightBlue{ 25, 25, 112 };
+// NOLINTEND(readability-identifier-naming)
 
 // Inline implementations for performance (platform-optimized)
 DEKI_FAST_ATTR inline uint16_t Color::ToRGB565() const
@@ -209,7 +213,7 @@ inline Color Color::WithAlpha(uint8_t newAlpha) const
 /// packs and every scene means something else, with nothing to detect it.
 inline void ColorToHex(const Color& c, char out[10])
 {
-    static const char* kDigits = "0123456789ABCDEF";
+    static const char* const kDigits = "0123456789ABCDEF";
     const uint8_t v[4] = { c.r, c.g, c.b, c.a };
     out[0] = '#';
     for (int i = 0; i < 4; ++i)

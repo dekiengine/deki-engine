@@ -25,7 +25,7 @@
 //
 // HOW IT GOES THROUGH THE ENGINE WITHOUT COSTING ANYTHING
 //
-// Through Deki::detail::RawAllocate, which is the provider's AllocateRaw -
+// Through Deki::Detail::RawAllocate, which is the provider's AllocateRaw -
 // so a board really does see every allocation on the device and can
 // substitute its own heap for all of them, and the engine can report what
 // containers are holding.
@@ -109,7 +109,7 @@ void* operator new(std::size_t size)
 {
     // Zero-size still has to return a unique pointer, which malloc(0) may
     // not. One byte is what libstdc++ does too.
-    void* p = Deki::detail::RawAllocate(size ? size : 1);
+    void* p = Deki::Detail::RawAllocate(size ? size : 1);
     if (!p)
     {
         ReportOutOfMemory(size, "operator new");
@@ -127,7 +127,7 @@ void* operator new[](std::size_t size)
 
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
-    void* p = Deki::detail::RawAllocate(size ? size : 1);
+    void* p = Deki::Detail::RawAllocate(size ? size : 1);
     if (!p)
     {
         ReportOutOfMemory(size, "operator new(nothrow)");
@@ -148,32 +148,32 @@ void* operator new[](std::size_t size, const std::nothrow_t& tag) noexcept
 
 void operator delete(void* ptr) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 void operator delete(void* ptr, std::size_t) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr, std::size_t) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 void operator delete(void* ptr, const std::nothrow_t&) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 void operator delete[](void* ptr, const std::nothrow_t&) noexcept
 {
-    Deki::detail::RawFree(ptr);
+    Deki::Detail::RawFree(ptr);
 }
 
 #endif  // !__cpp_exceptions

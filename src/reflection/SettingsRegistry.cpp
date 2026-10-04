@@ -11,8 +11,8 @@ namespace Deki
 
 SettingsRegistry& SettingsRegistry::Instance()
 {
-    static SettingsRegistry instance;
-    return instance;
+    static SettingsRegistry s_Instance;
+    return s_Instance;
 }
 
 void SettingsRegistry::Register(const char* sectionName, const ComponentMeta* meta)

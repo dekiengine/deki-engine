@@ -25,8 +25,8 @@ namespace Deki
 {
 
 // Pack file format constants
-static constexpr char DPACK_MAGIC[4] = { 'D', 'P', 'A', 'K' };
-static constexpr uint32_t DPACK_VERSION = 1;
+static constexpr char kDpackMagic[4] = { 'D', 'P', 'A', 'K' };
+static constexpr uint32_t kDpackVersion = 1;
 
 #pragma pack(push, 1)
 struct DPackHeader

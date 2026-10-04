@@ -35,13 +35,29 @@ constexpr int kMaxSlots = 8;
 // one can do the job.
 #define DEKI_STYLE_EXAMPLE_VERSION 1
 
-// Enums are enum class. The type and its values are PascalCase.
+// Enums are enum class. The type and its values are PascalCase. A value saved
+// by name (scenes and settings store enum values as text) can still be
+// renamed: a name that differs only in underscores and letter case still
+// loads, so Portrait_180 reads as Portrait180.
 enum class SlotState : uint8_t
 {
     Empty,
     Loading,
     Ready,
 };
+
+// A set of named values used like enum values (Color::Black, Keys::Space) is
+// PascalCase without the k. Mark the set so the name check skips it:
+// NOLINTBEGIN(readability-identifier-naming)
+constexpr uint32_t SlotRed = 0xFF0000;
+constexpr uint32_t SlotGreen = 0x00FF00;
+// NOLINTEND(readability-identifier-naming)
+
+// A name a library defines keeps the library's spelling where we declare it,
+// marked on the line above (a comment at the end of the line can be wrapped
+// away from it):
+// NOLINTNEXTLINE(readability-identifier-naming): SDL's name
+union SDL_Event;
 
 // An interface (a class with only pure virtual functions) is I + PascalCase.
 class ISlotSource

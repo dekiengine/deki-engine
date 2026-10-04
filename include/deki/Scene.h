@@ -41,7 +41,7 @@ class Scene
 {
 public:
     /// Asset type name for AssetManager::Load<T>() lookup
-    static constexpr const char* AssetTypeName = "Scene";
+    static constexpr const char* kAssetTypeName = "Scene";
 
     Scene();
     ~Scene();
@@ -106,7 +106,7 @@ public:
     void AddObject(Object* obj);
     void RemoveObject(Object* obj);
 
-    const std::vector<Object*>& GetObjects() const { return objects; }
+    const std::vector<Object*>& GetObjects() const { return m_Objects; }
 
     // Every component of every active object, for the per-frame lifecycle.
     // Rebuilt lazily when dirty.
@@ -205,17 +205,17 @@ public:
     // Getters/Setters
     // =========================================================================
 
-    const std::string& GetName() const { return name; }
-    void SetName(const std::string& sceneName) { name = sceneName; }
+    const std::string& GetName() const { return m_Name; }
+    void SetName(const std::string& sceneName) { m_Name = sceneName; }
 
     bool IsLoaded() const { return m_IsLoaded; }
 
 private:
-    std::string name;
-    std::vector<Object*> objects;               // DekiObjects in the scene
+    std::string m_Name;
+    std::vector<Object*> m_Objects;             // DekiObjects in the scene
     std::vector<Component*> m_ComponentsCache;  // components of active objects, for the lifecycle
     bool m_ComponentsCacheDirty = true;         // Dirty flag for lazy rebuild
-    uint32_t nextDekiObjectId;
+    uint32_t m_NextDekiObjectId;
     bool m_IsLoaded = false;
 
     // Stored data for re-instantiation

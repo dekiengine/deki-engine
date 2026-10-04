@@ -22,23 +22,23 @@ namespace SceneFormat
 // MessagePack types we need
 enum class MPType : uint8_t
 {
-    MP_NIL = 0xc0,
-    MP_FALSE = 0xc2,
-    MP_TRUE = 0xc3,
-    FLOAT32 = 0xca,
-    INT8 = 0xd0,
-    INT16 = 0xd1,
-    INT32 = 0xd2,
-    UINT8 = 0xcc,
-    UINT16 = 0xcd,
-    UINT32 = 0xce,
-    FIXSTR_BASE = 0xa0,  // 0xa0-0xbf for strings up to 31 bytes
-    STR8 = 0xd9,
-    STR16 = 0xda,
-    FIXMAP_BASE = 0x80,  // 0x80-0x8f for maps up to 15 elements
-    MAP16 = 0xde,
-    FIXARRAY_BASE = 0x90,  // 0x90-0x9f for arrays up to 15 elements
-    ARRAY16 = 0xdc,
+    Nil = 0xc0,
+    False = 0xc2,
+    True = 0xc3,
+    Float32 = 0xca,
+    Int8 = 0xd0,
+    Int16 = 0xd1,
+    Int32 = 0xd2,
+    UInt8 = 0xcc,
+    UInt16 = 0xcd,
+    UInt32 = 0xce,
+    FixStrBase = 0xa0,  // 0xa0-0xbf for strings up to 31 bytes
+    Str8 = 0xd9,
+    Str16 = 0xda,
+    FixMapBase = 0x80,  // 0x80-0x8f for maps up to 15 elements
+    Map16 = 0xde,
+    FixArrayBase = 0x90,  // 0x90-0x9f for arrays up to 15 elements
+    Array16 = 0xdc,
 };
 
 /**
@@ -153,42 +153,42 @@ private:
 /**
  * @brief Scene file extension
  */
-constexpr const char* SCENE_EXTENSION = ".scene";
+constexpr const char* kSceneExtension = ".scene";
 
 /**
  * @brief Scene format version
  */
-constexpr uint16_t SCENE_FORMAT_VERSION = 1;
+constexpr uint16_t kSceneFormatVersion = 1;
 
 // Field names used in serialization (shared with editor)
 namespace Fields
 {
-constexpr const char* VERSION = "version";
-constexpr const char* NAME = "name";
-constexpr const char* WIDTH = "width";
-constexpr const char* HEIGHT = "height";
-constexpr const char* CLEAR_COLOR = "clear_color";
-constexpr const char* OBJECTS = "objects";
+constexpr const char* kVersion = "version";
+constexpr const char* kName = "name";
+constexpr const char* kWidth = "width";
+constexpr const char* kHeight = "height";
+constexpr const char* kClearColor = "clear_color";
+constexpr const char* kObjects = "objects";
 
 // Object fields
-constexpr const char* OBJ_ID = "id";
-constexpr const char* OBJ_NAME = "name";
-constexpr const char* OBJ_ACTIVE = "active";
-constexpr const char* OBJ_SORT_ORDER = "sort_order";
-constexpr const char* OBJ_TRANSFORM = "transform";
-constexpr const char* OBJ_COMPONENTS = "components";
-constexpr const char* OBJ_CHILDREN = "children";
-constexpr const char* OBJ_INSTANCE = "instance";  // New: path to instanced scene
+constexpr const char* kObjID = "id";
+constexpr const char* kObjName = "name";
+constexpr const char* kObjActive = "active";
+constexpr const char* kObjSortOrder = "sort_order";
+constexpr const char* kObjTransform = "transform";
+constexpr const char* kObjComponents = "components";
+constexpr const char* kObjChildren = "children";
+constexpr const char* kObjInstance = "instance";  // New: path to instanced scene
 
 // Transform fields
-constexpr const char* TR_X = "x";
-constexpr const char* TR_Y = "y";
+constexpr const char* kTrX = "x";
+constexpr const char* kTrY = "y";
 // The third axis, present only when a 3D build set it. A 2D build skips them.
-constexpr const char* TR_Z = "z";
-constexpr const char* TR_ROTATION_X = "rotationX";
-constexpr const char* TR_ROTATION_Y = "rotationY";
-constexpr const char* TR_SCALE_Z = "scaleZ";
-constexpr const char* TR_ROTATION = "rotation";  // the Z angle, always
+constexpr const char* kTrZ = "z";
+constexpr const char* kTrRotationX = "rotationX";
+constexpr const char* kTrRotationY = "rotationY";
+constexpr const char* kTrScaleZ = "scaleZ";
+constexpr const char* kTrRotation = "rotation";  // the Z angle, always
 // These were "m_ScaleX" and "scale_y": a rename of Object::scale_x to
 // m_ScaleX rewrote the string literal too, putting a C++ private-member prefix
 // into the compiled scene format and leaving the four transform keys using
@@ -198,12 +198,12 @@ constexpr const char* TR_ROTATION = "rotation";  // the Z angle, always
 // Safe to change without a migration only because MessagePack scenes are build
 // output - the editor compiles them from the authored .scene JSON on export.
 // Authored data is never in this format.
-constexpr const char* TR_SCALE_X = "scaleX";
-constexpr const char* TR_SCALE_Y = "scaleY";
+constexpr const char* kTrScaleX = "scaleX";
+constexpr const char* kTrScaleY = "scaleY";
 
 // Component fields
-constexpr const char* COMP_TYPE = "type";
-constexpr const char* COMP_DATA = "data";
+constexpr const char* kCompType = "type";
+constexpr const char* kCompData = "data";
 }  // namespace Fields
 
 #ifdef DEKI_EDITOR

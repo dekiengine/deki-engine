@@ -8,13 +8,13 @@ namespace Deki
 {
 
 std::unique_ptr<IFileSystem> FileSystem::s_CurrentFilesystem = nullptr;
-bool FileSystem::initialized = false;
+bool FileSystem::s_Initialized = false;
 std::vector<FileSystem::PrefixEntry> FileSystem::s_RegisteredFilesystems;
 IFileSystem* FileSystem::s_DefaultFilesystem = nullptr;
 
 bool FileSystem::Initialize()
 {
-    if (initialized)
+    if (s_Initialized)
     {
         return true;
     }
@@ -28,18 +28,18 @@ bool FileSystem::Initialize()
 
     RegisterFileSystem("F:/", s_CurrentFilesystem.get());
     SetDefaultFileSystem(s_CurrentFilesystem.get());
-    initialized = true;
+    s_Initialized = true;
     return true;
 }
 
 void FileSystem::Shutdown()
 {
-    if (initialized && s_CurrentFilesystem)
+    if (s_Initialized && s_CurrentFilesystem)
     {
         s_CurrentFilesystem->Shutdown();
         s_CurrentFilesystem.reset();
     }
-    initialized = false;
+    s_Initialized = false;
 }
 
 bool FileSystem::SetFileSystem(IFileSystem* fs)
@@ -68,7 +68,7 @@ bool FileSystem::SetFileSystem(IFileSystem* fs)
 
     RegisterFileSystem("F:/", s_CurrentFilesystem.get());
     SetDefaultFileSystem(s_CurrentFilesystem.get());
-    initialized = true;
+    s_Initialized = true;
     DEKI_LOG_INTERNAL("DekiFileSystem::SetFileSystem: custom filesystem set");
     return true;
 }

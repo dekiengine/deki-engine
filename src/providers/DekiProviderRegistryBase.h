@@ -18,7 +18,7 @@
  * @brief Per-category provider registry that lives in deki-engine-core.dll.
  *
  * One instance per category string (e.g. "location", "weather"). Package DLLs
- * register their concrete providers here at DekiPlugin_RegisterComponents time.
+ * register their concrete providers here at DekiPluginRegisterComponents time.
  *
  * The base stores IPackage* pointers and is interface-agnostic on purpose:
  * the typed wrapper (ProviderRegistry<Interface>) downcasts via static_cast.
@@ -53,7 +53,7 @@ public:
 
     /// Static convenience: clear plugin-owned providers across every known
     /// category. Used by PackageLoader::UnloadAllPackages as belt-and-braces
-    /// in case a plugin's DekiPlugin_Shutdown didn't clean up after itself.
+    /// in case a plugin's DekiPluginShutdown didn't clean up after itself.
     static void ClearAllPluginProviders();
 
     ProviderRegistryBase() = default;

@@ -18,7 +18,7 @@ extern const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta;
 extern const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta;
 #endif
 
-void DekiCore_RegisterComponents() {
+void DekiCoreRegisterComponents() {
     static bool done = false;
     if (done && ::Deki::ComponentFactory::Instance().Find(DekiGen_Deki_CoreProjectSettings_TypeInfo.typeId)
 #ifdef DEKI_EDITOR
@@ -52,13 +52,13 @@ void DekiCore_RegisterComponents() {
 #ifdef DEKI_EDITOR
 namespace {
 struct DekiCoreRegistrar {
-    DekiCoreRegistrar() { DekiCore_RegisterComponents(); }
+    DekiCoreRegistrar() { DekiCoreRegisterComponents(); }
 } s_DekiCoreRegistrar;
 }  // namespace
 #else
 // Static initializers are unreliable on ESP-IDF, so the runtime registers explicitly.
-extern "C" void deki_register_core_components(void)
+extern "C" void DekiRegisterCoreComponents(void)
 {
-    DekiCore_RegisterComponents();
+    DekiCoreRegisterComponents();
 }
 #endif

@@ -66,7 +66,7 @@ enum class TemperatureUnit : uint8_t
 class ICamera
 {
 public:
-    static constexpr uint32_t InterfaceID = 0x43414D00;  // "CAM\0"
+    static constexpr uint32_t kInterfaceID = 0x43414D00;  // "CAM\0"
 
     // World ↔ screen conversion. World is in meters; both sides are float
     // to preserve sub-pixel precision. Renderers decide whether to snap to

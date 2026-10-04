@@ -30,7 +30,7 @@ public:
     virtual ~IRenderSystem() = default;
 
     virtual bool Setup(int32_t width, int32_t height, ColorFormat format) = 0;
-    virtual void Render(Scene* current_scene) = 0;
+    virtual void Render(Scene* currentScene) = 0;
 
     virtual const uint8_t* GetFrameBuffer() const = 0;
     virtual int32_t GetScreenWidth() const = 0;

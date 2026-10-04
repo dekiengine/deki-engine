@@ -14,11 +14,11 @@ namespace Deki
 std::string GenerateDeterministicGuid(const std::string& seed)
 {
     // FNV-1a hash constants
-    const uint64_t FNV_OFFSET = 14695981039346656037ULL;
-    const uint64_t FNV_PRIME = 1099511628211ULL;
+    const uint64_t fnvOffset = 14695981039346656037ULL;
+    const uint64_t fnvPrime = 1099511628211ULL;
 
-    uint64_t hash1 = FNV_OFFSET;
-    uint64_t hash2 = FNV_OFFSET;
+    uint64_t hash1 = fnvOffset;
+    uint64_t hash2 = fnvOffset;
 
     // Hash the seed string, alternating between two hash values
     for (size_t i = 0; i < seed.size(); i++)
@@ -26,12 +26,12 @@ std::string GenerateDeterministicGuid(const std::string& seed)
         if (i % 2 == 0)
         {
             hash1 ^= static_cast<uint8_t>(seed[i]);
-            hash1 *= FNV_PRIME;
+            hash1 *= fnvPrime;
         }
         else
         {
             hash2 ^= static_cast<uint8_t>(seed[i]);
-            hash2 *= FNV_PRIME;
+            hash2 *= fnvPrime;
         }
     }
 

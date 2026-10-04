@@ -9,8 +9,8 @@ namespace Deki
 
 ComponentRegistry& ComponentRegistry::Instance()
 {
-    static ComponentRegistry instance;
-    return instance;
+    static ComponentRegistry s_Instance;
+    return s_Instance;
 }
 
 #ifndef DEKI_EDITOR

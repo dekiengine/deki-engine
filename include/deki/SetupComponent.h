@@ -127,13 +127,13 @@ struct AutoSetupRegistrar
 /// network or the outside world belongs in DEKI_REGISTER_PLAY_AUTO_SETUP.
 #define DEKI_REGISTER_EDITOR_AUTO_SETUP(ClassName)                                                                     \
     static ::Deki::AutoSetupRegistrar<ClassName, ::Deki::SetupComponent::SetupPhase::EditorLoad>                       \
-        s_##ClassName##_EditorAutoReg
+        s_##ClassName##EditorAutoReg
 
 /// Runs when the user presses Play, not before. For a setup with a side effect
 /// the user would want to have asked for.
 #define DEKI_REGISTER_PLAY_AUTO_SETUP(ClassName)                                                                       \
     static ::Deki::AutoSetupRegistrar<ClassName, ::Deki::SetupComponent::SetupPhase::PlayStart>                        \
-        s_##ClassName##_PlayAutoReg
+        s_##ClassName##PlayAutoReg
 #else
 #define DEKI_REGISTER_EDITOR_AUTO_SETUP(ClassName) /* embedded: no-op */
 #define DEKI_REGISTER_PLAY_AUTO_SETUP(ClassName)   /* embedded: no-op */

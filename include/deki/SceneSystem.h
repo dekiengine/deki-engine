@@ -31,7 +31,7 @@ private:
 
     // Objects marked as Persistent - persisted independently of any scene
     // These are never deleted when scenes change
-    std::vector<Object*> persistentObjects;
+    std::vector<Object*> m_PersistentObjects;
 
     // Deferred deletion queue: old scenes queued for deletion during SetRootScene.
     // Flushed at the start of the next frame to avoid use-after-free when
@@ -113,7 +113,7 @@ public:
      * @brief Get all Persistent objects
      * @return Reference to the vector of persistent objects
      */
-    const std::vector<Object*>& GetPersistentObjects() const { return persistentObjects; }
+    const std::vector<Object*>& GetPersistentObjects() const { return m_PersistentObjects; }
 
     /**
      * @brief Clear all Persistent objects (call when exiting play mode in editor)

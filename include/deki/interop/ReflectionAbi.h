@@ -205,8 +205,15 @@ struct DekiReflectionAbi
  * 20: the camera frames the world. ICamera's zoom became an ortho height (the
  *    world it shows top to bottom), and EngineSettings lost the design area,
  *    screen fit and pixel perfect, which moved onto the camera.
+ *
+ * 21: names follow the code style (docs/codestyle). The functions a package
+ *    exports are found by name and are PascalCase now (DekiPluginRegisterComponents,
+ *    DekiPluginGetReflectionAbi, <Prefix>RegisterComponents), and public names
+ *    across the engine changed (OpenMode::ReadBinary, kAssetTypeName, ...). A
+ *    package built before this has none of the new export names; the bump turns
+ *    that into the loader's "rebuild it" path.
  */
-inline constexpr uint32_t kDekiReflectionAbiVersion = 20;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 21;
 
 /** @brief The values as compiled into whoever calls this. */
 inline DekiReflectionAbi DekiCurrentReflectionAbi()
@@ -277,7 +284,7 @@ inline bool DekiReflectionAbiMatches(const DekiReflectionAbi& other, char* what,
 // function pointers into the DLL's code (editor extensions, node types,
 // Deki::SetupComponent auto-factories), so FreeLibrary leaves those dangling and the
 // next call through one jumps into unmapped memory.
-#define DEKI_REFLECTION_ABI_EXPORT_NAME "DekiPlugin_GetReflectionAbi"
+#define DEKI_REFLECTION_ABI_EXPORT_NAME "DekiPluginGetReflectionAbi"
 
 extern "C"
 {

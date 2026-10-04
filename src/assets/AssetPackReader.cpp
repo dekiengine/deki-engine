@@ -30,8 +30,8 @@ std::string FixedFieldToString(const char* field, size_t capacity)
 
 AssetPackReader& AssetPackReader::Instance()
 {
-    static AssetPackReader instance;
-    return instance;
+    static AssetPackReader s_Instance;
+    return s_Instance;
 }
 
 AssetPackReader::~AssetPackReader()
@@ -48,7 +48,7 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         return false;
     }
 
-    IFileSystem::FileHandle file = fs->OpenFile(path, IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle file = fs->OpenFile(path, IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
         DEKI_LOG_ERROR("[PACK] Cannot open pack index '%s'", path);
@@ -130,7 +130,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
         return false;
     }
 
-    IFileSystem::FileHandle file = fs->OpenFile(packPath, IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle file = fs->OpenFile(packPath, IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
         return false;
@@ -163,7 +163,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
 
     // Validate header
     const DPackHeader* header = reinterpret_cast<const DPackHeader*>(data);
-    if (memcmp(header->magic, DPACK_MAGIC, 4) != 0 || header->version != DPACK_VERSION)
+    if (memcmp(header->magic, kDpackMagic, 4) != 0 || header->version != kDpackVersion)
     {
         DEKI_LOG_ERROR("[PACK] Invalid pack file: %s", packPath);
         Memory::Free(data);

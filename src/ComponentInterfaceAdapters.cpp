@@ -11,8 +11,8 @@ namespace ComponentInterfaceAdapters
 // This allows O(1) lookup for a specific interface on a specific component type
 static std::unordered_map<uint64_t, InterfaceAdapter>& GetRegistry()
 {
-    static std::unordered_map<uint64_t, InterfaceAdapter> reg;
-    return reg;
+    static std::unordered_map<uint64_t, InterfaceAdapter> s_Reg;
+    return s_Reg;
 }
 
 static uint64_t MakeKey(uint32_t interfaceId, ComponentType componentType)

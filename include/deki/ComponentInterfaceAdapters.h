@@ -7,7 +7,7 @@
  * @brief Registry for extracting interfaces from components without RTTI or vtable changes
  *
  * Packages register adapter functions that convert a Component* to an interface pointer
- * based on the component's StaticType. The renderer queries this to find IClipProvider,
+ * based on the component's kStaticType. The renderer queries this to find IClipProvider,
  * ISortableProvider, etc. without knowing the concrete component class.
  *
  * Usage:
@@ -17,7 +17,7 @@
  * static struct MyAdapterRegistrar {
  *     MyAdapterRegistrar() {
  *         ComponentInterfaceAdapters::Register(
- *             IClipProvider::InterfaceID, ::Deki::TypeId<MyComponent>(),
+ *             IClipProvider::kInterfaceID, ::Deki::TypeId<MyComponent>(),
  *             [](Component* c) -> void* {
  *                 return static_cast<IClipProvider*>(static_cast<MyComponent*>(c));
  *             });

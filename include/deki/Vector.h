@@ -21,9 +21,9 @@ struct Vector2
           y(0.0f)
     {
     }
-    Vector2(float x_, float y_)
-        : x(x_),
-          y(y_)
+    Vector2(float x, float y)
+        : x(x),
+          y(y)
     {
     }
 
@@ -140,16 +140,16 @@ struct Vector3
           z(0.0f)
     {
     }
-    Vector3(float x_, float y_, float z_)
-        : x(x_),
-          y(y_),
-          z(z_)
+    Vector3(float x, float y, float z)
+        : x(x),
+          y(y),
+          z(z)
     {
     }
-    Vector3(const Vector2& v, float z_ = 0.0f)
+    Vector3(const Vector2& v, float z = 0.0f)
         : x(v.x),
           y(v.y),
-          z(z_)
+          z(z)
     {
     }
 

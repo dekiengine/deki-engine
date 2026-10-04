@@ -116,7 +116,7 @@ private:
  *        Update() runs; it has no deserializer, so scenes cannot load it unless
  *        `meta` supplies a createFunc of its own.
  */
-namespace detail
+namespace Detail
 {
 template <class T, class Base>
 constexpr ComponentType HandWrittenBaseId()
@@ -138,7 +138,7 @@ constexpr bool DeclaresUpdate()
 {
     return !std::is_same<decltype(&T::Update), void (Component::*)()>::value;
 }
-}  // namespace detail
+}  // namespace Detail
 
 /**
  * `Base` names the direct component base when it is not Deki::Component
@@ -156,7 +156,7 @@ constexpr ComponentTypeInfo MakeHandWrittenTypeInfo(bool declaresUpdate, const C
     return ComponentTypeInfo{ name,
                               TypeShortName<T>(),
                               typeId,
-                              detail::HandWrittenBaseId<T, Base>(),
+                              Detail::HandWrittenBaseId<T, Base>(),
                               std::is_abstract<T>::value,
                               declaresUpdate,
                               nullptr,
@@ -180,8 +180,8 @@ const ComponentTypeInfo* TypeInfoFor()
     {
         return info;
     }
-    static const ComponentTypeInfo fallback = MakeHandWrittenTypeInfo<T>(detail::DeclaresUpdate<T>());
-    return &fallback;
+    static const ComponentTypeInfo kFallback = MakeHandWrittenTypeInfo<T>(Detail::DeclaresUpdate<T>());
+    return &kFallback;
 }
 
 }  // namespace Deki

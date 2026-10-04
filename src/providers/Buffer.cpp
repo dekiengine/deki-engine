@@ -2,7 +2,7 @@
 
 namespace Deki
 {
-namespace detail
+namespace Detail
 {
 
 // The whole of Buffer's allocation logic, out of the template so a Buffer<T>
@@ -19,5 +19,5 @@ void BufferFree(void* ptr)
     Memory::Free(ptr);
 }
 
-}  // namespace detail
+}  // namespace Detail
 }  // namespace Deki

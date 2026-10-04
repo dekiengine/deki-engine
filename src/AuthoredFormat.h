@@ -2,7 +2,7 @@
 
 // Version of the AUTHORED JSON formats: the files a project tracks in git and
 // the editor reads and writes (.scene, .asset, the .data sidecars). Deliberately
-// separate from SCENE_FORMAT_VERSION in SceneMessagePack.h, which versions the
+// separate from kSceneFormatVersion in SceneMessagePack.h, which versions the
 // compiled MessagePack scene the device loads: that is build output and can
 // change freely; these cannot.
 //
@@ -17,10 +17,10 @@
 namespace Deki::AuthoredFormat
 {
 
-inline constexpr const char* VersionKey = "formatVersion";
+inline constexpr const char* kVersionKey = "formatVersion";
 
-inline constexpr int32_t SceneVersion = 1;      // .scene
-inline constexpr int32_t AssetVersion = 1;      // .asset envelopes
-inline constexpr int32_t AssetDataVersion = 1;  // <asset>.data sidecars
+inline constexpr int32_t kSceneVersion = 1;      // .scene
+inline constexpr int32_t kAssetVersion = 1;      // .asset envelopes
+inline constexpr int32_t kAssetDataVersion = 1;  // <asset>.data sidecars
 
 }  // namespace Deki::AuthoredFormat

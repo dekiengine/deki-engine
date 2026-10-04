@@ -20,7 +20,7 @@ class FileSystem
 {
 private:
     static std::unique_ptr<IFileSystem> s_CurrentFilesystem;
-    static bool initialized;
+    static bool s_Initialized;
     // Two or three entries ("F:/", "S:/"), matched by prefix on every file
     // open. A std::map keyed by std::string built a std::string from the
     // path and one substr per entry for each lookup.
@@ -54,7 +54,7 @@ public:
      * @brief Check if the filesystem manager is initialized
      * @return true if initialized, false otherwise
      */
-    static bool IsInitialized() { return initialized; }
+    static bool IsInitialized() { return s_Initialized; }
 
     /**
      * @brief Set a custom filesystem implementation

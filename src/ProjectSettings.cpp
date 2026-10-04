@@ -300,14 +300,14 @@ bool Load(const uint8_t* data, size_t size)
     // Minimum size: header (8 bytes) + base display settings
     // Version 1: 12 bytes (without dirty rect fields)
     // Version 2: 16 bytes (with dirty rect fields - now deprecated)
-    constexpr size_t V1_DISPLAY_SIZE = 12;
+    constexpr size_t kV1DisplaySize = 12;
     // Each rejection names its reason: the caller reports every `false` as
     // "no project settings found", which hid a corrupt file behind the same
     // message as a missing one.
-    if (!data || size < sizeof(FileHeader) + V1_DISPLAY_SIZE)
+    if (!data || size < sizeof(FileHeader) + kV1DisplaySize)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: file too small (%zu bytes, need at least %zu)", size,
-                       sizeof(FileHeader) + V1_DISPLAY_SIZE);
+                       sizeof(FileHeader) + kV1DisplaySize);
         return false;
     }
 
@@ -316,18 +316,18 @@ bool Load(const uint8_t* data, size_t size)
     memcpy(&header, data, sizeof(FileHeader));
 
     // Validate magic
-    if (header.magic != MAGIC)
+    if (header.magic != kMagic)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: bad magic 0x%08X (expected 0x%08X) - not a settings file",
-                       (unsigned)header.magic, (unsigned)MAGIC);
+                       (unsigned)header.magic, (unsigned)kMagic);
         return false;
     }
 
     // Check version
-    if (header.version > VERSION)
+    if (header.version > kVersion)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: file version %u is newer than this engine supports (%u)",
-                       (unsigned)header.version, (unsigned)VERSION);
+                       (unsigned)header.version, (unsigned)kVersion);
         return false;  // Future version, can't read
     }
 
@@ -338,8 +338,7 @@ bool Load(const uint8_t* data, size_t size)
     s_PassCount = 0;
     s_PassNames.clear();
     s_PackageChunkSize = 0;
-    s_AssetStorage =
-        header.version < 6 || (header.flags & FLAG_ASSETS_EXTERNAL) ? Storage::External : Storage::Internal;
+    s_AssetStorage = header.version < 6 || (header.flags & kFlagAssetsExternal) ? Storage::External : Storage::Internal;
 
     // Version 3+: read runtime settings (targetFPS + startup scene)
     if (header.version >= 3)
@@ -718,7 +717,7 @@ bool Load(const uint8_t* data, size_t size)
 
 bool LoadFromFile(const char* path)
 {
-    const char* filePath = path ? path : FILENAME;
+    const char* filePath = path ? path : kFilename;
 
     // Use FileSystem if available
     if (!FileSystem::IsInitialized())
@@ -733,16 +732,16 @@ bool LoadFromFile(const char* path)
     }
 
     // Open file
-    IFileSystem::FileHandle handle = fs->OpenFile(filePath, IFileSystem::OpenMode::READ_BINARY);
+    IFileSystem::FileHandle handle = fs->OpenFile(filePath, IFileSystem::OpenMode::ReadBinary);
     if (!handle)
     {
         return false;
     }
 
-    // Get file size. MAX_FILE_SIZE is the one bound; the buffer below is sized
+    // Get file size. kMaxFileSize is the one bound; the buffer below is sized
     // from fileSize itself, so the check and the allocation cannot disagree.
     long fileSize = fs->GetFileSize(handle);
-    if (fileSize <= 0 || static_cast<size_t>(fileSize) > MAX_FILE_SIZE)
+    if (fileSize <= 0 || static_cast<size_t>(fileSize) > kMaxFileSize)
     {
         fs->CloseFile(handle);
         return false;
@@ -770,9 +769,9 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
 
     // Write header
     FileHeader header;
-    header.magic = MAGIC;
-    header.version = VERSION;
-    header.flags = assetStorage == Storage::External ? FLAG_ASSETS_EXTERNAL : 0;
+    header.magic = kMagic;
+    header.version = kVersion;
+    header.flags = assetStorage == Storage::External ? kFlagAssetsExternal : 0;
     Append(buf, &header, sizeof(FileHeader));
 
     // Write display settings

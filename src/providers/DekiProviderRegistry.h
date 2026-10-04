@@ -53,7 +53,7 @@ public:
 
     /// First-registered provider, or nullptr if the registry is empty.
     /// Registration order is the order of calls to Register() at
-    /// DekiPlugin_RegisterComponents time - i.e. source-code order in the
+    /// DekiPluginRegisterComponents time - i.e. source-code order in the
     /// package that registers them. This is the only "default" knob.
     static Interface* GetDefault() { return static_cast<Interface*>(Base().GetDefault()); }
 
@@ -63,7 +63,7 @@ public:
 
     static Interface* GetProviderAt(int idx) { return static_cast<Interface*>(Base().GetAt(idx)); }
 
-    // --- Registration. Called by the owning package's DekiPlugin_RegisterComponents. ---
+    // --- Registration. Called by the owning package's DekiPluginRegisterComponents. ---
 
     /// Register a provider owned by a plugin DLL. The registry takes ownership
     /// and will delete the pointer during ClearPluginProviders() (called by

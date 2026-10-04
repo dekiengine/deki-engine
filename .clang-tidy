@@ -4,13 +4,19 @@
 Checks: '-*,readability-identifier-naming'
 HeaderFilterRegex: '.*'
 CheckOptions:
-  # Types and namespaces: PascalCase.
+  # Types and namespaces: PascalCase. The two standard aliases
+  # `namespace fs = std::filesystem;` and `using json = nlohmann::json;` are
+  # allowed.
   readability-identifier-naming.NamespaceCase: CamelCase
+  readability-identifier-naming.NamespaceIgnoredRegexp: '^fs$'
+
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase
   readability-identifier-naming.UnionCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase
   readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypeAliasIgnoredRegexp: '^json$'
+
   readability-identifier-naming.TypedefCase: CamelCase
   readability-identifier-naming.TemplateParameterCase: CamelCase
   readability-identifier-naming.EnumConstantCase: CamelCase
@@ -46,6 +52,9 @@ CheckOptions:
   readability-identifier-naming.StaticConstantPrefix: k
   readability-identifier-naming.ClassConstantCase: CamelCase
   readability-identifier-naming.ClassConstantPrefix: k
+  # A set of named values used like enum values (Color::Black, Keys::Space)
+  # is PascalCase, inside // NOLINTBEGIN(readability-identifier-naming) and
+  # // NOLINTEND(readability-identifier-naming), as CodeStyle.h shows.
 
   # Variables outside a function: s_ + PascalCase when only this file uses
   # them, g_ + PascalCase when other files can see them. clang-tidy cannot tell

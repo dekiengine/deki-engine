@@ -38,34 +38,34 @@ void FPSCounter::EndFrame()
         return;
     }
 
-    uint32_t s_CurrentTime = Time::GetTime();
-    uint32_t frame_time = s_CurrentTime - m_LastFrameTime;
+    uint32_t currentTime = Time::GetTime();
+    uint32_t frameTime = currentTime - m_LastFrameTime;
 
     // Avoid division by zero
-    if (frame_time == 0)
+    if (frameTime == 0)
     {
-        frame_time = 1;
+        frameTime = 1;
     }
 
     // Store frame time in rolling buffer, keeping a running sum (the average
     // was recomputed by summing all samples twice per frame).
     m_FrameTimeSum -= m_FrameTimes[m_CurrentIndex];
-    m_FrameTimes[m_CurrentIndex] = frame_time;
-    m_FrameTimeSum += frame_time;
-    m_CurrentIndex = (m_CurrentIndex + 1) % SAMPLE_COUNT;
+    m_FrameTimes[m_CurrentIndex] = frameTime;
+    m_FrameTimeSum += frameTime;
+    m_CurrentIndex = (m_CurrentIndex + 1) % kSampleCount;
 
-    if (m_SamplesCollected < SAMPLE_COUNT)
+    if (m_SamplesCollected < kSampleCount)
     {
         m_SamplesCollected++;
     }
 
     m_TotalFrames++;
 
-    float avg_frame_time = (float)m_FrameTimeSum / (float)m_SamplesCollected;
-    m_CurrentFps = 1000.0f / avg_frame_time;
+    float avgFrameTime = (float)m_FrameTimeSum / (float)m_SamplesCollected;
+    m_CurrentFps = 1000.0f / avgFrameTime;
 
     // Track min/max FPS (after we have enough samples for stability)
-    if (m_SamplesCollected >= SAMPLE_COUNT / 2)
+    if (m_SamplesCollected >= kSampleCount / 2)
     {
         if (m_CurrentFps < m_MinFps)
         {

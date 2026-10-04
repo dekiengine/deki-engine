@@ -23,8 +23,8 @@ struct Entry
 // hit it via the dllimport'd RegisterEditorAutoFactory wrapper.
 std::vector<Entry>& Entries()
 {
-    static std::vector<Entry> v;
-    return v;
+    static std::vector<Entry> s_V;
+    return s_V;
 }
 }  // namespace
 

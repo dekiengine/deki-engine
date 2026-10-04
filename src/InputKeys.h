@@ -10,19 +10,21 @@ namespace Deki
 
 namespace InputKeys
 {
+// Named values, used like enum values: PascalCase, as the code style allows.
+// NOLINTBEGIN(readability-identifier-naming)
 // Standard ASCII keys
-const uint32_t SPACE = 32;
+const uint32_t Space = 32;
 
 // Special keys
-const uint32_t ENTER = 13;
-const uint32_t ESC = 27;
-const uint32_t BACKSPACE = 8;
+const uint32_t Enter = 13;
+const uint32_t Esc = 27;
+const uint32_t Backspace = 8;
 
 // Arrow keys
-const uint32_t UP = 1001;
-const uint32_t DOWN = 1002;
-const uint32_t LEFT = 1003;
-const uint32_t RIGHT = 1004;
+const uint32_t Up = 1001;
+const uint32_t Down = 1002;
+const uint32_t Left = 1003;
+const uint32_t Right = 1004;
 
 // Letter keys (lowercase)
 const uint32_t A = 97;
@@ -51,6 +53,7 @@ const uint32_t W = 119;
 const uint32_t X = 120;
 const uint32_t Y = 121;
 const uint32_t Z = 122;
+// NOLINTEND(readability-identifier-naming)
 }  // namespace InputKeys
 
 }  // namespace Deki

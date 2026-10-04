@@ -544,21 +544,21 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
             return false;
         }
 
-        if (StringEquals(key, keyLen, Fields::VERSION))
+        if (StringEquals(key, keyLen, Fields::kVersion))
         {
             int32_t version;
             if (!ReadInt(version))
             {
                 return false;
             }
-            if (version > SCENE_FORMAT_VERSION)
+            if (version > kSceneFormatVersion)
             {
                 DEKI_LOG_ERROR("SceneMsgPackParser: Scene version %d is newer than supported %d", version,
-                               SCENE_FORMAT_VERSION);
+                               kSceneFormatVersion);
                 return false;
             }
         }
-        else if (StringEquals(key, keyLen, Fields::NAME))
+        else if (StringEquals(key, keyLen, Fields::kName))
         {
             // Scene name - skip it (stored externally)
             const char* name;
@@ -569,7 +569,7 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
             }
             // Ignore name
         }
-        else if (StringEquals(key, keyLen, Fields::CLEAR_COLOR))
+        else if (StringEquals(key, keyLen, Fields::kClearColor))
         {
             // Clear color is now in CameraComponent - skip it for backwards compatibility
             uint32_t arrSize;
@@ -585,7 +585,7 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
             }
             // Ignore clear color (it's now in CameraComponent)
         }
-        else if (StringEquals(key, keyLen, Fields::OBJECTS))
+        else if (StringEquals(key, keyLen, Fields::kObjects))
         {
             if (!ParseObjects(scene))
             {
@@ -711,7 +711,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             return false;
         }
 
-        if (StringEquals(key, keyLen, Fields::OBJ_ID))
+        if (StringEquals(key, keyLen, Fields::kObjID))
         {
             int32_t id;
             if (!ReadInt(id))
@@ -720,7 +720,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             }
             objectId = static_cast<uint32_t>(id);
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_NAME))
+        else if (StringEquals(key, keyLen, Fields::kObjName))
         {
             const char* n;
             uint16_t nLen;
@@ -730,14 +730,14 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             }
             name = std::string(n, nLen);
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_ACTIVE))
+        else if (StringEquals(key, keyLen, Fields::kObjActive))
         {
             if (!ReadBool(active))
             {
                 return false;
             }
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_SORT_ORDER))
+        else if (StringEquals(key, keyLen, Fields::kObjSortOrder))
         {
             int32_t order;
             if (!ReadInt(order))
@@ -746,7 +746,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             }
             sortOrder = order;
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_TRANSFORM))
+        else if (StringEquals(key, keyLen, Fields::kObjTransform))
         {
             // Parse transform map
             uint32_t trMapSize;
@@ -765,14 +765,14 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                     return false;
                 }
 
-                if (StringEquals(trKey, trKeyLen, Fields::TR_X))
+                if (StringEquals(trKey, trKeyLen, Fields::kTrX))
                 {
                     if (!ReadFloat(x))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_Y))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrY))
                 {
                     if (!ReadFloat(y))
                     {
@@ -780,28 +780,28 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                     }
                 }
 #ifdef DEKI_TRANSFORM_3D
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_Z))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrZ))
                 {
                     if (!ReadFloat(z))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_X))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrRotationX))
                 {
                     if (!ReadFloat(rotationX))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION_Y))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrRotationY))
                 {
                     if (!ReadFloat(rotationY))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_Z))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrScaleZ))
                 {
                     if (!ReadFloat(scaleZ))
                     {
@@ -809,21 +809,21 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                     }
                 }
 #endif
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_ROTATION))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrRotation))
                 {
                     if (!ReadFloat(rotation))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_X))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrScaleX))
                 {
                     if (!ReadFloat(scaleX))
                     {
                         return false;
                     }
                 }
-                else if (StringEquals(trKey, trKeyLen, Fields::TR_SCALE_Y))
+                else if (StringEquals(trKey, trKeyLen, Fields::kTrScaleY))
                 {
                     if (!ReadFloat(scaleY))
                     {
@@ -839,7 +839,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 }
             }
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_COMPONENTS))
+        else if (StringEquals(key, keyLen, Fields::kObjComponents))
         {
             // Parse components array - collect type and data position for deferred creation
             uint32_t compArrSize;
@@ -867,7 +867,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                         return false;
                     }
 
-                    if (StringEquals(compKey, compKeyLen, Fields::COMP_TYPE))
+                    if (StringEquals(compKey, compKeyLen, Fields::kCompType))
                     {
                         const char* typeStr;
                         uint16_t typeLen;
@@ -880,7 +880,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                         deferred.typeNamePtr = typeStr;
                         deferred.typeNameLen = typeLen;
                     }
-                    else if (StringEquals(compKey, compKeyLen, Fields::COMP_DATA))
+                    else if (StringEquals(compKey, compKeyLen, Fields::kCompData))
                     {
                         // Record position and size of data map for deferred deserialization
                         uint32_t dataMapSize;
@@ -919,7 +919,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 }
             }
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_CHILDREN))
+        else if (StringEquals(key, keyLen, Fields::kObjChildren))
         {
             // Parse children recursively
             uint32_t childArrSize;
@@ -940,7 +940,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
                 }
             }
         }
-        else if (StringEquals(key, keyLen, Fields::OBJ_INSTANCE))
+        else if (StringEquals(key, keyLen, Fields::kObjInstance))
         {
             // Instance field - path to nested scene (future feature)
             if (!SkipValue())
@@ -1017,13 +1017,13 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         {
             // Unknown type - create MissingComponent to preserve data
             auto* missing = new MissingComponent();
-            missing->m_OriginalTypeId = deferred.typeId;
-            missing->m_TypeName = std::string(deferred.typeNamePtr, deferred.typeNameLen);
-            missing->m_DataMapSize = deferred.dataMapSize;
+            missing->originalTypeId = deferred.typeId;
+            missing->typeName = std::string(deferred.typeNamePtr, deferred.typeNameLen);
+            missing->dataMapSize = deferred.dataMapSize;
             if (deferred.dataEndPos > deferred.dataPos)
             {
                 size_t rawSize = deferred.dataEndPos - deferred.dataPos;
-                missing->m_RawData.assign(m_Data + deferred.dataPos, m_Data + deferred.dataEndPos);
+                missing->rawData.assign(m_Data + deferred.dataPos, m_Data + deferred.dataEndPos);
             }
             Internal::AttachComponent(*obj, missing);
             DEKI_LOG_WARNING(
@@ -1227,11 +1227,11 @@ bool SceneMsgPackWriter::WriteScene(Scene* scene)
     WriteMapSize(2);
 
     // Version
-    WriteString(Fields::VERSION);
-    WriteInt(SCENE_FORMAT_VERSION);
+    WriteString(Fields::kVersion);
+    WriteInt(kSceneFormatVersion);
 
     // Objects (skip editor-only objects)
-    WriteString(Fields::OBJECTS);
+    WriteString(Fields::kObjects);
     const auto& objects = scene->GetObjects();
 
     // Count non-editor-only objects first (MessagePack needs array size upfront)
@@ -1282,29 +1282,29 @@ void SceneMsgPackWriter::WriteObject(Object* obj)
     WriteMapSize(fieldCount);
 
     // ID (required for ObjectRef resolution at runtime)
-    WriteString(Fields::OBJ_ID);
+    WriteString(Fields::kObjID);
     WriteInt(static_cast<int32_t>(obj->GetId()));
 
     // Name
-    WriteString(Fields::OBJ_NAME);
+    WriteString(Fields::kObjName);
     WriteString(obj->GetName());
 
     // Active
-    WriteString(Fields::OBJ_ACTIVE);
+    WriteString(Fields::kObjActive);
     WriteBool(obj->IsActive());
 
     // Transform
-    WriteString(Fields::OBJ_TRANSFORM);
+    WriteString(Fields::kObjTransform);
     WriteTransform(obj);
 
     // Components
-    WriteString(Fields::OBJ_COMPONENTS);
+    WriteString(Fields::kObjComponents);
     WriteComponents(obj);
 
     // Children (recursive)
     if (childCount > 0)
     {
-        WriteString(Fields::OBJ_CHILDREN);
+        WriteString(Fields::kObjChildren);
         WriteArraySize(childCount);
         for (Object* child : children)
         {
@@ -1334,39 +1334,39 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
     WriteMapSize(5);
 #endif
 
-    WriteString(Fields::TR_X);
+    WriteString(Fields::kTrX);
     WriteFloat(obj->GetX());
 
-    WriteString(Fields::TR_Y);
+    WriteString(Fields::kTrY);
     WriteFloat(obj->GetY());
 
-    WriteString(Fields::TR_ROTATION);
+    WriteString(Fields::kTrRotation);
     WriteFloat(obj->GetLocalRotation());
 
-    WriteString(Fields::TR_SCALE_X);
+    WriteString(Fields::kTrScaleX);
     WriteFloat(obj->GetScaleX());
 
-    WriteString(Fields::TR_SCALE_Y);
+    WriteString(Fields::kTrScaleY);
     WriteFloat(obj->GetScaleY());
 #ifdef DEKI_TRANSFORM_3D
     if (hasZ)
     {
-        WriteString(Fields::TR_Z);
+        WriteString(Fields::kTrZ);
         WriteFloat(obj->GetZ());
     }
     if (hasRX)
     {
-        WriteString(Fields::TR_ROTATION_X);
+        WriteString(Fields::kTrRotationX);
         WriteFloat(obj->GetRotationX());
     }
     if (hasRY)
     {
-        WriteString(Fields::TR_ROTATION_Y);
+        WriteString(Fields::kTrRotationY);
         WriteFloat(obj->GetRotationY());
     }
     if (hasSZ)
     {
-        WriteString(Fields::TR_SCALE_Z);
+        WriteString(Fields::kTrScaleZ);
         WriteFloat(obj->GetScaleZ());
     }
 #endif
@@ -1387,17 +1387,17 @@ void SceneMsgPackWriter::WriteComponents(Object* obj)
 void SceneMsgPackWriter::WriteComponent(Component* comp)
 {
     // Handle MissingComponent - write preserved raw data
-    if (comp->GetType() == MissingComponent::StaticType)
+    if (comp->GetType() == MissingComponent::kStaticType)
     {
         auto* missing = static_cast<MissingComponent*>(comp);
         WriteMapSize(2);
-        WriteString(Fields::COMP_TYPE);
-        WriteString(missing->m_TypeName);
-        WriteString(Fields::COMP_DATA);
-        WriteMapSize(missing->m_DataMapSize);
-        if (!missing->m_RawData.empty())
+        WriteString(Fields::kCompType);
+        WriteString(missing->typeName);
+        WriteString(Fields::kCompData);
+        WriteMapSize(missing->dataMapSize);
+        if (!missing->rawData.empty())
         {
-            WriteBytes(missing->m_RawData.data(), missing->m_RawData.size());
+            WriteBytes(missing->rawData.data(), missing->rawData.size());
         }
         return;
     }
@@ -1405,7 +1405,7 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
     // Each component is a map with: type, data
     WriteMapSize(2);
 
-    WriteString(Fields::COMP_TYPE);
+    WriteString(Fields::kCompType);
 
     // Get component type name from registry
     auto& registry = ComponentRegistry::Instance();
@@ -1413,7 +1413,7 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
     const char* typeName = meta ? meta->serializedName : "Unknown";
     WriteString(typeName);
 
-    WriteString(Fields::COMP_DATA);
+    WriteString(Fields::kCompData);
 
     // Collect all properties including the base-class chain (derived class first, then bases)
     std::vector<const PropertyInfo*> allProps;

@@ -23,7 +23,7 @@ EditorDisplay::EditorDisplay()
       m_RgbaBuffer(nullptr),
       m_DisplayWidth(0),
       m_DisplayHeight(0),
-      initialized(false)
+      m_Initialized(false)
 {
 }
 
@@ -72,7 +72,7 @@ EditorDisplay::~EditorDisplay()
 
 bool EditorDisplay::Initialize(int32_t width, int32_t height)
 {
-    if (initialized)
+    if (m_Initialized)
     {
         return true;
     }
@@ -95,7 +95,7 @@ bool EditorDisplay::Initialize(int32_t width, int32_t height)
     m_GlTextureId = texId;
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    initialized = true;
+    m_Initialized = true;
 
     DEKI_LOG_INTERNAL("EditorDisplay initialized: %dx%d", width, height);
     return true;
@@ -103,7 +103,7 @@ bool EditorDisplay::Initialize(int32_t width, int32_t height)
 
 void EditorDisplay::Shutdown()
 {
-    if (!initialized)
+    if (!m_Initialized)
     {
         return;
     }
@@ -122,14 +122,14 @@ void EditorDisplay::Shutdown()
 
     m_DisplayWidth = 0;
     m_DisplayHeight = 0;
-    initialized = false;
+    m_Initialized = false;
 
     DEKI_LOG_INTERNAL("EditorDisplay shutdown");
 }
 
 void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, ColorFormat format)
 {
-    if (!initialized || !framebuffer)
+    if (!m_Initialized || !framebuffer)
     {
         return;
     }
@@ -163,7 +163,7 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, C
 void EditorDisplay::PresentRegions(const uint8_t* framebuffer, int width, int height, ColorFormat format,
                                    const Rect* rects, int32_t count)
 {
-    if (!initialized || !framebuffer || count <= 0)
+    if (!m_Initialized || !framebuffer || count <= 0)
     {
         return;  // nothing changed: the texture already shows the frame
     }
@@ -230,7 +230,7 @@ void EditorDisplay::GetDisplaySize(int32_t* width, int32_t* height) const
 
 bool EditorDisplay::IsInitialized() const
 {
-    return initialized;
+    return m_Initialized;
 }
 
 void EditorDisplay::RequestFullRefresh()
@@ -265,14 +265,14 @@ bool EditorDisplay::UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t
 }
 
 bool EditorDisplay::UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
-                                            const uint8_t* rgb565a8_pixels)
+                                            const uint8_t* rgb565a8Pixels)
 {
     (void)overlay;
     (void)x;
     (void)y;
     (void)width;
     (void)height;
-    (void)rgb565a8_pixels;
+    (void)rgb565a8Pixels;
     return false;
 }
 

@@ -113,7 +113,7 @@ public:
     virtual bool UpdateUIOverlay(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
                                  const uint32_t* pixels) = 0;
     virtual bool UpdateUIOverlayRGB565A8(void* overlay, int32_t x, int32_t y, int32_t width, int32_t height,
-                                         const uint8_t* rgb565a8_pixels) = 0;
+                                         const uint8_t* rgb565a8Pixels) = 0;
     virtual void DestroyUIOverlay(void* overlay) = 0;
     virtual void SetActiveUIOverlay(void* overlay) = 0;
     virtual void ClearActiveUIOverlay() = 0;
