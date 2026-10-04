@@ -1,19 +1,11 @@
-/**
- * @file AssetRef.h
- * @brief Asset reference wrapper for automatic GUID storage and asset loading
- *
- * AssetRef<T> provides a single field that handles both:
- * - Runtime: pointer to loaded asset + GUID for loading
- * - Editor: GUID string for serialization
- *
- * Usage:
- *   class SomeComponent {
- *       AssetRef<SomeAsset> ref;  // Single field handles everything
- *   };
- *
- * Works with any asset type that has a static kAssetTypeName member.
- * No per-type registration needed in this file.
- */
+// AssetRef<T> is one component field that holds an asset's GUID (what scene
+// files store) and, at runtime, the loaded asset, loading it on first use:
+//
+//   class SomeComponent {
+//       AssetRef<SomeAsset> ref;
+//   };
+//
+// Works with any asset type that has a static kAssetTypeName member.
 
 #pragma once
 
@@ -24,45 +16,31 @@
 namespace Deki
 {
 
-/**
- * @brief Base class for type-erased access to AssetRef
- *
- * This allows the asset loading system to access the guid and ptr
- * without knowing the template type T.
- */
+/// The untyped part of AssetRef, so the asset system can reach guid and ptr
+/// without knowing T.
 struct AssetRefBase
 {
     void* ptr = nullptr;
-    std::string guid;            // Baked/compiled asset GUID (for runtime lookup)
-    std::string source;          // Source asset GUID (for editor display, optional)
-    bool loadAttempted = false;  // Track if load was attempted (prevents retry spam)
-    uint64_t cachedEpoch = 0;    // AssetManager epoch when ptr was resolved; mismatch -> stale
+    std::string guid;            // compiled asset GUID, used to load
+    std::string source;          // source asset GUID, for the editor's display; optional
+    bool loadAttempted = false;  // stops a failed load being retried every frame
+    uint64_t cachedEpoch = 0;    // AssetManager epoch when ptr was resolved; a mismatch means stale
 
-    // Check if GUID is set
     bool HasGuid() const { return !guid.empty(); }
 
-    // Check if source GUID is set
     bool HasSource() const { return !source.empty(); }
 
-    // Check if asset is loaded
     bool IsLoaded() const { return ptr != nullptr; }
 };
 
-/**
- * @brief Type-safe asset reference wrapper
- *
- * Provides transparent access to the underlying asset pointer while
- * storing the GUID for asset loading. Works with any type T that has
- * a static constexpr const char* kAssetTypeName member.
- *
- * @tparam T The asset type (must expose a static `kAssetTypeName` member)
- */
+/// Typed asset reference: use it like a T*. T needs a
+/// `static constexpr const char* kAssetTypeName` member.
 template <typename T>
 struct AssetRef : AssetRefBase
 {
-    // Get typed pointer (lazy-loads if GUID set but not loaded).
-    // Drops the cached pointer when the AssetManager epoch advances so we
-    // don't return a dangling reference after asset reloads / hot reloads.
+    // Loads on first use when a GUID is set. Drops the cached pointer when the
+    // AssetManager epoch changes, so it never returns a pointer freed by an
+    // asset reload or hot reload.
     T* Get()
     {
         auto* mgr = Deki::AssetManager::Get();
@@ -75,14 +53,13 @@ struct AssetRef : AssetRefBase
         }
         if (!ptr && !guid.empty() && !loadAttempted && mgr)
         {
-            loadAttempted = true;  // Set before loading to prevent retry spam on failure
+            loadAttempted = true;  // set first, so a failure is not retried every frame
             ptr = mgr->LoadByGuidAndType(guid, T::kAssetTypeName);
-            // Only re-arm the retry when the asset system simply wasn't ready
-            // yet (startup race, before the filesystem / GUID table are up). A
-            // genuine miss - a deleted or missing asset while the system IS
-            // ready - must NOT retry, or it re-opens the missing file every
-            // frame and floods the log. If the asset is later (re)imported,
-            // InvalidateAsset bumps the epoch and the check above re-arms us.
+            // Retry only when the asset system was not ready yet (at startup,
+            // before the filesystem and GUID table are up). A real miss must
+            // not retry, or it reopens the missing file every frame and floods
+            // the log. If the asset is imported later, the epoch changes and
+            // the check above allows a new attempt.
             if (!ptr && !mgr->IsReady())
             {
                 loadAttempted = false;
@@ -93,20 +70,18 @@ struct AssetRef : AssetRefBase
 
     const T* Get() const { return const_cast<AssetRef*>(this)->Get(); }
 
-    // Transparent pointer access
     T* operator->() { return Get(); }
     const T* operator->() const { return Get(); }
     T& operator*() { return *Get(); }
     const T& operator*() const { return *Get(); }
 
-    // Implicit conversion to raw pointer
     operator T*() { return Get(); }
     operator const T*() const { return Get(); }
 
-    // Boolean conversion (triggers lazy-load to check if asset exists)
+    // Loads the asset if needed, to tell whether it exists.
     operator bool() const { return const_cast<AssetRef*>(this)->Get() != nullptr; }
 
-    // Assignment from raw pointer (used by asset manager)
+    // Used by the asset manager.
     AssetRef& operator=(T* p)
     {
         ptr = p;
@@ -115,7 +90,6 @@ struct AssetRef : AssetRefBase
         return *this;
     }
 
-    // Comparison operators
     bool operator==(const T* other) const { return Get() == other; }
     bool operator!=(const T* other) const { return Get() != other; }
     bool operator==(std::nullptr_t) const { return ptr == nullptr; }

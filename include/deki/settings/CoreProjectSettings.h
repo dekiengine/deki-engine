@@ -4,13 +4,12 @@
 #include <deki/Engine.h>
 #include <deki/reflection/Property.h>
 
-/**
- * @brief Engine-core project settings that are not tied to a specific subsystem.
- *
- * Registered under the "Core" section. Frame pacing lives here, not with the
- * display: capping is a property of the engine's frame loop. Nothing passes these to a renderer, and they still apply
- * with no rendering package installed at all.
- */
+// Engine-core project settings not tied to one subsystem, in the "Core"
+// section.
+//
+// Frame pacing lives here, not with the display, because capping belongs to
+// the engine's frame loop. It applies even with no rendering package
+// installed.
 
 namespace Deki
 {

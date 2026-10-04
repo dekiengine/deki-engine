@@ -1,7 +1,4 @@
-/**
- * @file AssetLookupTable.cpp
- * @brief Binary asset lookup table implementation
- */
+// Binary asset lookup table.
 
 #include <deki/assets/AssetLookupTable.h>
 #include <cstring>
@@ -26,13 +23,10 @@ bool AssetLookupTable::Load(const uint8_t* data, size_t size)
     uint32_t count = 0;
     memcpy(&count, data, sizeof(count));
 
-    // Validate size in 64-bit.
-    //
-    // `count` is attacker-or-corruption controlled and comes straight from the
-    // file. Computing `count * sizeof(Entry)` in size_t was safe on 64-bit
-    // desktop but wrapped on the 32-bit ESP32 target, where size_t is
-    // also 32 bits - a crafted count produced a small product, the check
-    // passed, and Lookup then binary-searched far past the buffer.
+    // Validate size in 64-bit. `count` comes straight from the file and may be
+    // corrupt or crafted. On the 32-bit ESP32, size_t is 32 bits, so
+    // `count * sizeof(Entry)` in size_t can wrap to a small number, pass the
+    // check, and send Lookup's binary search far past the buffer.
     const uint64_t expectedSize = 4ull + static_cast<uint64_t>(count) * sizeof(Entry);
     if (static_cast<uint64_t>(size) < expectedSize)
     {

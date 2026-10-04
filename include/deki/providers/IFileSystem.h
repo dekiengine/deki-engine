@@ -3,28 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 
-/**
- * @brief Abstract interface for filesystem package operations
- *
- * This interface defines the contract that filesystem packages must implement
- * to work with the Deki engine. It abstracts file operations,
- * path handling, and storage management.
- */
-
 namespace Deki
 {
 
+/// What a filesystem package implements: file operations, path conversion
+/// and USB storage mode.
 class IFileSystem
 {
 public:
-    /**
-     * @brief File handle type - platform-specific implementation
-     */
+    /// Opaque; each implementation decides what it points to.
     typedef void* FileHandle;
 
-    /**
-     * @brief File open modes
-     */
     enum class OpenMode
     {
         ReadBinary,
@@ -33,9 +22,6 @@ public:
         WriteText
     };
 
-    /**
-     * @brief File seek origins
-     */
     enum class SeekOrigin
     {
         Begin,
@@ -45,108 +31,46 @@ public:
 
     virtual ~IFileSystem() = default;
 
-    /**
-     * @brief Initialize the file system
-     * @return true if successful, false otherwise
-     */
+    /// Returns false on failure.
     virtual bool Initialize() = 0;
 
-    /**
-     * @brief Shutdown the file system and cleanup resources
-     */
     virtual void Shutdown() = 0;
 
-    /**
-     * @brief Open a file
-     * @param path Path to the file (platform-specific format)
-     * @param mode Open mode
-     * @return File handle or nullptr if failed
-     */
+    /// Opens `path` (in this filesystem's format). Returns nullptr on failure.
     virtual FileHandle OpenFile(const char* path, OpenMode mode) = 0;
 
-    /**
-     * @brief Close a file
-     * @param handle File handle
-     */
     virtual void CloseFile(FileHandle handle) = 0;
 
-    /**
-     * @brief Read data from a file
-     * @param handle File handle
-     * @param buffer Buffer to read into
-     * @param size Number of bytes to read
-     * @return Number of bytes actually read
-     */
+    /// Reads up to `size` bytes. Returns the number read.
     virtual size_t ReadFile(FileHandle handle, void* buffer, size_t size) = 0;
 
-    /**
-     * @brief Write data to a file
-     * @param handle File handle
-     * @param buffer Buffer to write from
-     * @param size Number of bytes to write
-     * @return Number of bytes actually written
-     */
+    /// Writes `size` bytes. Returns the number written.
     virtual size_t WriteFile(FileHandle handle, const void* buffer, size_t size) = 0;
 
-    /**
-     * @brief Seek to a position in the file
-     * @param handle File handle
-     * @param offset Offset in bytes
-     * @param origin Seek origin
-     * @return New position, or -1 on error
-     */
+    /// Returns the new position, or -1 on error.
     virtual long SeekFile(FileHandle handle, long offset, SeekOrigin origin) = 0;
 
-    /**
-     * @brief Get current position in file
-     * @param handle File handle
-     * @return Current position, or -1 on error
-     */
+    /// Current position, or -1 on error.
     virtual long TellFile(FileHandle handle) = 0;
 
-    /**
-     * @brief Get file size
-     * @param handle File handle
-     * @return File size in bytes, or -1 on error
-     */
+    /// Size in bytes, or -1 on error.
     virtual long GetFileSize(FileHandle handle) = 0;
 
-    /**
-     * @brief Check if file exists
-     * @param path Path to the file
-     * @return true if file exists, false otherwise
-     */
     virtual bool FileExists(const char* path) = 0;
 
-    /**
-     * @brief Convert virtual path to platform-specific path
-     * @param virtualPath Virtual path (e.g., "S:/assets/texture.bin")
-     * @param outBuffer Buffer to store the converted path
-     * @param bufferSize Size of the output buffer
-     * @return true if conversion successful, false if buffer too small
-     */
+    /// Turns a virtual path (such as "S:/assets/texture.bin") into this
+    /// platform's path. Returns false when `outBuffer` is too small.
     virtual bool ConvertPath(const char* virtualPath, char* outBuffer, size_t bufferSize) = 0;
 
-    /**
-     * @brief Check if storage mode (USB MSC) is supported
-     * @return true if the filesystem supports exposing storage via USB
-     */
+    /// True when the storage can be exposed as a USB drive (mass storage).
     virtual bool SupportsStorageMode() const { return false; }
 
-    /**
-     * @brief Enter or exit storage mode (USB Mass Storage)
-     * @param enabled true to enter storage mode, false to exit
-     * @return true if mode change successful
-     *
-     * When storage mode is enabled, the storage is exposed as a USB drive
-     * and normal file operations will fail. Used for asset deployment.
-     */
+    /// Enters or leaves USB mass storage mode, used to deploy assets. While it
+    /// is on, the storage is a USB drive and file operations fail. Returns
+    /// false when the change failed.
     virtual bool SetStorageMode(bool enabled) { return false; }
 
-    /**
-     * @brief Check if currently in storage mode
-     * @return true if in storage mode (USB MSC active)
-     */
+    /// True while USB mass storage is active.
     virtual bool IsStorageMode() const { return false; }
 };
 

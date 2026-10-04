@@ -114,9 +114,9 @@ bool SceneSystem::LoadBootScene(const char* path)
 
     SetRootScene(scene);
 
-    // Force immediate first frame render so boot screen shows instantly
-    // Only run InternalAwake + Awake, then Render + Present
-    // Start() happens AFTER the first render (in RunMainLoop)
+    // Render the first frame now so the boot screen shows at once: only
+    // InternalAwake and Awake run first, then Render and Present. Start()
+    // runs AFTER the first render, in RunMainLoop.
     Engine& engine = Engine::GetInstance();
     LifecycleManager* lifecycle = engine.GetLifecycleManager();
     if (lifecycle)
@@ -163,7 +163,6 @@ void SceneSystem::MarkPersistent(Object* obj)
         }
     }
 
-    // Mark the flag
     obj->SetPersistent(true);
 
     // Detach from parent-child hierarchy to prevent cascade deletion

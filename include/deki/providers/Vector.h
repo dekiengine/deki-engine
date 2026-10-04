@@ -2,14 +2,10 @@
 
 // A growable array whose growth can fail.
 //
-// std::vector cannot do that. push_back calls operator new, which with
-// exceptions off has no way to report exhaustion - the engine's replacement
-// makes it say how many bytes it wanted, but it still aborts, and the board
-// still reboots. That is fine for the editor and wrong for a device, where
-// running short of memory is a normal operating condition rather than a bug.
-//
-// So this is std::vector's shape with the one thing changed that matters
-// here: everything that can allocate returns bool.
+// With exceptions off, std::vector's push_back aborts when memory runs out,
+// and the board reboots. That is fine for the editor, but on a device running
+// short of memory is normal, not a bug. So this has std::vector's shape, and
+// everything that can allocate returns bool.
 //
 //     Deki::Vector<Enemy> enemies(Deki::Memory::Internal);
 //     if (!enemies.Reserve(32))
@@ -25,9 +21,9 @@
 //   std::vector<T>   editor and tooling code, where exceptions work and the
 //                    heap is a desktop's.
 //
-// Reach for Buffer first. Most "dynamic" data on a device turns out to have a
-// bound the project already knows, and a fixed allocation cannot fragment a
-// small heap the way repeated growth can.
+// Prefer Buffer. Most "dynamic" data on a device has a bound the project
+// already knows, and a fixed allocation does not fragment a small heap the
+// way repeated growth does.
 
 #include <deki/providers/Buffer.h>
 
@@ -39,30 +35,20 @@
 namespace Deki
 {
 
-/**
- * @brief Growable array of `T` with failable growth
- *
- * Move-only, like Buffer, and for the same reason: copying needs a second
- * allocation that can fail, which a copy constructor cannot report.
- *
- * T must be trivially copyable and trivially destructible - the same
- * constraint Buffer imposes, enforced by it. Growth moves elements with a
- * memcpy and destruction frees the block, so a T with a destructor or a
- * non-trivial move would be silently mishandled. These are the plain structs
- * and handles device code keeps lists of.
- */
+/// Growable array of `T` whose growth can fail.
+///
+/// Move-only, like Buffer: copying needs a second allocation that can fail,
+/// and a copy constructor cannot report that.
+///
+/// T must be trivially copyable and trivially destructible, which Buffer
+/// enforces. Growth moves elements with memcpy and destruction just frees the
+/// block, so these are lists of plain structs and handles.
 template <typename T>
 class Vector
 {
 public:
-    /**
-     * @brief Construct with the region this vector's storage lives in
-     *
-     * Required, and there is no default constructor: a vector that grows has
-     * to place the new block somewhere, and the engine does not choose. Said
-     * once here rather than on every Reserve, so the declaration is where a
-     * reader learns what memory this list occupies.
-     */
+    /// Takes the memory region the storage lives in. Required: the engine does
+    /// not pick a region, so the declaration says what memory this list uses.
     explicit Vector(Memory::Region region, AllocContext ctx = {})
         : m_Region(region),
           m_Context(ctx)
@@ -72,10 +58,8 @@ public:
     Vector() = delete;
     ~Vector() = default;
 
-    // Written out rather than defaulted: a defaulted move would carry m_Size
-    // across and leave the source still claiming that many elements over a
-    // Buffer that no longer holds any, so Back() on a moved-from Vector would
-    // dereference null.
+    // Not defaulted: the source must end with m_Size 0, or it would claim
+    // elements over an empty Buffer and Back() would dereference null.
     Vector(Vector&& other) noexcept
         : m_Storage(std::move(other.m_Storage)),
           m_Size(other.m_Size),
@@ -101,18 +85,10 @@ public:
     Vector(const Vector&) = delete;
     Vector& operator=(const Vector&) = delete;
 
-    /**
-     * @brief Make room for at least `count` elements
-     *
-     * Say this once, up front, where a failure is easy to handle - then the
-     * PushBack calls that follow cannot fail. That is the pattern worth
-     * writing on a device: one check instead of one per element.
-     *
-     * Never shrinks. Returns true when the capacity is already sufficient.
-     *
-     * Placement comes from the constructor, so a growth inside PushBack lands
-     * in the same region as the storage it replaces.
-     */
+    /// Makes room for at least `count` elements in the constructor's region.
+    /// Call it once up front, where a failure is easy to handle; the PushBack
+    /// calls within that capacity then cannot fail. Never shrinks. Returns
+    /// true when the capacity is already enough.
     bool Reserve(size_t count)
     {
         if (count <= m_Storage.Count())
@@ -126,8 +102,7 @@ public:
             return false;
         }
 
-        // memcpy, not a loop of moves: T is trivially copyable, which is what
-        // the static_asserts in Buffer are there to guarantee.
+        // memcpy is safe: Buffer's static_asserts make T trivially copyable.
         if (m_Size > 0)
         {
             memcpy(grown.Data(), m_Storage.Data(), m_Size * sizeof(T));
@@ -136,16 +111,11 @@ public:
         return true;
     }
 
-    /**
-     * @brief Append a copy of `value`, growing if needed
-     * @return false when it had to grow and could not; the vector is
-     *         unchanged and still holds everything it did before
-     *
-     * Growth doubles, from a first block of 4. Doubling is what keeps
-     * appending amortised O(1); the small first block is because a device
-     * project has many short lists and one 16-element default each would add
-     * up to more than the lists do.
-     */
+    /// Appends a copy of `value`, growing if needed. Returns false when it
+    /// could not grow; the vector is then unchanged.
+    ///
+    /// Growth doubles (amortised O(1)) from a first block of 4. The first block
+    /// is small because a device project has many short lists.
     bool PushBack(const T& value)
     {
         if (m_Size == m_Storage.Count())
@@ -176,13 +146,9 @@ public:
         return true;
     }
 
-    /**
-     * @brief Remove the element at `index`, filling the hole with the last one
-     *
-     * O(1), and it does not preserve order - which is what a device wants for
-     * the lists it keeps (live entities, active timers) and is the same trick
-     * ParticlePool's KillSwap uses. For order-preserving removal, rebuild.
-     */
+    /// Removes the element at `index` and moves the last one into its place.
+    /// O(1) but changes the order, like ParticlePool's KillSwap. Returns false
+    /// when `index` is out of range. To keep the order, rebuild the list.
     bool RemoveUnordered(size_t index)
     {
         if (index >= m_Size)
@@ -197,10 +163,10 @@ public:
         return true;
     }
 
-    /// Forget the elements, keep the memory. For refilling every frame.
+    /// Empties the vector and keeps the memory, for refilling every frame.
     void Clear() { m_Size = 0; }
 
-    /// Forget the elements and release the memory.
+    /// Empties the vector and frees the memory.
     void Reset()
     {
         m_Storage.Reset();
@@ -222,7 +188,7 @@ public:
     const T* begin() const { return m_Storage.Data(); }
     const T* end() const { return m_Storage.Data() + m_Size; }
 
-    /// Elements, not capacity - so `for (auto& x : v)` sees what Size() says.
+    /// The last element. The vector must not be empty.
     T& Back() { return m_Storage[m_Size - 1]; }
     const T& Back() const { return m_Storage[m_Size - 1]; }
 
@@ -232,10 +198,9 @@ private:
     Buffer<T> m_Storage;
     size_t m_Size = 0;
 
-    // From the constructor: every growth lands in the region the declaration
-    // named, and reports the line the vector was declared on rather than the
-    // Reserve inside PushBack that happened to trip it. No member default,
-    // because that would be the engine choosing.
+    // Set by the constructor: every growth lands in the declared region and
+    // reports the line the vector was declared on, not the PushBack that
+    // grew it.
     Memory::Region m_Region;
     AllocContext m_Context;
 };

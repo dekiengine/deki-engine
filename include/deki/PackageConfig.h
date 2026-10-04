@@ -5,62 +5,37 @@
 #include <cstdint>
 #include <cstdlib>
 
-/**
- * @brief Configuration for a hardware package instance
- *
- * Contains the runtime configuration for a hardware package, including:
- * - Pin assignments (GPIO numbers)
- * - Package-specific settings (strings)
- *
- * This is the runtime representation loaded from the platform JSON.
- * The editor uses PackageConfigEntry (in PlatformConfig.h) which is
- * serialized to/from JSON.
- *
- * Note: this struct is unrelated to the installable-package system (the
- * deki-* DLLs listed in deki-packages.json). It exists at the engine src/ root
- * rather than under src/packages/ to make that distinction clear.
- */
-
 namespace Deki
 {
 
+/// Runtime configuration of one hardware package on a board: pin assignments
+/// (GPIO numbers) and string settings, loaded from the platform JSON. The
+/// editor's JSON-backed form is PackageConfigEntry (PlatformConfig.h).
+///
+/// Unrelated to installable packages (the deki-* DLLs in deki-packages.json).
 struct PackageConfig
 {
-    std::string packageId;                        // "sd_card", "gps", etc.
-    bool enabled = false;                         // Whether package is enabled
-    std::map<std::string, int> pins;              // Pin assignments: "MOSI" -> 11
-    std::map<std::string, std::string> settings;  // Settings: "mode" -> "SPI"
+    std::string packageId;  // "sd_card", "gps", etc.
+    bool enabled = false;
+    std::map<std::string, int> pins;              // "MOSI" -> 11
+    std::map<std::string, std::string> settings;  // "mode" -> "SPI"
 
-    /**
-     * @brief Get a pin GPIO number by name
-     * @param name Pin name (e.g., "MOSI", "CS")
-     * @param defaultVal Value to return if pin not found
-     * @return GPIO number or default value
-     */
+    /// GPIO number of the pin `name` (such as "MOSI" or "CS"), or `defaultVal`.
     int GetPin(const std::string& name, int defaultVal = -1) const
     {
         auto it = pins.find(name);
         return (it != pins.end()) ? it->second : defaultVal;
     }
 
-    /**
-     * @brief Get a string setting by name
-     * @param name Setting name (e.g., "mode", "mount_point")
-     * @param defaultVal Value to return if setting not found
-     * @return Setting value or default value
-     */
+    /// The setting `name` (such as "mode" or "mount_point"), or `defaultVal`.
     std::string GetString(const std::string& name, const std::string& defaultVal = "") const
     {
         auto it = settings.find(name);
         return (it != settings.end()) ? it->second : defaultVal;
     }
 
-    /**
-     * @brief Get an integer setting by name (parsed from string)
-     * @param name Setting name (e.g., "baud_rate", "address")
-     * @param defaultVal Value to return if setting not found or invalid
-     * @return Integer value or default value
-     */
+    /// The setting `name` parsed as a decimal integer, or `defaultVal` when it
+    /// is missing or not a number.
     int GetInt(const std::string& name, int defaultVal = 0) const
     {
         auto it = settings.find(name);
@@ -68,7 +43,7 @@ struct PackageConfig
         {
             return defaultVal;
         }
-        // Use simple parsing without exceptions for embedded platforms
+        // strtol, not std::stoi: embedded builds have no exceptions.
         const char* str = it->second.c_str();
         char* endPtr = nullptr;
         long val = std::strtol(str, &endPtr, 10);
@@ -79,12 +54,8 @@ struct PackageConfig
         return static_cast<int>(val);
     }
 
-    /**
-     * @brief Get a boolean setting by name
-     * @param name Setting name (e.g., "auto_mount", "enabled")
-     * @param defaultVal Value to return if setting not found
-     * @return Boolean value or default value
-     */
+    /// The setting `name` as a bool ("true", "1" or "yes" are true), or
+    /// `defaultVal` when it is missing.
     bool GetBool(const std::string& name, bool defaultVal = false) const
     {
         auto it = settings.find(name);

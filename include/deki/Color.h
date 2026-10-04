@@ -7,23 +7,16 @@
 namespace Deki
 {
 
-/**
- * @class Color
- * @brief RGBA colour with packed-format conversions (RGB565, RGBA8888).
- *
- * The Color class provides a unified interface for color handling throughout the engine,
- * supporting RGB, RGBA, and various packed formats with conversion utilities.
- */
+/// An RGBA colour, 8 bits per channel, with conversions to and from packed
+/// formats (RGB565, RGB888, ARGB8888, RGBA8888), floats and HSV.
 class Color
 {
 public:
-    // Color components (0-255 range)
     uint8_t r;
     uint8_t g;
     uint8_t b;
     uint8_t a;
 
-    // Constructors
     Color()
         : r(0),
           g(0),
@@ -39,49 +32,42 @@ public:
     {
     }
 
-    // Create from packed formats
     static Color FromRGB565(uint16_t rgb565);
     static Color FromRGB888(uint32_t rgb888);
     static Color FromARGB8888(uint32_t argb8888);
     static Color FromRGBA8888(uint32_t rgba8888);
 
-    // Create from normalized floats (0.0-1.0)
+    /// Channels in 0..1.
     static Color FromFloats(float r, float g, float b, float a = 1.0f);
 
-    // Create from HSV
     static Color FromHSV(float h, float s, float v, float a = 1.0f);
 
-    // Convert to packed formats (optimized for fast execution)
     uint16_t ToRGB565() const;
     uint32_t ToRGB888() const;
     uint32_t ToARGB8888() const;
     uint32_t ToRGBA8888() const;
     uint32_t ToABGR8888() const;  // ImGui-compatible format
 
-    // Convert to normalized floats
+    /// Channels in 0..1.
     void ToFloats(float& r, float& g, float& b, float& a) const;
 
-    // Convert to HSV
     void ToHSV(float& h, float& s, float& v) const;
 
-    // Color operations
     Color Lerp(const Color& to, float t) const;
     Color Multiply(float factor) const;
     Color Tint(const Color& tintColor, float intensity) const;
     Color WithAlpha(uint8_t newAlpha) const;
 
-    // Utility functions
     uint8_t GetLuminance() const;
     Color ToGrayscale() const;
     Color AdjustBrightness(float factor) const;
     Color AdjustSaturation(float factor) const;
 
-    // Comparison operators
     bool operator==(const Color& other) const { return r == other.r && g == other.g && b == other.b && a == other.a; }
 
     bool operator!=(const Color& other) const { return !(*this == other); }
 
-    // Predefined colors (declared here, defined below after class is complete)
+    // Named colours, defined below once the class is complete.
     // NOLINTBEGIN(readability-identifier-naming): named values, used like enum values
     static const Color Black;
     static const Color White;
@@ -108,10 +94,7 @@ public:
     // NOLINTEND(readability-identifier-naming)
 };
 
-// =============================================================================
-// Inline definitions of predefined colors (for DLL export compatibility)
-// =============================================================================
-// These are inline to avoid linker errors when multiple DLLs use them.
+// Inline so several DLLs can use them without duplicate-symbol link errors.
 // NOLINTBEGIN(readability-identifier-naming)
 inline const Color Color::Black{ 0, 0, 0 };
 inline const Color Color::White{ 255, 255, 255 };
@@ -135,7 +118,6 @@ inline const Color Color::SunsetOrange{ 255, 94, 77 };
 inline const Color Color::NightBlue{ 25, 25, 112 };
 // NOLINTEND(readability-identifier-naming)
 
-// Inline implementations for performance (platform-optimized)
 DEKI_FAST_ATTR inline uint16_t Color::ToRGB565() const
 {
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
@@ -167,7 +149,7 @@ DEKI_FAST_ATTR inline Color Color::FromRGB565(uint16_t rgb565)
     uint8_t g = ((rgb565 >> 5) & 0x3F) << 2;
     uint8_t b = (rgb565 & 0x1F) << 3;
 
-    // Fill in the lower bits for better color accuracy
+    // Copy the top bits into the empty low bits, so 0x1F maps to 255, not 248.
     r |= (r >> 5);
     g |= (g >> 6);
     b |= (b >> 5);
@@ -206,11 +188,9 @@ inline Color Color::WithAlpha(uint8_t newAlpha) const
     return Color(r, g, b, newAlpha);
 }
 
-/// "#RRGGBBAA", the spelling authored files use.
-///
-/// A colour used to be written as one packed number, which is unreadable in a
-/// diff and pins the channel order into every saved file: change how a Color
-/// packs and every scene means something else, with nothing to detect it.
+/// Writes `c` as "#RRGGBBAA", the form saved files use. Saved files must not
+/// store a packed number: it is unreadable in a diff and ties every file to
+/// how Color packs its channels.
 inline void ColorToHex(const Color& c, char out[10])
 {
     static const char* const kDigits = "0123456789ABCDEF";
@@ -278,20 +258,15 @@ inline bool ColorFromHex(const char* text, Color& out)
 
 inline uint8_t Color::GetLuminance() const
 {
-    // Using standard luminance calculation
+    // ITU-R BT.601 luma weights.
     return static_cast<uint8_t>(0.299f * r + 0.587f * g + 0.114f * b);
 }
 
 }  // namespace Deki
 
-// =============================================================================
-// DEKI_COL32 macro - pack RGBA to ABGR format (ImGui-compatible)
-// =============================================================================
-// This macro creates a 32-bit color in ABGR byte order, matching ImGui's IM_COL32.
-// Use this for passing colors to editor rendering functions.
-//
-// Usage: uint32_t color = DEKI_COL32(255, 128, 64, 200);
-//
+// Packs RGBA into a 32-bit ABGR value, the same as ImGui's IM_COL32. Use it
+// for colours passed to editor drawing functions:
+//   uint32_t color = DEKI_COL32(255, 128, 64, 200);
 #ifndef DEKI_COL32
 #define DEKI_COL32(R, G, B, A) (((uint32_t)(A) << 24) | ((uint32_t)(B) << 16) | ((uint32_t)(G) << 8) | ((uint32_t)(R)))
 #endif

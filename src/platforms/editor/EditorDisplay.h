@@ -5,12 +5,8 @@
 #include <cstdint>
 #endif
 
-/**
- * @brief Editor implementation of display interface
- *
- * This display renders to an OpenGL texture that can be displayed in ImGui.
- * It doesn't create its own window - the editor manages the window.
- */
+// The editor's display: renders to an OpenGL texture that ImGui shows. The
+// editor owns the window.
 
 namespace Deki
 {

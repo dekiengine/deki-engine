@@ -7,36 +7,27 @@
 #include <vector>
 #include <string>
 
-/**
- * @brief Orchestrates sequential platform initialization of SetupComponents
- *
- * Add this component to a boot scene along with SetupComponents (like SDCardComponent).
- * It will call Setup() on each component in order, waiting for each to complete
- * before proceeding to the next. After all setup completes successfully,
- * it loads the startup scene.
- *
- * If any setup fails, the platform setup stops and the startup scene is not loaded.
- *
- * Usage in boot scene:
- *   BootRoot
- *   ├── PlatformSetupComponent
- *   │   └── setupComponents: [→SDCardComponent]
- *   └── SDCardObj
- *       └── SDCardComponent
- */
-
 namespace Deki
 {
 
+/// Runs the boot scene's SetupComponents (such as SDCardComponent) one at a
+/// time, in order, waiting for each to finish, then loads the startup scene.
+/// If a setup fails it stops there and the startup scene is not loaded.
+///
+/// In a boot scene:
+///   BootRoot
+///   ├── PlatformSetupComponent
+///   │   └── setupComponents: [→SDCardComponent]
+///   └── SDCardObj
+///       └── SDCardComponent
 DEKI_CATEGORY("System")
 DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the startup scene.")
 class PlatformSetupComponent : public Component
 {
 public:
-    /** @brief SetupComponents to initialize in order (use ObjectRef picker in editor) */
-    // Boot scenes written before the camelCase rename spell this key
-    // setup_components; without the alias they loaded an empty list and the
-    // device came up with no display.
+    // The SetupComponents to run, in order. Older boot scenes spell the key
+    // setup_components; keep the alias or they load an empty list and the
+    // device comes up with no display.
     DEKI_EXPORT
     DEKI_RENAMED_FROM("setup_components")
     std::vector<ObjectRef<SetupComponent>> setupComponents;
@@ -57,7 +48,5 @@ private:
     void OnSetupComplete(bool success);
     void LoadStartupScene();
 };
-
-// Generated property metadata
 
 }  // namespace Deki

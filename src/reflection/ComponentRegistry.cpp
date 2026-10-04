@@ -36,8 +36,8 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
     }
 
     // The indexed lookup answers "already registered?" without scanning
-    // m_Components, which made startup registration quadratic. The scan is
-    // kept only for the rare hot-reload replacement.
+    // m_Components, which would make startup registration quadratic. The scan
+    // is only for the rare hot-reload replacement.
     if (const ComponentMeta* existing = GetMeta(meta->typeId))
     {
         if (existing == meta)
@@ -147,10 +147,8 @@ const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
         return it->second;
     }
 #else
-    // Binary search the sorted type index. This used to be a linear scan of
-    // m_Components, which was fine when "a small number of components" meant
-    // the engine's own - with packages registering theirs it grew, and GetMeta
-    // runs per component per object during scene deserialization.
+    // Binary search the sorted type index: GetMeta runs per component per
+    // object while a scene loads, and packages make the type count large.
     auto it = std::lower_bound(m_TypeIndex.begin(), m_TypeIndex.end(), typeId,
                                [](const TypeIndexEntry& e, uint32_t id) { return e.typeId < id; });
     if (it != m_TypeIndex.end() && it->typeId == typeId)
@@ -165,9 +163,9 @@ const ComponentMeta* ComponentRegistry::GetMeta(uint32_t typeId) const
 // Compact field tables (all platforms)
 // ============================================================================
 
-// m_FieldTables is kept sorted by typeId so GetFields is a binary search,
-// the same reason GetMeta moved off a linear scan: it runs per component per
-// object while a scene loads, and packages have made the type count grow.
+// m_FieldTables is kept sorted by typeId so GetFields is a binary search, for
+// the same reason as GetMeta: it runs per component per object while a scene
+// loads, and packages make the type count large.
 void ComponentRegistry::RegisterFields(uint32_t typeId, const FieldRef* fields, int count)
 {
     if (!fields || count <= 0)
@@ -223,10 +221,10 @@ const ComponentMeta* ComponentRegistry::GetMeta(const std::string& name) const
     {
         return it->second;
     }
-    // Not a name any component currently answers to, so try the names they used
-    // to have (DEKI_FORMER_NAME). This is what lets a class be renamed, or moved
-    // into a namespace, without orphaning every instance in every saved scene.
-    // The caller writes the current name back on save, so a file migrates the
+    // Not a name any component answers to now, so try their former names
+    // (DEKI_FORMER_NAME). This lets a class be renamed, or moved into a
+    // namespace, without orphaning every instance in every saved scene. The
+    // caller writes the current name back on save, so a file migrates the
     // first time it is opened and saved.
     auto former = m_ByFormerName.find(name);
     if (former != m_ByFormerName.end())

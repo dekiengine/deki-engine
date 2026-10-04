@@ -1,13 +1,11 @@
 #pragma once
 
 // ============================================================================
-// Serialization Template Declarations
+// Serialization templates
 // ============================================================================
-// These templates provide a unified interface for serializing structs marked
-// with DEKI_SERIALIZABLE. The generator creates template specializations for
-// each struct in the corresponding .gen.cpp files.
+// Serialize and Deserialize for structs marked DEKI_SERIALIZABLE. The
+// generator writes a specialization for each struct in its .gen.cpp.
 //
-// Usage:
 //   FrameAnimationData data = Deserialize<FrameAnimationData>(json);
 //   nlohmann::json j = Serialize(data);
 //
@@ -16,14 +14,14 @@
 #include <nlohmann/json.hpp>
 #endif
 
-// The namespace opens outside the editor guard so the closing brace below
-// balances in runtime builds too (the namespace is simply empty there).
+// The namespace opens outside the editor guard so the closing brace balances
+// in runtime builds too, where the namespace is empty.
 namespace Deki
 {
 
 #ifdef DEKI_EDITOR
 
-// Primary templates (specialized by generator for DEKI_SERIALIZABLE structs)
+// Primary templates; the generator specializes them.
 
 template <typename T>
 nlohmann::json Serialize(const T& obj);

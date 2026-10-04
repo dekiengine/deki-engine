@@ -2,12 +2,8 @@
 
 #include <stdint.h>
 
-/**
- * @brief FPS counter for tracking and displaying frame rate
- *
- * This utility measures actual FPS achieved by the engine including
- * all packages (rendering, input processing, etc.)
- */
+// Measures the frame rate the engine actually reaches, with every package's
+// work (rendering, input, ...) included.
 
 namespace Deki
 {
@@ -15,77 +11,50 @@ namespace Deki
 class FPSCounter
 {
 private:
-    static constexpr int kSampleCount = 30;  // Number of frames to average
+    static constexpr int kSampleCount = 30;  // frames averaged
 
-    uint32_t m_FrameTimes[kSampleCount];  // Rolling buffer of frame times
-    uint32_t m_FrameTimeSum;              // Sum of the samples in the buffer
-    int m_CurrentIndex;                   // Current position in buffer
-    int m_SamplesCollected;               // How many samples we have
-    uint32_t m_LastFrameTime;             // Time of last frame
+    uint32_t m_FrameTimes[kSampleCount];  // ring buffer of frame times
+    uint32_t m_FrameTimeSum;
+    int m_CurrentIndex;
+    int m_SamplesCollected;
+    uint32_t m_LastFrameTime;
 
-    float m_CurrentFps;      // Calculated FPS
-    float m_MinFps;          // Minimum FPS seen
-    float m_MaxFps;          // Maximum FPS seen
-    uint32_t m_TotalFrames;  // Total frames counted
+    float m_CurrentFps;
+    float m_MinFps;
+    float m_MaxFps;
+    uint32_t m_TotalFrames;
 
-    bool m_Enabled;  // Is FPS counter active
+    bool m_Enabled;
 
 public:
     FPSCounter();
 
-    /**
-     * @brief Call this at the start of each frame
-     */
+    /// Call at the start of each frame.
     void BeginFrame();
 
-    /**
-     * @brief Call this at the end of each frame
-     */
+    /// Call at the end of each frame.
     void EndFrame();
 
-    /**
-     * @brief Get the current FPS
-     */
+    /// Frames per second, averaged over the last kSampleCount frames.
     float GetFPS() const { return m_CurrentFps; }
 
-    /**
-     * @brief Get the minimum FPS recorded
-     */
     float GetMinFPS() const { return m_MinFps; }
 
-    /**
-     * @brief Get the maximum FPS recorded
-     */
     float GetMaxFPS() const { return m_MaxFps; }
 
-    /**
-     * @brief Get total frames counted
-     */
     uint32_t GetTotalFrames() const { return m_TotalFrames; }
 
-    /**
-     * @brief Get the average frame time in milliseconds
-     */
+    /// Average frame time in milliseconds.
     float GetAverageFrameTime() const;
 
-    /**
-     * @brief Reset FPS statistics
-     */
+    /// Clears all statistics.
     void Reset();
 
-    /**
-     * @brief Enable or disable FPS counting
-     */
     void SetEnabled(bool enable) { m_Enabled = enable; }
 
-    /**
-     * @brief Check if FPS counter is enabled
-     */
     bool IsEnabled() const { return m_Enabled; }
 
-    /**
-     * @brief Print FPS stats to log
-     */
+    /// Writes the statistics to the log.
     void PrintStats() const;
 };
 

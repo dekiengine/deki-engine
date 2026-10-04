@@ -10,9 +10,8 @@
 #include <unordered_set>
 #endif
 
-// DLL export/import for SettingsRegistry (editor builds only).
-// Mirrors ComponentRegistry - the singleton lives in deki-engine-core.dll
-// and is shared across all package DLLs.
+// DLL export/import in editor builds, like ComponentRegistry: the singleton
+// lives in deki-engine-core.dll and all package DLLs share it.
 #ifdef DEKI_EDITOR
 #ifdef _WIN32
 #ifdef DEKI_ENGINE_EXPORTS
@@ -27,123 +26,96 @@
 #define SETTINGS_REGISTRY_API
 #endif
 
-/**
- * @brief One registered project-settings type plus its live instance.
- */
+// SettingsTypeInfo is one registered project-settings type and its live
+// instance.
 
 namespace Deki
 {
 
 struct SettingsTypeInfo
 {
-    const char* sectionName;    // "Rendering", "Audio" - editor section header & registry key
+    const char* sectionName;    // "Rendering", "Audio": editor section header and registry key
     const ComponentMeta* meta;  // component metadata (properties, factory, etc.)
-    Component* instance;        // owned by registry, lifetime tied to plugin DLL
-    bool isPlugin;              // true → cleared on plugin unload
+    Component* instance;        // owned by the registry, lives as long as the plugin DLL
+    bool isPlugin;              // true: cleared on plugin unload
 };
 
-/**
- * @brief Registry for package-extensible project-settings types.
- *
- * Packages declare settings types as ordinary components with a
- * DEKI_SETTINGS_SECTION("...") marker above the class; the reflection codegen
- * registers them here from the package's registration function. The editor's Project Settings panel iterates the
- * registry and renders each type's properties via the existing PropertyEditorFactory machinery - tooltips, ranges,
- * visibility conditions all work out of the box.
- *
- * The registry **owns** the live instance (one per registered type), unlike
- * ComponentRegistry which only owns metadata. Plugin instances are deleted
- * before FreeLibrary via ClearPluginSettings to avoid dangling vtables.
- */
+/// Registry of project-settings types, which packages can add to.
+///
+/// Packages declare settings types as ordinary components with a
+/// DEKI_SETTINGS_SECTION("...") marker above the class, and the codegen
+/// registers them here from the package's registration function. The
+/// Project Settings panel walks the registry and draws each type's properties
+/// with PropertyEditorFactory, so tooltips, ranges and visibility conditions
+/// all work.
+///
+/// Unlike ComponentRegistry, which holds only metadata, this registry owns
+/// one live instance per type. Plugin instances are deleted by
+/// ClearPluginSettings before FreeLibrary, so no vtable is left dangling.
 class SETTINGS_REGISTRY_API SettingsRegistry
 {
 public:
     static SettingsRegistry& Instance();
 
-    /**
-     * @brief Register a settings type owned by deki-engine-core.
-     * @param sectionName UI section header & lookup key (e.g. "Rendering")
-     * @param meta Component metadata; must contain a working createFunc.
-     */
+    /// Registers a settings type owned by deki-engine-core. `sectionName` is
+    /// the panel's section header and lookup key (e.g. "Rendering"). `meta`
+    /// must have a working createFunc.
     void Register(const char* sectionName, const ComponentMeta* meta);
 
-    /**
-     * @brief Register a settings type owned by a plugin/package DLL.
-     *
-     * Live instance is deleted by ClearPluginSettings() / Unregister() before
-     * the owning DLL is unloaded, preventing dangling-vtable crashes.
-     */
+    /// Registers a settings type owned by a plugin or package DLL. Its instance
+    /// is deleted by ClearPluginSettings() or Unregister() before the DLL
+    /// unloads, so no vtable is left dangling.
     void RegisterPlugin(const char* sectionName, const ComponentMeta* meta);
 
-    /// Look up a settings instance by section name.
+    /// The settings instance for a section name.
     Component* GetByName(const char* sectionName);
 
-    /// Look up a settings instance by component type id (uint32_t hash of GUID).
+    /// The settings instance for a component type id.
     Component* GetByTypeId(uint32_t typeId);
 
-    /// Type-safe lookup: T must be a registered settings type.
+    /// The instance of settings type T, which must be registered.
     template <typename T>
     T* Get()
     {
         return static_cast<T*>(GetByTypeId(::Deki::TypeId<T>()));
     }
 
-    /// All registered settings types (for the editor panel walk).
+    /// All registered settings types, for the Project Settings panel.
     const std::vector<SettingsTypeInfo>& GetAll() const { return m_All; }
 
-    /**
-     * @brief Clear all plugin-loaded settings instances.
-     *
-     * Called by PackageLoader before FreeLibrary on plugin DLLs. Engine-core
-     * registrations are preserved.
-     */
+    /// Deletes every plugin settings instance and keeps the engine-core ones.
+    /// PackageLoader calls it before FreeLibrary on plugin DLLs.
     void ClearPluginSettings();
 
-    /**
-     * @brief Remove a settings type by component type id.
-     *
-     * Used during per-package unload to clear entries before FreeLibrary,
-     * preventing dangling pointers from one package taking down the editor
-     * when another is reloaded.
-     */
+    /// Removes a settings type. Called when a single package unloads, before
+    /// FreeLibrary, so its stale pointers cannot crash the editor when another
+    /// package reloads.
     void Unregister(uint32_t typeId);
 
-    /// True if the type was registered via RegisterPlugin (vs Register).
+    /// True if the type was registered with RegisterPlugin, not Register.
     bool IsPluginSetting(uint32_t typeId) const;
 
-    /**
-     * @brief Snapshot current state as engine-core baseline.
-     *
-     * Call once after engine init, before any package loads. ClearPluginSettings
-     * uses the snapshot to restore instead of dereferencing potentially-stale
-     * meta pointers.
-     */
+    /// Saves the current state as the engine-core baseline. Call once after
+    /// engine init, before any package loads. ClearPluginSettings restores from
+    /// it instead of dereferencing possibly stale meta pointers.
     void FreezeEngineSettings();
 
-    /**
-     * @brief Snapshot every plugin-owned settings instance to a JSON string.
-     *
-     * Used by hot reload: capture the user's edits before unloading plugin
-     * DLLs, then restore them via RestoreFromJson() after the DLLs reload and
-     * re-register their (default-valued) instances.
-     *
-     * Engine-core settings are NOT included - those instances survive the
-     * reload because they live in deki-engine-core.dll.
-     *
-     * The format mirrors deki.json's "packageSettings" block, so a snapshot can
-     * also be persisted to disk and restored later if needed.
-     */
+    /// Writes every plugin-owned settings instance to a JSON string.
+    ///
+    /// Hot reload uses it to keep the user's edits: snapshot before unloading
+    /// plugin DLLs, then RestoreFromJson() once the DLLs have reloaded and
+    /// registered fresh default instances. Engine-core settings are left out;
+    /// they live in deki-engine-core.dll and survive the reload.
+    ///
+    /// The format matches deki.json's "packageSettings" block, so a snapshot
+    /// can also be saved to disk.
     std::string SnapshotPluginSettingsAsJson() const;
 
-    /**
-     * @brief Restore plugin settings from a snapshot produced by
-     *        SnapshotPluginSettingsAsJson().
-     *
-     * Sections whose owning package didn't reload are silently skipped (the
-     * user can still recover them on the next reload). Properties that no
-     * longer exist on the new metadata are silently skipped - graceful for
-     * field renames or removals.
-     */
+    /// Restores plugin settings from a SnapshotPluginSettingsAsJson() snapshot.
+    ///
+    /// Sections whose package did not reload are skipped and can be restored on
+    /// the next reload. Properties the new metadata no longer has are skipped,
+    /// so renamed or removed fields do no harm.
     void RestoreFromJson(const std::string& snapshotJson);
 
 private:
@@ -154,12 +126,12 @@ private:
     std::vector<SettingsTypeInfo> m_All;
 
 #ifdef DEKI_EDITOR
-    std::unordered_map<std::string, size_t> m_ByName;  // section name → index in m_All
+    std::unordered_map<std::string, size_t> m_ByName;  // section name -> index in m_All
     std::unordered_map<uint32_t, size_t> m_ByTypeId;
     std::unordered_set<uint32_t> m_PluginTypeIds;
     std::unordered_set<uint32_t> m_EngineTypeIds;
 
-    // Frozen baseline (mirrors ComponentRegistry pattern at lines 170-175).
+    // Frozen baseline, as in ComponentRegistry.
     std::vector<SettingsTypeInfo> m_FrozenAll;
     std::unordered_map<std::string, size_t> m_FrozenByName;
     std::unordered_map<uint32_t, size_t> m_FrozenByTypeId;

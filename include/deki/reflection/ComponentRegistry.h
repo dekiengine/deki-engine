@@ -9,8 +9,7 @@
 #include <unordered_set>
 #endif
 
-// DLL export/import for ComponentRegistry (editor builds only)
-// This ensures all DLLs share the same ComponentRegistry singleton
+// DLL export/import in editor builds, so all DLLs share one ComponentRegistry.
 #ifdef DEKI_EDITOR
 #ifdef _WIN32
 #ifdef DEKI_ENGINE_EXPORTS
@@ -25,12 +24,10 @@
 #define COMPONENT_REGISTRY_API
 #endif
 
-/**
- * @brief Registry for component metadata
- *
- * On ESP32-S3: Minimal implementation - just provides metadata lookup by type.
- * In Editor: Full implementation with name-based lookup and enumeration.
- */
+// Registry of component metadata.
+//
+// On a device it looks metadata up by type id. In the editor it also looks up
+// by name and lists components.
 
 namespace Deki
 {
@@ -40,152 +37,87 @@ class COMPONENT_REGISTRY_API ComponentRegistry
 public:
     static ComponentRegistry& Instance();
 
-    /**
-     * @brief Register a component's metadata
-     * @param meta Pointer to static component metadata
-     */
+    /// Registers a component's static metadata.
     void Register(const ComponentMeta* meta);
 
-    /**
-     * @brief Get metadata by component type ID
-     * @param typeId The ComponentType value
-     * @return Pointer to metadata, or nullptr if not found
-     */
+    /// Metadata for a type id, or nullptr when unknown.
     const ComponentMeta* GetMeta(uint32_t typeId) const;
 
     // ========================================================================
-    // Compact field tables - available on EVERY platform, embedded included.
+    // Compact field tables, on every platform including devices.
     //
-    // ComponentMeta above is editor-only (it carries display names,
-    // tooltips, ranges). A device build still needs to locate a field by name
-    // for data-driven systems, so codegen also emits one flattened FieldRef
-    // table per concrete component (own + inherited fields) and registers it
-    // here unconditionally. 8 bytes per field, in flash.
+    // ComponentMeta is editor-only (display names, tooltips, ranges). Devices
+    // still need to find a field by name for data-driven systems, so codegen
+    // also emits one flat FieldRef table per concrete component (own and
+    // inherited fields) and registers it here. 8 bytes per field, in flash.
     // ========================================================================
 
-    /** @brief Register a component's flattened field table (idempotent per typeId). */
+    /// Registers a component's field table. Registering the same typeId again
+    /// replaces the table, for hot reload.
     void RegisterFields(uint32_t typeId, const FieldRef* fields, int count);
 
-    /** @brief Look up one field by name hash. nullptr when absent. */
+    /// One field by name hash, or nullptr when absent.
     const FieldRef* FindField(uint32_t typeId, uint32_t nameHash) const;
 
-    /** @brief The whole table for a type (nullptr and outCount 0 when absent). */
+    /// The whole table for a type, or nullptr and outCount 0 when absent.
     const FieldRef* GetFields(uint32_t typeId, int& outCount) const;
 
 #ifdef DEKI_EDITOR
-    /**
-     * @brief Get metadata by component serialized name (GUID)
-     * @param name The serialized name / GUID from scene files
-     * @return Pointer to metadata, or nullptr if not found
-     */
+    /// Metadata for a serialized name from a scene file, or nullptr when
+    /// unknown. Falls back to DEKI_FORMER_NAME.
     const ComponentMeta* GetMeta(const std::string& name) const;
 
-    /**
-     * @brief Get metadata by class name (e.g., "PlatformSetupComponent")
-     * @param className The C++ class name
-     * @return Pointer to metadata, or nullptr if not found
-     */
+    /// Metadata for a C++ class name (e.g. "PlatformSetupComponent"), or nullptr.
     const ComponentMeta* GetMetaByClassName(const std::string& className) const;
 
-    /**
-     * @brief Get metadata from the HASH of a name a component used to have.
-     *
-     * The string form of a rename is handled by GetMeta(name), which falls back
-     * to DEKI_FORMER_NAME. But a scene also stores component identity as a bare
-     * number in places where no name is written: ObjectRef::componentTypeId and
-     * PropertyRef::componentTypeId. Those numbers are the hash of whatever the
-     * class was called when the file was saved, and a hash cannot be mapped
-     * back to its string, so the name fallback cannot reach them.
-     *
-     * This is the numeric equivalent: it indexes HashString(formerName) so a
-     * stale id resolves to the class that now owns that name. Callers rewrite
-     * the reference to the current id, which migrates the file on its next save.
-     *
-     * @param formerTypeId A type id read from a file, possibly pre-rename
-     * @return Pointer to metadata, or nullptr if no component ever had that name
-     */
+    /// Metadata for a type id that is the hash of a name a component used to
+    /// have, or nullptr when no component ever had that name.
+    ///
+    /// Scenes store some component references as a bare type id with no name
+    /// (ObjectRef::componentTypeId, PropertyRef::componentTypeId). That id is
+    /// the hash of the class name at save time, and a hash cannot be turned
+    /// back into a name, so GetMeta(name) cannot resolve it. This looks up
+    /// HashString(formerName) instead. Callers rewrite the reference to the
+    /// current id, so the file is migrated on its next save.
     const ComponentMeta* GetMetaByFormerTypeId(uint32_t formerTypeId) const;
 
-    /**
-     * @brief Create a new component instance by type ID
-     * @param typeId The ComponentType value
-     * @return New component instance, or nullptr if not found/abstract
-     */
+    /// Creates a component by type id. Returns nullptr when the id is unknown
+    /// or the class is abstract.
     Component* CreateComponent(uint32_t typeId) const;
 
-    /**
-     * @brief Create a new component instance by serialized name (GUID)
-     * @param name The serialized name / GUID
-     * @return New component instance, or nullptr if not found/abstract
-     */
+    /// Creates a component by serialized name. Returns nullptr when the name is
+    /// unknown or the class is abstract.
     Component* CreateComponent(const std::string& name) const;
 
-    /**
-     * @brief Get all registered components
-     * @return Vector of all registered component metadata
-     */
     const std::vector<const ComponentMeta*>& GetAllComponents() const;
 
-    /**
-     * @brief Get components by category
-     * @param category The category name (e.g., "2D")
-     * @return Vector of matching component metadata
-     */
+    /// Components in a category (e.g. "2D").
     std::vector<const ComponentMeta*> GetComponentsByCategory(const std::string& category) const;
 
-    /**
-     * @brief Get all unique category names
-     * @return Vector of category names
-     */
+    /// Every category name, each once.
     std::vector<std::string> GetCategories() const;
 
-    /**
-     * @brief Register a plugin component's metadata
-     * @param meta Pointer to static component metadata
-     *
-     * Use this instead of Register() for plugin components so they can be
-     * properly cleared during hot-reload while preserving engine components.
-     */
+    /// Registers a plugin component. Use it instead of Register() for plugins,
+    /// so hot-reload can clear them and keep the engine components.
     void RegisterPluginComponent(const ComponentMeta* meta);
 
-    /**
-     * @brief Clear all plugin-loaded components from the registry
-     *
-     * This is called before hot-reloading plugins. Only components registered
-     * via RegisterPluginComponent() are removed; engine components are preserved.
-     */
+    /// Removes the components registered with RegisterPluginComponent(). Called
+    /// before plugins hot-reload.
     void ClearPluginComponents();
 
-    /**
-     * @brief Check if a component type is from a plugin
-     * @param typeId The ComponentType value
-     * @return true if the component was registered via RegisterPluginComponent()
-     */
+    /// True when the component was registered with RegisterPluginComponent().
     bool IsPluginComponent(uint32_t typeId) const;
 
-    /**
-     * @brief Unregister a component by type ID
-     * @param typeId The ComponentType value
-     *
-     * Used during package hot-reload to clear entries BEFORE FreeLibrary,
-     * preventing dangling pointers in the registry.
-     */
+    /// Removes a component. Package hot-reload calls it before FreeLibrary, so
+    /// the registry holds no pointers into the unloaded DLL.
     void Unregister(uint32_t typeId);
 
-    /**
-     * @brief Snapshot current entries as engine-core components
-     *
-     * Call once after engine initialization, before loading any packages.
-     * Frozen entries are preserved by ClearNonEngineComponents().
-     */
+    /// Marks the current entries as engine-core. Call once after engine init,
+    /// before loading any packages. ClearNonEngineComponents() keeps them.
     void FreezeEngineComponents();
 
-    /**
-     * @brief Remove ALL entries not frozen as engine-core
-     *
-     * Atomically clears every package and plugin component from the registry,
-     * ensuring no stale pointers survive after FreeLibrary.
-     */
+    /// Removes every package and plugin component in one step, so no stale
+    /// pointer survives FreeLibrary.
     void ClearNonEngineComponents();
 #endif
 
@@ -197,17 +129,12 @@ private:
     std::vector<const ComponentMeta*> m_Components;
 
 #ifndef DEKI_EDITOR
-    // typeId -> meta, kept sorted by typeId so GetMeta can binary search.
+    // typeId -> meta, sorted by typeId so GetMeta can binary search. GetMeta
+    // runs for every component on scene load. A sorted vector is one block
+    // with no per-entry allocation, which an MCU needs, and gives O(log n).
     //
-    // Device builds have no unordered_map here on purpose (per-node allocation
-    // is expensive on an MCU), but the linear scan this replaces was O(n) on a
-    // list that grows with every installed package - GetMeta is called during
-    // deserialization for each component of each object, so the scan showed up
-    // on scene load. A sorted vector keeps the memory profile (one contiguous
-    // block, no per-entry allocation) and makes lookup O(log n).
-    //
-    // Only device builds maintain this: the editor already has m_ByType, and it
-    // also unloads packages, which this index would have to follow.
+    // Device builds only: the editor has m_ByType, and it unloads packages,
+    // which this index would have to follow.
     struct TypeIndexEntry
     {
         uint32_t typeId;
@@ -219,20 +146,20 @@ private:
 #endif
 
 #ifdef DEKI_EDITOR
-    /// Adds this component's DEKI_FORMER_NAME entries to the alias index,
-    /// complaining if two components claim the same discarded name.
+    /// Adds this component's DEKI_FORMER_NAME entries to the alias index. When
+    /// two components claim the same former name, the first keeps it and an
+    /// error is logged.
     void IndexFormerNames(const ComponentMeta* meta);
 
-    /// Rebuilds the alias index from the components still registered. Used after
-    /// an unload, where the index could otherwise keep pointing into a DLL that
-    /// is no longer mapped.
+    /// Rebuilds the alias index from the components still registered. Used
+    /// after an unload, so the index does not point into an unmapped DLL.
     void RebuildFormerNameIndex();
 #endif
 
-    // Field tables live on all platforms (see RegisterFields). The pointers are
-    // static storage inside the owning package's .gen.cpp, so in the editor they
-    // follow exactly the same freeze/restore lifecycle as m_Components when a
-    // package DLL is unloaded.
+    // Field tables exist on all platforms (see RegisterFields). The pointers are
+    // static storage in the owning package's .gen.cpp, so in the editor they
+    // follow the same freeze/restore lifecycle as m_Components when a package
+    // DLL unloads.
     struct FieldTable
     {
         uint32_t typeId;
@@ -245,11 +172,11 @@ private:
     std::vector<FieldTable> m_FrozenFieldTables;
     std::unordered_map<uint32_t, const ComponentMeta*> m_ByType;
     std::unordered_map<std::string, const ComponentMeta*> m_ByName;
-    // DEKI_FORMER_NAME -> the component that now answers to it, so a scene
-    // written before a rename still resolves. Kept apart from m_ByName because a
-    // current name must always win over someone else's discarded one.
+    // DEKI_FORMER_NAME -> the component that now has it, so a scene saved
+    // before a rename still resolves. Separate from m_ByName because a current
+    // name must always win over another component's former name.
     std::unordered_map<std::string, const ComponentMeta*> m_ByFormerName;
-    // The same table keyed by HashString(formerName), for the references that
+    // The same table keyed by HashString(formerName), for references that
     // store a type id and no name. See GetMetaByFormerTypeId.
     std::unordered_map<uint32_t, const ComponentMeta*> m_ByFormerTypeId;
     std::unordered_set<uint32_t> m_PluginTypeIds;
@@ -257,9 +184,9 @@ private:
         m_PluginTypeToName;  // typeId → serializedName for dereference-safe cleanup
     std::unordered_set<uint32_t> m_EngineTypeIds;
 
-    // Frozen snapshots of engine-core state (captured by FreezeEngineComponents).
-    // ClearNonEngineComponents restores from these instead of dereferencing
-    // potentially-stale pointers from unloaded package/plugin DLLs.
+    // Engine-core state captured by FreezeEngineComponents.
+    // ClearNonEngineComponents restores from these, so it never dereferences
+    // pointers into unloaded package or plugin DLLs.
     std::vector<const ComponentMeta*> m_FrozenComponents;
     std::unordered_map<uint32_t, const ComponentMeta*> m_FrozenByType;
     std::unordered_map<std::string, const ComponentMeta*> m_FrozenByName;

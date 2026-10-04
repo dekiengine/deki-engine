@@ -5,7 +5,7 @@
 namespace Deki
 {
 
-// Predefined colors are now inline static const in the header
+// Predefined colors are inline static const in the header.
 
 Color Color::FromFloats(float r, float g, float b, float a)
 {

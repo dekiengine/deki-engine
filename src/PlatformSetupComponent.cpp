@@ -76,7 +76,6 @@ void PlatformSetupComponent::StartNextSetup()
     DEKI_LOG_INTERNAL("Running '%s' (%d/%zu)", setupComp->GetSetupName(), m_CurrentIndex + 1,
                       (int)setupComponents.size());
 
-    // Call Setup with callback
     setupComp->Setup([this](bool success) { OnSetupComplete(success); });
 }
 
@@ -96,7 +95,6 @@ void PlatformSetupComponent::OnSetupComplete(bool success)
         return;
     }
 
-    // Move to next component
     m_CurrentIndex++;
     StartNextSetup();
 }
@@ -119,8 +117,8 @@ void PlatformSetupComponent::LoadStartupScene()
         Engine& engine = Engine::GetInstance();
         engine.SetRootScene(scene, true);
 
-        // Process lifecycle immediately so sprites have correct frame coords
-        // before the next render (prevents 1-frame glitch with wrong sprites)
+        // Run Awake now so sprites have their frame coords before the next
+        // render; otherwise one frame draws the wrong sprites.
         LifecycleManager* lifecycle = engine.GetLifecycleManager();
         if (lifecycle)
         {

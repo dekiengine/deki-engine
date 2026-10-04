@@ -1,17 +1,13 @@
-/**
- * @file ReflectionAbi.cpp
- * @brief The reflection-layout handshake, compiled into EVERY package DLL.
- *
- * BuildFileGenerator appends this file to every package target and to the
- * game plugin, so each DLL reports the reflection struct layout it was
- * actually built against. PackageLoader and
- * PluginLoader compare that against the editor's and refuse a mismatch (see
- * ReflectionAbi.h for why a stale DLL is so destructive).
- *
- * Editor-only by design: on device everything is statically linked, there is no
- * loader and no ABI boundary to guard, so this compiles to nothing there (the
- * firmware build globs the engine's src tree, which would otherwise pull it in).
- */
+// The reflection-layout handshake, compiled into EVERY package DLL.
+//
+// BuildFileGenerator appends this file to every package target and to the
+// game plugin, so each DLL reports the reflection struct layout it was built
+// against. PackageLoader and PluginLoader compare that with the editor's and
+// refuse a mismatch (ReflectionAbi.h says why a stale DLL is so destructive).
+//
+// Editor-only: on a device everything is linked statically, so there is no
+// loader and no ABI boundary to guard. The firmware build globs the engine's
+// src tree, so this file compiles to nothing there.
 
 #ifdef DEKI_EDITOR
 
@@ -25,13 +21,11 @@
 
 extern "C"
 {
-    /**
-     * @brief This DLL's compiled reflection layout.
-     *
-     * Deliberately not using DEKI_PLUGIN_API: that macro only expands to an export
-     * when the target happens to define DEKI_PLUGIN_EXPORTS, and this must be
-     * exported from every package unconditionally or the guard silently does nothing.
-     */
+    // This DLL's compiled reflection layout.
+    //
+    // Not DEKI_PLUGIN_API: that macro exports only when the target defines
+    // DEKI_PLUGIN_EXPORTS, and this must be exported from every package, or
+    // the guard silently does nothing.
     DEKI_ABI_EXPORT const DekiReflectionAbi* DekiPluginGetReflectionAbi()
     {
         // Function-local static: filled on first call from THIS DLL's headers, and

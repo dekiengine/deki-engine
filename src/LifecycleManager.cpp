@@ -35,9 +35,9 @@ static void CollectPersistentComponents(std::vector<Component*>& components)
 
 namespace
 {
-// Borrows a reusable scratch vector, falling back to its own storage if that
-// buffer is already in use further up the stack. The snapshot semantics are
-// unchanged either way - this only decides where the copy lives.
+// Borrows a reusable scratch vector, or uses its own storage when that buffer
+// is already in use further up the stack. Either way the snapshot is the
+// same; this only decides where the copy lives.
 class ScratchSnapshot
 {
 public:
@@ -108,12 +108,12 @@ void LifecycleManager::ProcessInternalAwake(Scene* scene)
 
     char profileName[128];
 
-    // Resolve all AssetRefs and ObjectRefs for components that haven't resolved yet
-    // This happens BEFORE any user code (Awake/Start) runs
-    // m_RefsResolved prevents per-frame re-resolution in edit mode (where HasAwoken is never set)
-    // Snapshot the list: GetActiveComponents() returns the live, lazily-rebuilt cache, and
-    // user code below can instantiate/destroy objects that rebuild it mid-iteration
-    // (dangling pointers / UB). Iterate a copy; new components are handled on a later pass.
+    // Resolve AssetRefs and ObjectRefs for components that have not resolved
+    // yet, BEFORE any user code (Awake/Start) runs. m_RefsResolved stops this
+    // repeating every frame in edit mode, where HasAwoken is never set.
+    // Iterate a snapshot: GetActiveComponents() is the live cache, rebuilt
+    // lazily, and user code below can create or destroy objects that rebuild
+    // it mid-iteration. New components are handled on a later pass.
     ScratchSnapshot scratch(m_SnapshotScratch, m_SnapshotScratchInUse);
     std::vector<Component*>& snapshot = scratch.Get();
     snapshot.assign(scene->GetActiveComponents().begin(), scene->GetActiveComponents().end());
@@ -237,8 +237,8 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
     ScratchSnapshot scratch(m_UpdateScratch, m_UpdateScratchInUse);
     std::vector<Component*>& allComponents = scratch.Get();
     const auto& live = scene->GetActiveComponents();
-    // assign() rather than a push_back loop: the loop reallocated as it grew,
-    // which is why the allocation count climbed with component count.
+    // assign() rather than a push_back loop, which would reallocate as it
+    // grows.
     allComponents.assign(live.begin(), live.end());
     CollectPersistentComponents(allComponents);
 
@@ -338,7 +338,6 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
         return;
     }
 
-    // Get component metadata
     const ComponentMeta* meta = ComponentRegistry::Instance().GetMeta(typeId);
     if (!meta || !meta->properties)
     {
@@ -382,7 +381,6 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
             continue;
         }
 
-        // Mark as attempted before trying
         ref->loadAttempted = true;
 
         DEKI_LOG_INTERNAL("ResolveAssetRefs: Loading '%s' GUID=%s type=%s", prop.name, ref->guid.c_str(),

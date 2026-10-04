@@ -625,10 +625,9 @@ ColorFormat Engine::GetFrameBufferFormat() const
     return m_Renderer ? m_Renderer->GetColorFormat() : ColorFormat::RGB565;
 }
 
-// Replaces the old static DekiDisplay::SetDisplay facade. Package owns the
-// display instance's lifetime; engine-core just stores the pointer and re-runs
-// the render system's Setup() so it can pick up a display-owned DMA buffer if
-// one becomes available.
+// The package owns the display's lifetime; the engine stores the pointer and
+// re-runs the render system's Setup() so it can pick up a DMA buffer the
+// display owns, when there is one.
 void Engine::SetDisplay(IDisplay* display, const std::string& name)
 {
     // If a previous display was registered, shut it down before swapping.
@@ -645,8 +644,8 @@ void Engine::SetDisplay(IDisplay* display, const std::string& name)
     // The framebuffer takes the display's size (and its DMA buffer, where the
     // display offers one of that size). Not only once Initialize has run: the
     // editor hosts the engine without it, and play mode sets a display of the
-    // Play view's screen - which, skipped here, left the framebuffer at its
-    // old size and play refused to start on any other screen.
+    // Play view's screen. Skipping this would leave the framebuffer at its old
+    // size, and play would refuse to start on any other screen.
     if (m_Renderer && m_Display)
     {
         SizeFramebufferToDisplay();

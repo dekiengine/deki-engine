@@ -1,20 +1,16 @@
 #pragma once
 
-/**
- * @file TypeId.h
- * @brief Compile-time component identity derived from the class name.
- *
- * A component's identity is its fully qualified C++ name ("Game::Health",
- * "Deki::SetupComponent"). Nothing has to be declared for it: the compiler
- * spells the name out in the signature of a function template, and that text
- * is hashed at compile time. Scene files store the same name as text, so the
- * on-disk key, the runtime id and the reflection codegen's view of a class all
- * agree by construction.
- *
- * The consequence to know about: renaming a class (or moving it to another
- * namespace) changes its id. Scenes that reference the old name load it as a
- * MissingComponent until the editor's redirect for that rename is in place.
- */
+// Compile-time component identity, taken from the class name.
+//
+// A component's identity is its fully qualified C++ name ("Game::Health",
+// "Deki::SetupComponent"), with nothing to declare: the compiler spells the
+// name out in a function template's signature, and that text is hashed at
+// compile time. Scene files store the same name as text, so the on-disk key,
+// the runtime id and the reflection codegen all agree.
+//
+// Renaming a class, or moving it to another namespace, changes its id. Scenes
+// that use the old name load it as a MissingComponent until the editor has a
+// redirect for that rename.
 
 #include <cstddef>
 #include <cstdint>
@@ -27,17 +23,13 @@ namespace Deki
 
 using ComponentType = uint32_t;
 
-/**
- * @brief FNV-1a of a C string; the hash behind every type and property id.
- */
+/// FNV-1a of a C string; the hash behind every type and property id.
 constexpr uint32_t HashString(const char* str, uint32_t hash = 2166136261u)
 {
     return (*str == 0) ? hash : HashString(str + 1, (hash ^ static_cast<uint32_t>(*str)) * 16777619u);
 }
 
-/**
- * @brief Same hash over a length-delimited string (msgpack keys are not null-terminated).
- */
+/// The same hash over a string with a length (msgpack keys are not null-terminated).
 inline uint32_t HashStringLen(const char* str, uint16_t length)
 {
     uint32_t hash = 2166136261u;
@@ -48,9 +40,7 @@ inline uint32_t HashStringLen(const char* str, uint16_t length)
     return hash;
 }
 
-/**
- * @brief Same hash over a string_view, usable in constant expressions.
- */
+/// The same hash over a string_view, usable in constant expressions.
 constexpr uint32_t HashStringView(std::string_view s)
 {
     uint32_t hash = 2166136261u;
@@ -92,9 +82,7 @@ constexpr bool StartsWith(std::string_view s, std::string_view p)
 
 }  // namespace Detail
 
-/**
- * @brief The fully qualified name of T, e.g. "Game::Health", as a string_view.
- */
+/// The fully qualified name of T, such as "Game::Health".
 template <class T>
 constexpr std::string_view TypeNameOf()
 {
@@ -114,9 +102,7 @@ constexpr std::string_view TypeNameOf()
     return s;
 }
 
-/**
- * @brief The identifier alone, e.g. "Health" for Game::Health.
- */
+/// The identifier alone, such as "Health" for Game::Health.
 template <class T>
 constexpr std::string_view TypeShortNameOf()
 {
@@ -125,12 +111,9 @@ constexpr std::string_view TypeShortNameOf()
     return sep == std::string_view::npos ? s : s.substr(sep + 2);
 }
 
-/**
- * @brief The component type id of T: HashString of its fully qualified name.
- *
- * Every lookup by type (GetComponent<T>, the factory, the field tables) keys
- * on this value, and a scene file's "type" string hashes to it on load.
- */
+/// The component type id of T: HashString of its fully qualified name. Every
+/// lookup by type (GetComponent<T>, the factory, the field tables) uses it,
+/// and a scene file's "type" string hashes to it on load.
 template <class T>
 constexpr ComponentType TypeId()
 {
@@ -158,18 +141,14 @@ struct TypeShortNameStorage<T, std::index_sequence<I...>>
 
 }  // namespace Detail
 
-/**
- * @brief The fully qualified name of T as a null-terminated string with static storage.
- */
+/// The fully qualified name of T as a null-terminated string with static storage.
 template <class T>
 constexpr const char* TypeName()
 {
     return Detail::TypeNameStorage<T, std::make_index_sequence<TypeNameOf<T>().size()>>::kValue;
 }
 
-/**
- * @brief The identifier of T as a null-terminated string with static storage.
- */
+/// The identifier of T as a null-terminated string with static storage.
 template <class T>
 constexpr const char* TypeShortName()
 {

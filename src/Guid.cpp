@@ -1,7 +1,4 @@
-/**
- * @file Guid.cpp
- * @brief GUID generation utilities implementation
- */
+// GUID generation.
 
 #include <deki/Guid.h>
 #include <cstdint>

@@ -5,8 +5,6 @@
 #include <cstring>
 #include <string>
 
-// Global log counter for proper alternation across all log calls
-
 namespace Deki
 {
 
@@ -40,9 +38,9 @@ void LogSystem::Initialize()
 {
 #ifdef DEKI_LOG_ENABLED
     // Line-buffered stdout: flushes at each newline for prompt output without
-    // the overhead of unbuffered I/O (which is costly over serial on ESP32).
-    // The size MUST be > 0 for _IOLBF/_IOFBF: MSVC's CRT validates it and raises
-    // an invalid-parameter fast-fail (0xC0000409) on size 0. BUFSIZ is valid everywhere.
+    // the cost of unbuffered I/O, which is high over serial on ESP32.
+    // The size MUST be > 0 for _IOLBF/_IOFBF: MSVC's CRT fast-fails
+    // (0xC0000409) on size 0. BUFSIZ is valid everywhere.
     setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 #endif
 }
@@ -56,10 +54,8 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    // Extract filename for display: __FILE__ is an absolute path, and this
-    // used to copy it into a std::string, substr it, and concatenate the
-    // callback message from parts. Three heap allocations per log line, on
-    // paths that can log every frame.
+    // The file name for display, found in place: __FILE__ is an absolute
+    // path, and some paths log every frame, so no heap allocation here.
     const char* displayName = file ? file : "";
     for (const char* p = displayName; *p; ++p)
     {
@@ -115,12 +111,10 @@ void LogSystem::LogWithLevel(LogLevel level, const char* file, int line, const c
     const char* arrow = "->";
 
     // stderr, not stdout. The log is diagnostics; stdout is where a command's
-    // result goes. Mixed together, no caller can parse the JSON the editor's
-    // headless verbs print, which is the whole point of having them.
-    // The reset closes the line it belongs to, before the newline. After
-    // it, the escape lands at the start of whatever is written next, which
-    // is invisible on a terminal but prefixes the following line wherever
-    // stdout and stderr are combined into one stream.
+    // result goes, and a caller must be able to parse the JSON the editor's
+    // headless verbs print there.
+    // The reset goes before the newline. After it, the escape would land at
+    // the start of the next line wherever stdout and stderr are combined.
     fprintf(stderr, "%s%s %s %s:%d %s %s%s\n", color, levelText, arrow, displayName, line, arrow, buffer, reset);
 }
 

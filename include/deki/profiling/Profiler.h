@@ -1,24 +1,19 @@
 #pragma once
 
-/**
- * @file DekiProfiler.h
- * @brief Profiling macros for instrumenting critical code paths
- *
- * Usage:
- * @code
- * void MyFunction() {
- *     DEKI_PROFILE_SCOPE;  // Profile this function
- *     // ... your code
- * }
- *
- * void MyNamedSection() {
- *     {
- *         DEKI_PROFILE_SCOPE_N("CustomSection");
- *         // ... profiled section
- *     }
- * }
- * @endcode
- */
+// Profiling macros for marking code paths. They expand to nothing in this
+// build.
+//
+//   void MyFunction() {
+//       DEKI_PROFILE_SCOPE;  // profiles this function
+//       // ...
+//   }
+//
+//   void MyNamedSection() {
+//       {
+//           DEKI_PROFILE_SCOPE_N("CustomSection");
+//           // ... profiled section
+//       }
+//   }
 
 #define DEKI_PROFILE_SCOPE
 #define DEKI_PROFILE_SCOPE_N(name)

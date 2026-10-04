@@ -104,11 +104,9 @@ size_t SettingsValueSize(const PropertyInfo& prop)
 }
 
 #ifdef DEKI_EDITOR
-// Append raw bytes to the output buffer. Write() used to take a caller-owned
-// uint8_t* with no capacity argument while emitting a variable-length v5 chunk
-// that grows with the settings registry - every call site guessed a stack array
-// size (4096) smaller than what LoadFromFile would accept back (16384). Growing
-// a vector removes that whole class of mismatch.
+// Append raw bytes to the output buffer. Write() fills a growing vector
+// because the v5 chunk grows with the settings registry: a fixed buffer from
+// the caller could be smaller than what LoadFromFile accepts back.
 void Append(std::vector<uint8_t>& buf, const void* src, size_t n)
 {
     const uint8_t* p = static_cast<const uint8_t*>(src);
@@ -145,10 +143,10 @@ static Storage::Location s_AssetStorage = Storage::Internal;
 // registry that hydrates instances in the editor does not exist. One heap
 // block, reused across loads.
 //
-// Through Deki::Memory like everything else that runs on a board: this was a
-// bare realloc, which skipped the placement decision, the accounting and the
-// double-free guard. External, because it is read only when a package asks
-// for a setting and the internal heap is the scarce one.
+// Through Deki::Memory like everything else that runs on a board, for the
+// placement decision, the accounting and the double-free guard. External,
+// because it is read only when a package asks for a setting and the internal
+// heap is the scarce one.
 static Deki::Buffer<uint8_t> s_PackageChunk;
 static size_t s_PackageChunkSize = 0;
 
@@ -261,9 +259,8 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out)
 static std::string s_RendererName = "standard2d";
 static int s_PassCount = 0;
 
-// Sized to what a project actually declares. A fixed array here used to cost a
-// single-pass 2D project seven unused strings and cap a richer target at
-// eight, which is the low end and the high end paying for each other.
+// Sized to what a project actually declares, so a single-pass 2D project pays
+// for one name and a richer target has no fixed cap.
 static std::vector<std::string> s_PassNames;
 
 int32_t GetTargetFPS()
@@ -302,8 +299,8 @@ bool Load(const uint8_t* data, size_t size)
     // Version 2: 16 bytes (with dirty rect fields - now deprecated)
     constexpr size_t kV1DisplaySize = 12;
     // Each rejection names its reason: the caller reports every `false` as
-    // "no project settings found", which hid a corrupt file behind the same
-    // message as a missing one.
+    // "no project settings found", so without this a corrupt file would look
+    // like a missing one.
     if (!data || size < sizeof(FileHeader) + kV1DisplaySize)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: file too small (%zu bytes, need at least %zu)", size,
@@ -810,8 +807,8 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         Append(buf, rName, rNameLen);
     }
 
-    // Pass count. The field is one byte, which is the only ceiling left, and
-    // it is far beyond anything a real pipeline declares.
+    // Pass count. The field is one byte, so 255 is the ceiling, far beyond
+    // anything a real pipeline declares.
     if (passCount < 0)
     {
         passCount = 0;

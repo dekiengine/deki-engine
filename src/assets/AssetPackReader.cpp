@@ -74,8 +74,8 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         PackIndexEntry entry;
         if (fs->ReadFile(file, &entry, sizeof(PackIndexEntry)) != sizeof(PackIndexEntry))
         {
-            // A short read used to `break` and then report success with the
-            // full declared count, so a truncated index looked healthy.
+            // A short read is an error: reporting success with the declared
+            // count would make a truncated index look healthy.
             DEKI_LOG_ERROR("[PACK] Pack index '%s' is truncated: %u of %u entries readable", path, (unsigned)i,
                            (unsigned)entryCount);
             fs->CloseFile(file);
@@ -199,9 +199,9 @@ bool AssetPackReader::LoadPack(const char* packPath)
     {
         const DPackEntry& e = entries[i];
 
-        // offset/size were previously used unchecked, so a bad entry pointed
-        // assets anywhere and AssetManager then read `size` bytes from there.
-        // 64-bit arithmetic keeps offset + size from wrapping past the check.
+        // An unchecked offset/size could point an asset anywhere, and
+        // AssetManager reads `size` bytes from there. 64-bit arithmetic keeps
+        // offset + size from wrapping past the check.
         const uint64_t end = static_cast<uint64_t>(e.offset) + static_cast<uint64_t>(e.size);
         if (end > static_cast<uint64_t>(packSize))
         {

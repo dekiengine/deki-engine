@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 
-// DLL export/import
 #ifdef DEKI_EDITOR
 #ifdef _WIN32
 #ifdef DEKI_ENGINE_EXPORTS
@@ -24,7 +23,6 @@
 namespace Deki
 {
 
-// Pack file format constants
 static constexpr char kDpackMagic[4] = { 'D', 'P', 'A', 'K' };
 static constexpr uint32_t kDpackVersion = 1;
 
@@ -50,29 +48,29 @@ struct DPackEntry
 static_assert(sizeof(DPackHeader) == 16, "DPackHeader must be 16 bytes");
 static_assert(sizeof(DPackEntry) == 68, "DPackEntry must be 68 bytes");
 
-// Represents a loaded pack file in memory
+// A pack file loaded into memory.
 struct LoadedPack
 {
-    uint8_t* data;  // Raw pack data (the entire file)
+    uint8_t* data;  // the whole file
     size_t dataSize;
     uint32_t entryCount;
 
     struct AssetInfo
     {
-        const uint8_t* ptr;  // Pointer into data buffer
+        const uint8_t* ptr;  // into data
         uint32_t size;
         std::string typeName;
     };
 
-    // GUID → asset info (points into data buffer)
+    // GUID -> asset, pointing into data.
     std::unordered_map<std::string, AssetInfo> assets;
 };
 
-// Pack index entry: maps asset GUID → pack file path
+// One pack_index.bin entry: which pack file holds an asset.
 #pragma pack(push, 1)
 struct PackIndexEntry
 {
-    char guid[37];      // Asset GUID
+    char guid[37];
     char packPath[48];  // Pack file name, in the index's own folder ("{guid}.pack")
     char padding[3];
 };
@@ -84,40 +82,38 @@ class DEKI_PACK_API AssetPackReader
 public:
     static AssetPackReader& Instance();
 
-    // Load pack index (pack_index.bin) from filesystem
+    /// Reads pack_index.bin from `path`.
     bool LoadPackIndex(const char* path);
 
-    // Check if a GUID is in any pack
     bool IsInPack(const std::string& guid) const;
 
-    // Get the pack file path for a GUID (empty if not in any pack)
+    /// The pack file holding `guid`, or "" when it is in no pack.
     std::string GetPackPath(const std::string& guid) const;
 
-    // Load a pack file into memory and register all assets
-    // Returns true if pack was loaded (or already loaded)
+    /// Loads a pack file into memory and registers its assets. True when the
+    /// pack is loaded, including when it already was.
     bool LoadPack(const char* packPath);
 
-    // Get asset data from a loaded pack
-    // Returns nullptr if not found or pack not loaded
+    /// The asset `guid` in a loaded pack, or nullptr when not found or its
+    /// pack is not loaded.
     const LoadedPack::AssetInfo* GetAsset(const std::string& guid) const;
 
-    // Unload all packs and free memory
+    /// Frees every loaded pack.
     void UnloadAll();
 
-    // Check if any packs are available
     bool HasPackIndex() const { return !m_GuidToPackPath.empty(); }
 
 private:
     AssetPackReader() = default;
     ~AssetPackReader();
 
-    // GUID → pack file path
+    // GUID -> pack file path.
     std::unordered_map<std::string, std::string> m_GuidToPackPath;
 
-    // Pack path → loaded pack data
+    // Pack path -> loaded pack.
     std::unordered_map<std::string, LoadedPack*> m_LoadedPacks;
 
-    // GUID → loaded pack (for fast lookup without going through m_GuidToPackPath first)
+    // GUID -> loaded pack, one lookup instead of two.
     std::unordered_map<std::string, LoadedPack*> m_GuidToLoadedPack;
 };
 

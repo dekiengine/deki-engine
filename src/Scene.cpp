@@ -210,7 +210,7 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 // Object (packages hold Scene* and call out-of-line methods rather than
 // reading members inline), but deki-editor.dll constructs one by value in
 // AssetPipeline::CompileSceneFile, so the size must still agree across configs.
-// Measured at 120 in both after the destroy-callback moved to a side table.
+// Measured at 120 in both.
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
 static_assert(sizeof(Scene) == 120, "sizeof(Scene) changed. Verify the editor and a runtime config "
                                     "(-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree, and bump "
@@ -355,7 +355,8 @@ Scene* Scene::LoadInternal(const char* path)
 
     // The whole file is held for re-instantiation. Asked for without
     // throwing first: on a device a failed std::vector allocation aborts, so a
-    // scene too big for the free RAM reset the board instead of failing to load.
+    // scene too big for the free RAM would reset the board instead of failing
+    // to load.
     if (!FitsInMemory(static_cast<size_t>(fileSize)))
     {
         fs->CloseFile(handle);
@@ -626,9 +627,8 @@ void Scene::RemoveObject(Object* obj)
 
 Object* Scene::FindDekiObject(const std::string& name)
 {
-    // Whole tree, like the id overload. This only looked at the root list,
-    // and since every scene is migrated to a single "Root", it could find
-    // nothing but Root.
+    // Whole tree, like the id overload: every scene has a single "Root", so
+    // the root list alone holds nothing else.
     for (auto* obj : m_Objects)
     {
         Object* found = FindInSubtree(obj, [&name](Object* o) { return o->GetName() == name; });
@@ -757,8 +757,8 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
             return false;
         }
 
-        // Note: name and clearColor are no longer stored in Scene
-        // clearColor is now in CameraComponent
+        // Scene stores no name or clearColor; CameraComponent holds the clear
+        // color.
 
         if (json.contains("objects"))
         {
@@ -795,8 +795,7 @@ bool Scene::LoadData(const uint8_t* data, size_t size)
     }
     catch (const std::exception& e)
     {
-        // A malformed scene used to come back as a bare `false`: no reason, no
-        // byte offset, nothing in the console.
+        // A malformed scene is reported with its reason, not just as `false`.
         DEKI_LOG_ERROR("Scene::LoadData: failed to parse scene JSON (%zu bytes): %s", size, e.what());
         ClearScene();
         return false;
@@ -808,8 +807,8 @@ bool Scene::SaveToFile(const std::string& filePath)
     nlohmann::json json;
     json[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kSceneVersion;
 
-    // Note: name and clearColor are no longer stored in Scene
-    // clearColor is now in CameraComponent
+    // Scene stores no name or clearColor; CameraComponent holds the clear
+    // color.
 
     json["objects"] = nlohmann::json::array();
     for (const auto* obj : m_Objects)
@@ -844,8 +843,8 @@ std::string Scene::SaveToJsonString()
     nlohmann::json json;
     json[Deki::AuthoredFormat::kVersionKey] = Deki::AuthoredFormat::kSceneVersion;
 
-    // Note: name and clearColor are no longer stored in Scene
-    // clearColor is now in CameraComponent
+    // Scene stores no name or clearColor; CameraComponent holds the clear
+    // color.
 
     json["objects"] = nlohmann::json::array();
     for (const auto* obj : m_Objects)
@@ -925,8 +924,8 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
                           { "scaleX", obj->GetScaleX() },
                           { "scaleY", obj->GetScaleY() } };
 #ifdef DEKI_TRANSFORM_3D
-    // Written only when set, so a 2D project's file is byte for byte what it
-    // was, and a 2D device skips the keys it does not know.
+    // Written only when set, so a 2D project's file carries no depth keys,
+    // and a 2D device skips the keys it does not know.
     if (obj->GetZ() != 0.0f)
     {
         json["transform"]["z"] = obj->GetZ();
@@ -956,8 +955,8 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         if (!TryCollectOverrides(obj, obj, overrides))
         {
             // No source to diff against right now. Keep the overrides the
-            // instance was loaded with rather than writing none: saving used
-            // to drop every override of the instance, for good.
+            // instance was loaded with rather than writing none, which would
+            // lose them for good.
             overrides = nlohmann::json::parse(obj->GetInstanceOverridesJson(), nullptr, false);
             if (overrides.is_discarded() || !overrides.is_array())
             {
@@ -1003,14 +1002,12 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         if (meta)
         {
             compJson["type"] = meta->serializedName;
-            // "class" is no longer written. It was the 0.10-era hint for
-            // resolving a component whose type had moved, and since identity
-            // became the qualified class name it has held the same string as
-            // "type" with a namespace stripped off - a second name that can
-            // drift from the first and says nothing the first does not.
-            // Still READ, below, for the files that have it, and still written
-            // for a component whose package is missing, where it is the only
-            // record of what the type was called.
+            // "class" is not written. Identity is the qualified class name, so
+            // "class" would hold the same string as "type" minus the namespace:
+            // a second name that can drift from the first and says nothing the
+            // first does not. It is still READ, below, for files that have it,
+            // and still written for a component whose package is missing,
+            // where it is the only record of what the type was called.
             compJson["properties"] = nlohmann::json::object();
 
             // Serialize base class properties first (e.g., sortingOrder from RendererComponent)
@@ -1118,9 +1115,10 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             }
             // Write the enumerator's NAME. A bare number would mean whatever sat
             // at that position when the file was written, so appending to an
-            // enum, or reordering one, silently changed every saved scene. The
-            // name survives both. A value the enum does not declare has no name
-            // to write, so it falls back to the number rather than being lost.
+            // enum, or reordering one, would silently change every saved scene.
+            // The name survives both. A value the enum does not declare has no
+            // name to write, so it falls back to the number rather than being
+            // lost.
             if (const char* enumName = EnumNameForValue(prop, enumValue))
             {
                 propsJson[prop.name] = enumName;
@@ -1260,7 +1258,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
     }
 
     obj->SetActive(json.value("active", true));
-    // Note: sortingOrder is now loaded via RendererComponent properties
+    // sortingOrder loads with RendererComponent's properties.
 
 #ifdef DEKI_TRANSFORM_2D
     if (json.contains("transform"))
@@ -1453,12 +1451,10 @@ Object* Scene::DuplicateObject(const Object* source)
         RemoveObject(cloned);
         cloned->SetOwnerScene(this);
 
-        // The JSON round-trip copies ids too, so every duplicate - and each
-        // object under it - used to share its original's id: two objects
-        // answering to one id, and a saved scene full of them. Fresh ids for
-        // the whole copy, and its references to objects inside it moved to
-        // the copies, as spawning a prefab already does. References out of
-        // the copy keep pointing where the original's did.
+        // The JSON round-trip copies ids too, so the whole copy gets fresh
+        // ids, or two objects would answer to one id. Its references to
+        // objects inside it move to the copies, as spawning a prefab does.
+        // References out of the copy keep pointing where the original's did.
         std::unordered_map<uint32_t, uint32_t> idRemap;
         VisitSubtree(cloned,
                      [&idRemap](Object* obj)
@@ -1575,9 +1571,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             }
             break;
         case PropertyType::Color:
-            // "#RRGGBBAA" is what is written now; the packed number every file
-            // before this used still reads. A malformed string keeps the
-            // field's default rather than silently turning it black.
+            // "#RRGGBBAA" is what is written; the packed number older files
+            // hold still reads. A malformed string keeps the field's default
+            // rather than silently turning it black.
             if (value.is_string())
             {
                 Deki::Color parsed;
@@ -1603,11 +1599,9 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             break;
         case PropertyType::Enum:
         {
-            // Both forms are accepted: the NAME, which is what the editor writes
-            // now, and a bare number, which every file written before that used
-            // and which stays readable. An unknown name leaves the field at its
-            // default rather than guessing, since guessing is what made this
-            // worth changing.
+            // Both forms are accepted: the NAME, which is what the editor
+            // writes, and a bare number, which older files hold. An unknown
+            // name leaves the field at its default rather than guessing.
             bool haveValue = false;
             int32_t intVal = 0;
             if (value.is_string())
@@ -1952,8 +1946,7 @@ bool Scene::ExpandInstance(Object* instanceObj)
             // Remap object IDs to avoid duplicates across instances
             // Use deterministic IDs so external ObjectRefs pointing into this
             // instance remain valid across save/load (hot reload, play mode).
-            // usedIds was collected once before this loop (it used to be
-            // rebuilt from the whole scene for every cloned root).
+            // usedIds was collected once, before this loop.
             const uint32_t instanceRootId = instanceObj->GetId();
             VisitSubtree(cloned,
                          [&](Object* obj)

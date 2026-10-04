@@ -3,31 +3,25 @@
 #include <cstdint>
 #include <functional>
 
-/**
- * @brief Abstract interface for device power management (sleep / wake).
- *
- * Engine-core consumes this through the Power facade. Whichever platform
- * integration package is loaded at runtime registers its concrete driver via
- * Power::SetCurrent at init.
- *
- * Sleep modes are exposed as a platform-agnostic tier (Light / Deep) so the
- * same API serves ESP32, nRF52 etc. Each implementation maps the tiers
- * to native modes:
- *   ESP32:  Light -> esp_light_sleep, Deep -> esp_deep_sleep
- *   nRF52:  Light -> System ON idle,  Deep -> System OFF
- *
- * The engine main loop calls Tick() once per iteration. Tick() may either
- * block (real light sleep: function returns when wake fires) or set state to
- * Sleeping for soft / simulated sleep on platforms without HW support; the
- * loop checks GetState() after Tick() and skips Update / Render when sleeping.
- *
- * Boot is treated as an OnScreenOn event so app code that needs to run on
- * every wake can hook a single callback and have it cover the cold-boot path.
- */
-
 namespace Deki
 {
 
+/// Device power management (sleep and wake). The engine uses it through the
+/// Power facade; the platform package loaded at runtime registers its driver
+/// with Power::SetCurrent at init.
+///
+/// Sleep modes are two platform-neutral tiers, Light and Deep, which each
+/// implementation maps to native modes:
+///   ESP32:  Light -> esp_light_sleep, Deep -> esp_deep_sleep
+///   nRF52:  Light -> System ON idle,  Deep -> System OFF
+///
+/// The main loop calls Tick() once per iteration. Tick() either blocks (real
+/// light sleep, returning on wake) or, without hardware support, sets the
+/// state to Sleeping; the loop checks GetState() after Tick() and skips Update
+/// and Render while sleeping.
+///
+/// Boot counts as an OnScreenOn event, so one callback covers every wake
+/// including the cold boot.
 class IPower
 {
 public:
@@ -47,7 +41,7 @@ public:
     struct SleepInfo
     {
         SleepMode mode;
-        const char* platformModeName;  // diagnostic, e.g. "esp_light_sleep"
+        const char* platformModeName;  // for diagnostics, such as "esp_light_sleep"
     };
 
     virtual bool Initialize() = 0;
@@ -57,15 +51,15 @@ public:
     virtual SleepInfo GetCurrentSleepInfo() const = 0;
     virtual bool SupportsMode(SleepMode mode) const = 0;
 
-    // Reset the idle timer. Call from input handlers, BLE events, etc.
+    // Resets the idle timer. Call it from input handlers, BLE events and the like.
     virtual void NotifyActivity() = 0;
 
     // Sleep after this many seconds without activity. 0 disables idle sleep.
     virtual void SetIdleTimeoutSec(int32_t seconds) = 0;
-    // Mode the idle timer enters. Default: Light.
+    // The mode idle sleep enters. Default: Light.
     virtual void SetIdleSleepMode(SleepMode mode) = 0;
 
-    // Manually request sleep (skips idle timer).
+    // Sleeps now, without waiting for the idle timer.
     virtual void RequestSleep(SleepMode mode) = 0;
 
     // GPIO that wakes the device (touch / button). level: 0 wake on low, 1 wake on high.
@@ -75,7 +69,7 @@ public:
     virtual void RegisterOnScreenOn(SleepCallback cb) = 0;     // fired after wake
     virtual void RegisterOnBeforeSleep(SleepCallback cb) = 0;  // fired before sleep
 
-    // Called once per engine main loop iteration.
+    // Called once per main loop iteration.
     virtual void Tick() = 0;
 };
 

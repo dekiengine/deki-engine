@@ -5,20 +5,14 @@
 #include <memory>
 
 // An allocation names itself by where it was written. Define
-// DEKI_STRIP_ALLOC_CONTEXT to compile that away for a build that needs the
-// flash back: the file paths, function names and line numbers all disappear
-// and AllocContext becomes empty.
-//
-// Measured on the ESP32-S3 firmware, capture costs 5,664 bytes across roughly
-// 118 call sites - 0.37% of a 1.5 MB image, about 48 bytes a site. That is
-// cheap enough to be on by default and only worth stripping if you are
-// genuinely short.
+// DEKI_STRIP_ALLOC_CONTEXT to compile that away when flash is short: the file
+// paths, function names and line numbers disappear and AllocContext is empty.
+// On the ESP32-S3 firmware capture costs about 48 bytes per call site (5.6 KB,
+// 0.37% of a 1.5 MB image), so it is on by default.
 #if !defined(DEKI_STRIP_ALLOC_CONTEXT)
 #define DEKI_ALLOC_CONTEXT_CAPTURE 1
 #include <source_location>
 #endif
-
-// Forward declaration
 
 namespace Deki
 {
@@ -28,33 +22,25 @@ class IMemoryProvider;
 namespace Detail
 {
 // The raw allocation path, used by the global operator new on builds with
-// exceptions off (src/providers/OperatorNew.cpp). Deliberately not on Memory
-// itself: a component or a package reaching for these is a mistake - they
-// carry no region, so the engine cannot place what they hand back, and
-// they have no header, so they have no double-free guard. Use Deki::Buffer<T>
-// or Memory::Allocate.
+// exceptions off (src/providers/OperatorNew.cpp). Not on Memory, because
+// components and packages must not use it: it has no region, so the engine
+// cannot place the memory, and no header, so no double-free guard. Use
+// Deki::Buffer<T> or Memory::Allocate.
 void* RawAllocate(size_t size);
 void RawFree(void* ptr);
 }  // namespace Detail
 
-/**
- * @brief Who asked for an allocation. Filled in by the compiler.
- *
- * Nobody writes one. Every allocating call takes an AllocContext whose default
- * argument captures the call site, so an allocation is identified by where it
- * was written:
- *
- *     Deki::Memory::Allocate(n, Deki::Memory::Internal);
- *     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
- *
- * There is no name to pass and no way to pass one. A hand-written tag is a
- * second identity for the same allocation that has to be kept in step with
- * the first, and the compiler already knows the answer.
- *
- * Nothing is copied or allocated. Every member points at a string literal the
- * compiler emitted with static storage duration, which is what makes it safe
- * for the debug leak table to hold the pointer.
- */
+/// Who asked for an allocation, filled in by the compiler.
+///
+/// Nobody writes one. Every allocating call takes an AllocContext whose
+/// default argument captures the call site, so an allocation is identified by
+/// where it was written:
+///
+///     Deki::Memory::Allocate(n, Deki::Memory::Internal);
+///     // -> 'void ParticlePool::SetCapacity(size_t)' at ParticlePool.h:47
+///
+/// Nothing is copied or allocated: every member points at a string literal
+/// with static storage, so the debug leak table can keep the pointer.
 struct AllocContext
 {
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
@@ -62,12 +48,10 @@ struct AllocContext
     const char* function;  ///< enclosing function, with its signature on GCC
     uint32_t line;
 
-    // The default argument is the whole mechanism: it is evaluated at the
-    // CALL SITE, so the allocation records where it was written rather than
-    // anywhere in the engine it passes through. Every layer between - the
-    // Buffer<T> methods, Memory::Allocate - takes one of these and forwards
-    // it. A layer that took its own default instead would report itself, and
-    // every allocation in the engine would name a plausible, wrong file.
+    // The default argument is evaluated at the call site, so the allocation
+    // records where it was written. Every layer in between (the Buffer<T>
+    // methods, Memory::Allocate) must take one and pass it on; a layer that
+    // used its own default would report itself instead of the caller.
     AllocContext(std::source_location loc = std::source_location::current())
         : file(loc.file_name()),
           function(loc.function_name()),
@@ -79,9 +63,8 @@ struct AllocContext
     const char* Name() const { return function; }
     uint32_t Line() const { return line; }
 #else
-    // Stripped: an empty struct, so nothing is captured, nothing is passed and
-    // no string reaches the binary. The reporting calls still compile; they
-    // just have nothing to say.
+    // Stripped: an empty struct, so nothing is captured and no string reaches
+    // the binary. The reporting calls still compile and return placeholders.
     AllocContext() = default;
 
     const char* File() const { return "?"; }
@@ -90,14 +73,11 @@ struct AllocContext
 #endif
 };
 
-// The layout differs between debug and release builds, so the engine and the
-// packages that call into it have to agree - the same constraint MemoryStats
-// already imposes, and the same one the reflection ABI number exists to
-// police.
+// The layout differs between debug and release builds, so the engine and its
+// packages must be built the same way (as MemoryStats already requires).
 
-/// FNV-1a over a name, at compile time. The same function
-/// AssetLookupTable::HashString computes at runtime, so a region name hashes
-/// the way every other name in this engine does.
+/// FNV-1a over a name, at compile time: the same hash as
+/// AssetLookupTable::HashString, so region names hash like every other name.
 constexpr uint32_t HashName(const char* s)
 {
     uint32_t h = 2166136261u;
@@ -109,9 +89,6 @@ constexpr uint32_t HashName(const char* s)
     return h;
 }
 
-/**
- * @brief Memory statistics structure
- */
 struct MemoryStats
 {
     uint32_t totalAllocated;
@@ -123,37 +100,29 @@ struct MemoryStats
 #endif
 };
 
-/**
- * @brief Memory Provider for Deki Engine
- *
- * Centralized memory management over named regions. Internal is the heap every
- * target has; External is whatever second, larger, slower memory a target may
- * offer (PSRAM on a microcontroller, for one). The engine uses its own words
- * for them: what a region is called on a given target is that target's
- * provider's business.
- */
+/// The engine's memory, in named regions. Internal is the heap every target
+/// has; External is a second, larger, slower memory a target may offer (such
+/// as PSRAM on a microcontroller). What a region maps to on a target is up to
+/// that target's provider.
 class Memory
 {
-    // The raw path needs the backend, which is private and should stay that
-    // way. Friending the two functions is narrower than exposing a second
-    // allocation API on Memory that components would find and misuse.
+    // The raw path needs the private backend. Friending these two functions
+    // keeps a second allocation API off Memory, where components would use it.
     friend void* Detail::RawAllocate(size_t size);
     friend void Detail::RawFree(void* ptr);
 
 private:
-    // Platform-specific memory provider
     static std::unique_ptr<IMemoryProvider> s_CurrentBackend;
     static bool s_Initialized;
     static bool s_ExternalAvailable;
     static bool s_ExternalEnabled;
 
-    // Global tracking
     static uint32_t s_TotalAllocated;
     static uint32_t s_ExternalAllocated;
     static uint32_t s_InternalRamAllocated;
 
 #ifdef DEBUG
-    // Lightweight leak detection (debug only)
+    // Leak detection (debug only).
     struct AllocationRecord
     {
         void* ptr;
@@ -164,7 +133,7 @@ private:
     };
     static AllocationRecord* s_AllocationRecords;
     static uint32_t s_MaxAllocations;
-    // Free-slot stack + high-water mark: O(1) track/untrack (see .cpp).
+    // Free-slot stack and high-water mark, so tracking is O(1) (see .cpp).
     static uint32_t* s_FreeSlots;
     static uint32_t s_FreeSlotCount;
     static uint32_t s_NextFreshSlot;
@@ -175,36 +144,26 @@ private:
 #endif
 
 public:
-    /**
-     * @brief Where an allocation lives. The caller says; the engine never guesses.
-     *
-     * A region is a name, not an enumerator, so the set of them is open: a
-     * package defines one and the engine needs no change to carry it.
-     *
-     *     namespace DekiEsp32
-     *     {
-     *     inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
-     *     }
-     *
-     * A package keeps its regions in its OWN namespace rather than reopening
-     * Deki::Memory - which it could not do anyway, a class being closed, and
-     * which is the point: two board packages that both want an "Rtc" constant
-     * cannot collide, because the language keeps them apart. Where the constant
-     * lives is never load-bearing; a region's identity is its hashed name, so
-     * moving one between namespaces changes nothing at all.
-     *
-     * What a package cannot do is SERVE a region: only the board's
-     * IMemoryProvider can, and one that has not heard of "esp32.rtc" returns
-     * nullptr and says so by name. Extension is two-sided on purpose - a
-     * package names what it needs, a board decides whether it has it.
-     *
-     * The name is also the capability name, prefixed: a package that allocates
-     * from Region("esp32.rtc") declares platformRequires ["memory:esp32.rtc"],
-     * so the build refuses a target without it before anything runs.
-     *
-     * The pointer is kept, never copied: a Region is only ever built from a
-     * string literal, which has static storage duration.
-     */
+    /// Where an allocation lives. The caller says; the engine never guesses.
+    ///
+    /// A region is a name, not an enumerator, so packages can define new ones
+    /// without an engine change, in their own namespace:
+    ///
+    ///     namespace DekiEsp32
+    ///     {
+    ///     inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
+    ///     }
+    ///
+    /// A region's identity is its hashed name, so the namespace it is declared
+    /// in does not matter, and two packages' "Rtc" constants cannot collide.
+    ///
+    /// Only the board's IMemoryProvider can serve a region; one that does not
+    /// know "esp32.rtc" returns nullptr and names it. A package that allocates
+    /// from Region("esp32.rtc") declares platformRequires ["memory:esp32.rtc"],
+    /// so the build refuses a target without it before anything runs.
+    ///
+    /// The name pointer is kept, not copied: a Region is only built from a
+    /// string literal, which has static storage.
     struct Region
     {
         uint32_t id;       ///< HashName(name); what the provider dispatches on
@@ -220,10 +179,9 @@ public:
         constexpr bool operator!=(const Region& other) const { return id != other.id; }
 
     private:
-        /// Rebuilds a region from the id in an allocation header, where the
-        /// name was never stored. Private, and Memory is the only caller: a
-        /// public form would let anyone make a Region whose id and name
-        /// disagree, and the id is what every provider dispatches on.
+        /// Rebuilds a region from the id in an allocation header, which holds
+        /// no name. Private to Memory: a public form would let anyone make a
+        /// Region whose id and name disagree.
         constexpr Region(uint32_t storedId, const char* placeholderName)
             : id(storedId),
               name(placeholderName)
@@ -236,112 +194,69 @@ public:
     // The two regions are named values, used like enum values.
     // NOLINTBEGIN(readability-identifier-naming)
 
-    /// Internal RAM. Fast, and the scarce one - a few hundred KB on an ESP32-S3.
+    /// Internal RAM: fast and scarce, a few hundred KB on an ESP32-S3.
     static const Region Internal;
 
-    /// External RAM (PSRAM) where the board has it. Megabytes, and markedly
-    /// slower: it is reached over SPI, so a buffer read every frame does not
-    /// belong here. Asking for it is a claim that this buffer's latency does
-    /// not matter.
+    /// External RAM (PSRAM) where the board has it: megabytes, but much slower
+    /// because it is reached over SPI. Use it only for buffers whose latency
+    /// does not matter, not for one read every frame.
     static const Region External;
     // NOLINTEND(readability-identifier-naming)
 
-    /**
-     * @brief Initialize memory backend
-     * @return true if initialization successful
-     */
+    /// Returns false on failure.
     static bool Initialize();
 
-    /**
-     * @brief Shutdown memory backend
-     */
     static void Shutdown();
 
-    /**
-     * @brief Set the memory provider implementation directly
-     * @param backend Pointer to provider (takes ownership)
-     */
+    /// Installs the memory provider and takes ownership of it.
     static void SetBackend(IMemoryProvider* backend);
 
-    /**
-     * @brief Check if the memory backend is initialized
-     * @return true if initialized, false otherwise
-     */
     static bool IsInitialized();
 
-    /**
-     * @brief Allocate memory, the engine choosing where it lives
-     * @param size Size in bytes
-     * @param region Where it lives. Resolved once, with no fallback to any
-     *               other region; a region the board's provider does not serve
-     *               returns nullptr and is named in the log
-     * @param ctx Who is asking. Omit it - the compiler fills in the call site
-     * @return Pointer to allocated memory, or nullptr if failed
-     */
+    /// Allocates `size` bytes in `region`, or returns nullptr. There is no
+    /// fallback to another region; a region the board's provider does not
+    /// serve returns nullptr and is named in the log. Leave `ctx` out: the
+    /// compiler fills in the call site.
     static void* Allocate(size_t size, Memory::Region region, AllocContext ctx = {});
 
-    /**
-     * @brief Allocate memory a DMA engine can read, from `region`
-     *
-     * Reachability is a constraint, not a place: a framebuffer must be
-     * reachable whether the board keeps it in internal RAM or in PSRAM, and
-     * saying so with a separate entry point means neither choice can silently
-     * drop the requirement. On a platform where every allocation is equally
-     * reachable this is the same as Allocate, and the provider says so.
-     */
+    /// Allocates memory a DMA engine can read, in `region`. DMA reach is a
+    /// requirement on top of the region (a framebuffer may live in internal
+    /// RAM or PSRAM), and a separate entry point keeps it from being dropped.
+    /// Where all memory is DMA-reachable this is the same as Allocate.
     static void* AllocateDma(size_t size, Memory::Region region, AllocContext ctx = {});
 
-    /**
-     * @brief Deprecated: name the region instead of passing a flag for it
-     *
-     * true maps to Deki::Memory::External and false to Deki::Memory::Internal.
-     */
+    /// Deprecated: name the region instead. true means Deki::Memory::External,
+    /// false Deki::Memory::Internal.
     static void* Allocate(size_t size, bool preferExternal, AllocContext ctx = {})
     {
         return Allocate(size, preferExternal ? Deki::Memory::External : Deki::Memory::Internal, ctx);
     }
 
-    // kLargeAllocation is gone with the size heuristic it served. Nothing
-    // decides placement by size any more: a caller names Deki::Memory::External or
-    // gets internal RAM.
+    // Placement is never decided by size: a caller names
+    // Deki::Memory::External or gets internal RAM.
 
-    /**
-     * @brief Allocate memory from internal RAM only (never external/PSRAM)
-     * @param size Size in bytes to allocate
-     * @param ctx Who is asking. Omit it - the compiler fills in the call site
-     * @return Pointer to allocated memory, or nullptr if failed
-     */
+    /// Allocates `size` bytes in internal RAM only, never PSRAM, or returns
+    /// nullptr. Leave `ctx` out: the compiler fills in the call site.
     static void* AllocateInternal(size_t size, AllocContext ctx = {});
 
-    /**
-     * @brief Free memory allocated via AllocateInternal
-     * @param ptr Pointer to memory to free
-     */
+    /// Frees memory from AllocateInternal.
     static void FreeInternal(void* ptr);
 
     static void Free(void* ptr, AllocContext ctx = {});
 
-    /**
-     * @brief Allocate an array of `count` T, or return nullptr
-     *
-     * Use this instead of `new T[count]` for anything whose size comes from a
-     * file, a scene, or the screen.
-     *
-     * `new[]` cannot fail gracefully on a device: ESP-IDF builds with
-     * exceptions off, so the bad_alloc reaches __cxa_allocate_exception and
-     * calls abort(), rebooting the board. `std::nothrow` does not help either,
-     * because libstdc++ implements it by calling the throwing form inside a
-     * try/catch that -fno-exceptions has removed. A caller that checks the
-     * result can carry on without the thing it wanted, which is nearly always
-     * better than a reboot.
-     *
-     * The multiplication is checked too. A count read from a file is attacker-
-     * or corruption-controlled, and `count * sizeof(T)` is computed in a 32-bit
-     * size_t on the device, so a large count silently wraps to a small one.
-     *
-     * Trivially copyable only: this does not construct anything, matching the
-     * raw buffers it replaces.
-     */
+    /// Allocates `count` T, or returns nullptr. Use it instead of
+    /// `new T[count]` for anything sized by a file, a scene or the screen.
+    ///
+    /// `new[]` cannot fail gracefully on a device: ESP-IDF builds with
+    /// exceptions off, so a failed allocation calls abort() and reboots the
+    /// board, and `std::nothrow` does not help because libstdc++ implements
+    /// it with the throwing form. A caller that checks for nullptr can carry
+    /// on instead.
+    ///
+    /// The size multiplication is checked: a count from a corrupt file and a
+    /// 32-bit size_t would otherwise wrap to a small size.
+    ///
+    /// For trivially copyable T only: nothing is constructed.
     template <typename T>
     static T* AllocateArray(size_t count, Memory::Region region, AllocContext ctx = {})
     {
@@ -353,106 +268,62 @@ public:
         {
             return nullptr;  // would wrap; no allocation could satisfy it anyway
         }
-        // ctx is forwarded, not defaulted again, so it still names the
-        // caller of AllocateArray rather than this header.
+        // Pass ctx on, never a new default, so it names the caller of
+        // AllocateArray rather than this header.
         return static_cast<T*>(Allocate(count * sizeof(T), region, ctx));
     }
 
-    /**
-     * @brief Get current memory statistics
-     * @return Memory stats structure
-     */
     static MemoryStats GetStats();
 
-    /**
-     * @brief Free bytes in the External region
-     * @return 0 when the target has no such region
-     */
+    /// Free bytes in the External region, 0 when the target has none.
     static size_t GetAvailableExternal();
 
-    /**
-     * @brief Get available internal RAM
-     * @return Free internal RAM in bytes, or 0 where the platform does not
-     *         report it (the desktop provider does not - the number is
-     *         meaningless where the OS pages)
-     *
-     * The companion to GetAvailableExternal, which existed alone: the free
-     * internal figure is the one a project is actually sized against, and it
-     * was reachable only through a provider a caller does not have.
-     */
+    /// Free internal RAM in bytes, the figure a project is sized against. 0
+    /// where the platform does not report it (the desktop provider, since the
+    /// OS pages).
     static size_t GetAvailableInternal();
 
-    /**
-     * @brief Bytes currently held by the raw (operator new) path
-     * @return Live bytes in std::vector, std::string and scalar `new`
-     *         allocations, or 0 when the build does not count them
-     *
-     * **Requires DEKI_MEMORY_TRACK_RAW**, and returns 0 without it. Counting
-     * needs the block size on free, and with no header the only source is the
-     * heap: measured at +35% per allocation (63-71 ns against 47-52 for
-     * malloc+free), because on Windows that is _msize calling HeapSize and
-     * taking a lock. Routing itself is free, so every build routes and only a
-     * build that asks counts. Turn it on while hunting where memory went.
-     *
-     * Approximate even then: allocations made before the memory backend
-     * exists (static initialisers) are freed through it afterwards, so the
-     * total is clamped at zero rather than allowed to underflow into a
-     * nonsense figure. It is a diagnostic, not an invariant.
-     */
+    /// Live bytes on the raw (operator new) path: std::vector, std::string and
+    /// scalar `new`. Requires DEKI_MEMORY_TRACK_RAW and returns 0 without it.
+    /// Counting needs the block size on free, which only the heap knows, and
+    /// asking costs about 35% per allocation (on Windows, _msize takes a
+    /// lock), so only a build that asks counts. Turn it on while hunting where
+    /// memory went.
+    ///
+    /// Approximate even then: allocations from static initialisers, before
+    /// the backend exists, are freed through it later, so the total is clamped
+    /// at zero. A diagnostic, not an invariant.
     static size_t GetRawAllocated();
 
-    /**
-     * @brief Log what is allocated and what is left, in one line
-     * @param label Optional tag for the line ("after level load")
-     *
-     * For answering "how much memory am I using?" from game code without
-     * assembling it from GetStats and a provider. Costs nothing unless
-     * called; in debug builds it also reports the live and peak allocation
-     * counts.
-     */
+    /// Logs what is allocated and what is left, in one line, with an optional
+    /// `label` (such as "after level load"). Debug builds add the live and
+    /// peak allocation counts.
     static void LogStats(const char* label = nullptr);
 
-    /**
-     * @brief Whether the target's provider serves the External region
-     */
+    /// True when the target's provider serves the External region.
     static bool IsExternalAvailable();
 
 private:
-    // Both public entry points land here; needsDma is what separates them.
+    // Both public entry points land here; needsDma tells them apart.
     static void* AllocateIn(size_t size, Memory::Region region, bool needsDma, AllocContext ctx);
 
-    /**
-     * @brief Update internal tracking counters
-     * @param size Size of allocation (positive) or deallocation (negative)
-     * @param isExternal Whether the allocation was placed in the External region
-     * @param ptr Pointer for leak tracking (debug only)
-     * @param context Context string for leak tracking (debug only)
-     */
+    /// Adds `size` (negative on free) to the counters. `ptr`, `context` and
+    /// `line` feed leak tracking in debug builds.
     static uint32_t UpdateTracking(int32_t size, bool isExternal, void* ptr = nullptr, const char* context = nullptr,
                                    uint32_t line = 0);
 
 #ifdef DEBUG
-    /**
-     * @brief Track allocation for leak detection (debug only)
-     */
     static uint32_t TrackAllocation(void* ptr, size_t size, const char* context, uint32_t line, bool isExternal);
 
-    /**
-     * @brief Untrack allocation for leak detection (debug only)
-     */
     static void UntrackAllocation(void* ptr, uint32_t slot);
 
-    /**
-     * @brief Check for memory leaks (debug only)
-     */
+    /// Reports allocations still live.
     static void CheckForLeaks();
 #endif
 };
 
-// Memory is not a complete type until its closing brace above, so these are
-// defined here rather than inside it - the same reason a member function can be
-// defined out of line. inline gives them one definition across every
-// translation unit; constexpr belongs on the definition of a variable, not on
+// Defined after the class, where Memory is a complete type. inline gives one
+// definition across translation units; constexpr goes on the definition, not
 // the declaration ([dcl.constexpr]).
 // NOLINTBEGIN(readability-identifier-naming)
 inline constexpr Memory::Region Memory::Internal{ "internal" };

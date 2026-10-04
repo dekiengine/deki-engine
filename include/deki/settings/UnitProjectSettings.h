@@ -5,18 +5,15 @@
 #include <deki/ICamera.h>  // UnitMode
 #include <deki/reflection/Property.h>
 
-/**
- * @brief Project-wide unit settings (inspector display preference, world scale).
- *
- * Registered with SettingsRegistry under the "Units" section. Internal
- * storage is always meters; this struct only configures inspector display
- * conversion and seeds default camera zoom.
- *
- * Hot paths (inspector, scene view, cameras) read these values from a
- * per-frame cache, EngineSettings::Global(). Call ApplyToGlobalCache()
- * after Project::Load and after any Project Settings edit so the cache picks
- * up the new values without a project reopen.
- */
+// Project-wide unit settings, in the "Units" section: the inspector's display
+// units and the world scale.
+//
+// Values are always stored in meters; these settings set the inspector's
+// display conversion and the default camera zoom.
+//
+// Hot paths (inspector, scene view, cameras) read them from a cache,
+// EngineSettings::Global(). Call ApplyToGlobalCache() after Project::Load and
+// after any Project Settings edit to update it.
 
 namespace Deki
 {

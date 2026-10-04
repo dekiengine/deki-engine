@@ -2,13 +2,11 @@
 
 #include <stdint.h>
 
-/**
- * @brief A pixel rectangle, half-open: [left, right) x [top, bottom).
- *
- * Shared vocabulary between the render system (which pixels a frame changed,
- * IRenderSystem::GetPresentRects) and displays (which pixels to push,
- * IDisplay::PresentRegions).
- */
+// A pixel rectangle, half-open: [left, right) x [top, bottom).
+//
+// The render system uses it for the pixels a frame changed
+// (IRenderSystem::GetPresentRects), and displays for the pixels to push
+// (IDisplay::PresentRegions).
 
 namespace Deki
 {

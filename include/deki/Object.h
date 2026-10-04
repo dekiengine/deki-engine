@@ -10,20 +10,15 @@
 #include <deki/ComponentInterfaceAdapters.h>
 #include <deki/Math.h>
 
-/**
- * @brief Entity class - a container for components
- */
-// The transform width is chosen by the build. DEKI_TRANSFORM_2D gives every
-// object x, y, rotation and scale; DEKI_TRANSFORM_3D adds the third axis and
-// implies 2D; neither means the object carries no transform at all, which is
-// what a project with nothing to draw gets. The generated build sets them from
-// what the project's packages declare (deki-editor/COMPATIBILITY.md), and the
-// reflection ABI handshake refuses a package DLL built at a different width.
+// The build chooses the transform width. DEKI_TRANSFORM_2D gives every object
+// x, y, rotation and scale; DEKI_TRANSFORM_3D adds the third axis and
+// requires 2D; with neither, objects carry no transform, which suits a project
+// with nothing to draw. The generated build sets them from what the project's
+// packages declare (deki-editor/COMPATIBILITY.md), and the reflection ABI
+// handshake refuses a package DLL built at a different width.
 #if defined(DEKI_TRANSFORM_3D) && !defined(DEKI_TRANSFORM_2D)
 #error "DEKI_TRANSFORM_3D requires DEKI_TRANSFORM_2D"
 #endif
-
-/// A Object's world-space transform, read in one go (see Object::GetWorldTransform).
 
 namespace Deki
 {
@@ -32,7 +27,7 @@ class Object;
 
 // Engine-internal entry points (src/ObjectInternal.h): the scene loaders and
 // the editor create components from a file's type name or a pre-built
-// instance. A script adds a component with AddComponent<T>() and nothing else.
+// instance. Scripts add components only with AddComponent<T>().
 
 namespace Internal
 {
@@ -46,6 +41,7 @@ void ForgetComponentData(const Component* component);
 }  // namespace Internal
 
 #ifdef DEKI_TRANSFORM_2D
+/// An Object's world-space transform, read in one go (see Object::GetWorldTransform).
 struct WorldTransform
 {
     float x;
@@ -54,8 +50,8 @@ struct WorldTransform
     float scaleX;
     float scaleY;
 #ifdef DEKI_TRANSFORM_3D
-    // Appended, so a reader of the five above sees the same offsets at
-    // either width. rotation above is the Z angle; these are X and Y.
+    // Appended, so the five fields above keep their offsets at either width.
+    // rotation above is the Z angle; these are X and Y.
     float z;
     float rotationX;
     float rotationY;
@@ -68,8 +64,8 @@ class Object
 {
 private:
 #ifdef DEKI_TRANSFORM_2D
-    // World transform cache (computed on demand via dirty flag pattern).
-    // Mutable because they're lazily computed in const getters.
+    // World transform cache, recomputed on demand when dirty. Mutable because
+    // the const getters fill it.
     mutable float m_WorldX = 0.0f, m_WorldY = 0.0f;
     mutable float m_WorldRotation = 0.0f;
     mutable float m_WorldScaleX = 1.0f, m_WorldScaleY = 1.0f;
@@ -80,7 +76,7 @@ private:
     mutable float m_WorldScaleZ = 1.0f;
 #endif
 
-    /// Ensure world transform is valid (recomputes from parent chain if dirty).
+    /// Recomputes the world transform from the parent chain when dirty.
     /// Inline on purpose: the clean case is a flag load in the caller instead
     /// of a call into the engine DLL, and a renderer reads these several times
     /// per object per frame.
@@ -93,8 +89,8 @@ private:
     }
     void RecomputeWorldTransform() const;
 
-    // Local transform (relative to parent) - use setters to modify.
-    // rotation is in radians; the inspector displays degrees.
+    // Local transform, relative to the parent. Change it through the setters.
+    // rotation is in radians; the inspector shows degrees.
     float m_X = 0.0f, m_Y = 0.0f;
     float m_Rotation = 0.0f;
     float m_ScaleX = 1.0f, m_ScaleY = 1.0f;
@@ -111,28 +107,26 @@ private:
     std::string m_Name;
     std::vector<Component*> m_Components;
     bool m_Active = true;
-    bool m_EditorOnly = false;  // Editor-only objects are not serialized
-    bool m_Persistent = false;  // Persist across scene changes
+    bool m_EditorOnly = false;  // not serialized
+    bool m_Persistent = false;  // survives scene changes
 
-    // Editor-only instance PREDICATES, present in every build so that the class
-    // layout does not depend on DEKI_EDITOR. Package DLLs read `parent` and
-    // `children` below through inline GetParent()/GetChildren()/GetComponent<T>();
-    // when three editor-only members sat here instead, those offsets moved ~72
-    // bytes between configurations and the accessors returned garbage with no
-    // diagnostic. This byte lands in padding that existed anyway (see the
-    // static_asserts in Object.cpp), so it costs the embedded build nothing.
+    // Editor-only scene-instance flags, present in every build so the class
+    // layout does not depend on DEKI_EDITOR. This must hold: package DLLs read
+    // m_Parent and m_Children below through inline GetParent()/GetChildren()/
+    // GetComponent<T>(), and an editor-only member here would shift their
+    // offsets between configurations and make those accessors return garbage.
+    // The byte sits in existing padding (see the static_asserts in Object.cpp),
+    // so the embedded build pays nothing.
     //
-    // The instance PAYLOAD - the source-scene GUID and the overrides JSON - is
-    // cold (touched only on expand/collapse, override collect/apply and
-    // serialization) and lives in a side table in Object.cpp, so the runtime
-    // build carries none of it, not even a pointer.
+    // The instance data itself (source-scene GUID, overrides JSON) is rarely
+    // touched and lives in a side table in Object.cpp, so the runtime build
+    // carries none of it, not even a pointer.
     static constexpr uint8_t kEditorFlagSceneInstance = 1u << 0;
     static constexpr uint8_t kEditorFlagPartOfInstance = 1u << 1;
     uint8_t m_EditorFlags = 0;
 
     Scene* m_OwnerScene = nullptr;
 
-    // Hierarchy support
     Object* m_Parent = nullptr;
     std::vector<Object*> m_Children;
 
@@ -140,17 +134,15 @@ public:
     Object();
     Object(const std::string& objectName);
 
-    /// Non-copyable: a Object owns its children and components by raw
-    /// pointer, so a copy would double-free them. Made explicit here because the
-    /// editor-only instance payload lives in a side table keyed by `this`, which
-    /// a copy would silently share.
+    /// Not copyable: an Object owns its children and components by raw
+    /// pointer, so a copy would double-free them, and the editor-only side
+    /// table is keyed by `this`, which a copy would share.
     Object(const Object&) = delete;
     Object& operator=(const Object&) = delete;
 
-    /// Out of line ON PURPOSE. It erases this object's row from the editor-only
-    /// side table in Object.cpp, which the runtime build must not need to
-    /// see. Defining it `= default` in this header would reintroduce exactly the
-    /// layout dependency this design removes.
+    /// Must stay out of line: it erases this object's row from the editor-only
+    /// side table in Object.cpp. Defining it `= default` here would make the
+    /// class layout depend on DEKI_EDITOR again.
     ~Object();
 
     uint32_t GetId() const { return m_Id; }
@@ -171,23 +163,23 @@ public:
     }
     const std::string& GetName() const { return m_Name; }
     void SetName(const std::string& newName) { m_Name = newName; }
-    bool IsActive() const { return m_Active; }          // Getter for active
-    void SetActive(bool value) { m_Active = value; }    // Setter for active
-    bool IsEditorOnly() const { return m_EditorOnly; }  // Editor-only objects are not serialized
+    bool IsActive() const { return m_Active; }
+    void SetActive(bool value) { m_Active = value; }
+    bool IsEditorOnly() const { return m_EditorOnly; }  // not serialized
     void SetEditorOnly(bool value) { m_EditorOnly = value; }
-    bool IsPersistent() const { return m_Persistent; }  // Persist across scene changes
+    bool IsPersistent() const { return m_Persistent; }  // survives scene changes
     void SetPersistent(bool value) { m_Persistent = value; }
     void SetOwnerScene(Scene* scene) { m_OwnerScene = scene; }
     Scene* GetOwnerScene() const { return m_OwnerScene; }
 
 #ifdef DEKI_EDITOR
-    // Scene instance support. Declared editor-only, which is layout-neutral:
-    // Object has no virtual functions (asserted in Object.cpp), so
-    // conditionally declared non-virtual members change nothing about the object.
+    // Scene instance support. Editor-only declarations leave the layout alone:
+    // Object has no virtual functions (asserted in Object.cpp), so non-virtual
+    // member functions change nothing about the object.
     //
-    // The predicates stay inline - IsSceneInstance() is called per-object
-    // per-frame from HierarchyPanel - and read the flag byte directly. The
-    // string accessors are out of line because their storage is the side table.
+    // The flag reads stay inline because HierarchyPanel calls IsSceneInstance()
+    // per object per frame. The string accessors are out of line because their
+    // storage is the side table.
     bool IsSceneInstance() const { return (m_EditorFlags & kEditorFlagSceneInstance) != 0; }
     bool IsPartOfInstance() const { return (m_EditorFlags & kEditorFlagPartOfInstance) != 0; }
     void SetPartOfInstance(bool value)
@@ -209,7 +201,6 @@ public:
     void SetInstanceOverridesJson(const std::string& json);
 #endif
 
-    // Hierarchy management
     void AddChild(Object* child);
     void RemoveChild(Object* child);
     void SetParent(Object* newParent);
@@ -222,25 +213,24 @@ public:
     void InsertChildAt(Object* child, size_t index);
     int GetChildIndex(Object* child) const;
 
-    // Transform hierarchy helpers
+    /// True when this object and all its ancestors are active.
     bool IsActiveInHierarchy() const;
 
 #ifdef DEKI_TRANSFORM_2D
     void SetLocalPosition(float newX, float newY);
     void SetWorldPosition(float worldX, float worldY);
 
-    // Pixel-input convenience: takes screen-pixel-space inputs, divides by
-    // EngineSettings::Global().pixelsPerMeter and stores as meters.
+    // Takes pixels, divides by EngineSettings::Global().pixelsPerMeter and
+    // stores meters.
     void SetWorldPositionPx(float pxX, float pxY);
     void SetScale(float scaleX, float scaleY);
 
-    /// Rotation setter. Angle is in radians (the inspector displays
-    /// degrees via DEKI_UNIT(Angle)).
+    /// Sets the local rotation in radians (the inspector shows degrees).
     void SetRotation(float radians);
 
-    // World transform getters (lazy evaluation - recomputes if dirty)
+    // World transform getters; each recomputes the cache first when dirty.
 
-    /// All five world-transform values with one dirty check.
+    /// All world-transform values with one dirty check.
     WorldTransform GetWorldTransform() const
     {
         EnsureWorldTransformValid();
@@ -277,25 +267,25 @@ public:
         return m_WorldScaleY;
     }
 
-    /// Mark this object's world transform (and all descendants) as needing recalculation
+    /// Marks the world transform of this object and all its descendants for
+    /// recomputation.
     void MarkWorldTransformDirty();
 
-    // Local transform getters
     float GetX() const { return m_X; }
     float GetY() const { return m_Y; }
     float GetLocalRotation() const { return m_Rotation; }
     float GetScaleX() const { return m_ScaleX; }
     float GetScaleY() const { return m_ScaleY; }
 
-    // Single-axis transform setters (auto-update world transform)
+    // Single-axis setters; they mark the world transform dirty.
     void SetX(float newX);
     void SetY(float newY);
     void SetScaleX(float newScaleX);
     void SetScaleY(float newScaleY);
 
 #ifdef DEKI_TRANSFORM_3D
-    // The third axis. Absent at the 2D width, so code that uses these is
-    // code that declared transform_3d.
+    // The third axis. Absent at the 2D width, so only code that declared
+    // transform_3d can use these.
     float GetZ() const { return m_Z; }
     float GetRotationX() const { return m_RotationX; }
     float GetRotationY() const { return m_RotationY; }
@@ -327,7 +317,7 @@ public:
 #endif
 #else
     // No transform in this build. The hierarchy still calls this when a parent
-    // changes, so it stays declared and costs nothing.
+    // changes, so it stays declared as a no-op.
     void MarkWorldTransformDirty() {}
 #endif  // DEKI_TRANSFORM_2D
 
@@ -347,7 +337,7 @@ public:
     }
 
 private:
-    // Not part of the script API: reached through Deki::Memory::Internal (see the top
+    // Not part of the script API: reached through Deki::Internal (see the top
     // of this file). A script that needs a component names its type.
     friend void Internal::AttachComponent(Object& object, Component* component);
     void AddComponent(Component* component)
@@ -364,11 +354,9 @@ private:
 #endif
 
 public:
-    /**
-     * @brief Get component by type, including derived types
-     * Matches both exact type and components that inherit from T.
-     * E.g., GetComponent<SetupComponent>() returns SDCardComponent if it inherits from SetupComponent.
-     */
+    /// The first component of type T or of a class directly derived from T.
+    /// For example, GetComponent<SetupComponent>() returns an SDCardComponent
+    /// that derives from SetupComponent.
     template <typename T>
     T* GetComponent()
     {
@@ -395,9 +383,7 @@ public:
         return nullptr;
     }
 
-    /**
-     * @brief Get component by runtime type ID (exact match only)
-     */
+    /// The first component whose type id is exactly `typeId`.
     Component* GetComponentByTypeId(uint32_t typeId)
     {
         for (auto* comp : m_Components)
@@ -422,10 +408,7 @@ public:
         return nullptr;
     }
 
-    /**
-     * @brief Get all components of a specific type, including derived types
-     * Matches both exact type and components that inherit from T.
-     */
+    /// Every component of type T or of a class directly derived from T.
     template <typename T>
     std::vector<T*> GetComponents()
     {
@@ -440,9 +423,7 @@ public:
         return result;
     }
 
-    /**
-     * @brief Check if object has component of type T, including derived types
-     */
+    /// True when a component of type T or a class directly derived from T is attached.
     template <typename T>
     bool HasComponent() const
     {
@@ -470,10 +451,7 @@ public:
         }
     }
 
-    /**
-     * @brief Remove a specific component by pointer
-     * @param comp The component to remove
-     */
+    /// Removes and deletes `comp`.
     void RemoveComponent(Component* comp)
     {
         for (auto it = m_Components.begin(); it != m_Components.end(); ++it)
@@ -487,17 +465,11 @@ public:
         }
     }
 
-    /**
-     * @brief Get all components on this object
-     * @return Reference to the vector of components
-     */
     const std::vector<Component*>& GetComponents() const { return m_Components; }
 
-    /**
-     * @brief Find a component implementing a given interface
-     * No RTTI needed - uses ComponentInterfaceAdapters registry.
-     * T must have a static constexpr uint32_t kInterfaceID member.
-     */
+    /// The first component that implements interface T, found through the
+    /// ComponentInterfaceAdapters registry (no RTTI). T must have a
+    /// `static constexpr uint32_t kInterfaceID` member.
     template <typename T>
     T* FindInterface()
     {
@@ -516,10 +488,9 @@ public:
 // ============================================================================
 // Subtree walks
 // ============================================================================
-// Plain templates, so the visitor is a normal lambda that inlines: the engine
-// used to build a std::function recursive lambda for each of these walks (a
-// heap allocation plus an indirect call per node) in paths that run on every
-// object add, every scene load and, for the camera search, every frame.
+// Plain templates, so the visitor is an ordinary lambda that inlines. Keep
+// std::function out of these: they run on every object add, every scene load
+// and, for the camera search, every frame.
 
 /// Pre-order visit of `root` and every descendant. `fn(Object*)`.
 template <typename Fn>

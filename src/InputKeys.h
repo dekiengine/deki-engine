@@ -1,9 +1,6 @@
 #pragma once
 
-/**
- * @brief Generic input key constants
- * These constants provide a framework-independent way to reference common keys
- */
+// Key codes for common keys, the same whatever the platform's input library.
 
 namespace Deki
 {

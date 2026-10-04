@@ -1,10 +1,5 @@
-/**
- * @file AssetManager.cpp
- * @brief Unified asset manager implementation
- *
- * Type-erased: packages register their own loaders via REGISTER_ASSET_TYPE.
- * The core only knows about Scene (a core type).
- */
+// The asset manager. It knows no asset types itself: packages register their
+// loaders with REGISTER_ASSET_TYPE. The core registers only Scene.
 
 #include <deki/assets/AssetManager.h>
 #include <deki/providers/FileSystem.h>
@@ -505,7 +500,7 @@ void* AssetManager::LoadByGuidAndType(const std::string& guid, const char* asset
             // Byte cache miss: read file bytes, pin in RAM, create from bytes.
             // Through the filesystem provider, like every other engine read:
             // a raw fopen cannot resolve a mounted prefix such as "S:/" on a
-            // device, so the byte cache silently never worked there.
+            // device.
             Buffer<uint8_t> bytes;
             if (ReadWholeFile(path, bytes, Memory::External) && bytes.Count() > 0)
             {

@@ -18,7 +18,7 @@ static constexpr size_t kCacheLineSize = 64;
 // can hand it back to the right one without the caller remembering.
 //
 // Still 16 bytes, because the region id is paid for out of two fields that
-// were barely using theirs: headerSize is only ever 16 or a cache line, and
+// barely use theirs: headerSize is only ever 16 or a cache line, and
 // trackSlot indexes at most a thousand debug records. Both fit in one word
 // between them, which frees a whole word for the id. Every allocation on the
 // device carries this header, so a 17th byte would be real memory.
@@ -142,7 +142,7 @@ bool Memory::Initialize()
     // arrives with nothing to compare against. ESP-IDF prints its heap
     // regions, but not which of them Deki will treat as external.
     // A host heap (editor, desktop simulator) reports 0 for "not measured",
-    // which printed as "0 bytes free".
+    // which must not be printed as "0 bytes free".
     const size_t freeInternal = s_CurrentBackend->GetAvailable(Deki::Memory::Internal);
     if (freeInternal == 0)
     {
@@ -181,8 +181,8 @@ size_t Memory::GetAvailableInternal()
 // free comes from the heap instead (IMemoryProvider::GetRawBlockSize).
 //
 // What is given up with the header is the magic value, so a double free here
-// is as undiagnosable as it was when this path was plain malloc. Anything the
-// engine can describe goes through Allocate, which keeps its guard.
+// cannot be diagnosed, as with plain malloc. Anything the engine can describe
+// goes through Allocate, which keeps its guard.
 //
 // BYTE ACCOUNTING IS OPT-IN, AND BOTH HALVES WERE MEASURED
 //
@@ -204,9 +204,8 @@ size_t Memory::GetAvailableInternal()
 // Turn DEKI_MEMORY_TRACK_RAW on while hunting where memory went, and accept a
 // third more time per allocation while you look.
 //
-// (An earlier run of this benchmark said the routing cost 2x. It was linking
-// the engine's Debug objects, which are -O0, against an -O2 caller. Measure
-// the configuration you ship.)
+// (Measure the configuration you ship: linking the engine's -O0 Debug objects
+// against an -O2 caller makes the routing look twice as slow.)
 static size_t s_RawAllocated = 0;
 
 namespace Detail
@@ -262,9 +261,9 @@ size_t Memory::GetRawAllocated()
 
 void Memory::LogStats(const char* label)
 {
-    // One call, because the question "how much memory am I using?" needed
-    // GetStats for the allocated side and a provider the caller does not have
-    // for the free side. Answering it should not be a research task.
+    // One call answers "how much memory am I using?": the allocated side
+    // comes from GetStats and the free side from a provider the caller does
+    // not have.
     const MemoryStats s = GetStats();
     const size_t freeInternal = GetAvailableInternal();
     const size_t freeExternal = GetAvailableExternal();
@@ -329,12 +328,11 @@ void Memory::Shutdown()
         s_CurrentBackend.reset();
     }
 
-    // And forget that the board had external RAM. These outlived the backend
-    // that reported them, so after a shutdown the engine still believed PSRAM
-    // was there: a later Deki::Memory::External took the external path, found no
-    // provider, and failed with "Failed to allocate N bytes in external RAM"
-    // on a machine with gigabytes free. Harmless while shutdown only ever ran
-    // at exit; not harmless once anything restarts the memory system.
+    // And forget that the board had external RAM. Otherwise this outlives the
+    // backend that reported it, and once anything restarts the memory system a
+    // Deki::Memory::External takes the external path, finds no provider, and
+    // fails with "Failed to allocate N bytes in external RAM" on a machine
+    // with gigabytes free.
     s_ExternalAvailable = false;
     s_ExternalEnabled = false;
 
@@ -447,9 +445,9 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
         return nullptr;
     }
     // A size read from a corrupt file can be anything. Near SIZE_MAX the
-    // header and rounding below wrapped to a small total on a 32-bit board,
-    // and the caller then wrote its full size into that. The header also
-    // records the size in 32 bits.
+    // header and rounding below would wrap to a small total on a 32-bit board,
+    // and the caller would then write its full size into that. The header
+    // also records the size in 32 bits.
     if (size > UINT32_MAX || size > SIZE_MAX - 2 * kCacheLineSize)
     {
         DEKI_LOG_ERROR("Refused to allocate %zu bytes: larger than any allocation can be (a corrupt size?)", size);
@@ -620,8 +618,8 @@ void Memory::FreeInternal(void* ptr)
         return;
     }
     // Symmetric with AllocateInternal: the backend that handed the block out
-    // frees it (heap_caps_free on the ESP32); plain free() was only correct
-    // by luck of the backend's implementation.
+    // frees it (heap_caps_free on the ESP32); plain free() would be correct
+    // only by luck of the backend's implementation.
     if (s_CurrentBackend)
     {
         s_CurrentBackend->Free(Deki::Memory::Internal, ptr);
@@ -654,11 +652,10 @@ void Memory::Free(void* ptr, AllocContext ctx)
     UntrackAllocation(ptr, header->TrackSlot());
 #endif
 
-    // The block says which region it came from, so this no longer has to ask
-    // the provider to recognise its own pointer - and an internal block goes
-    // back through the provider that allocated it rather than through plain
-    // free(), which was only correct because heap_caps and free happen to share
-    // a heap on ESP-IDF.
+    // The block says which region it came from, so the provider need not
+    // recognise its own pointer, and an internal block goes back through the
+    // provider that allocated it rather than plain free() (which works only
+    // because heap_caps and free happen to share a heap on ESP-IDF).
     //
     // The name is not stored (it would cost a pointer per allocation); a
     // provider dispatches on the id, and only a failure would want the name.
@@ -740,8 +737,8 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context, ui
     }
 
     // Free slots are kept on a stack, so tracking is O(1) instead of a scan of
-    // every record on every allocation (and every free, which searched by
-    // pointer). The caller stores the slot in the allocation header.
+    // every record on every allocation and free. The caller stores the slot in
+    // the allocation header.
     uint32_t slot;
     if (s_FreeSlotCount > 0)
     {

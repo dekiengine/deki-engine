@@ -108,7 +108,6 @@ void EditorDisplay::Shutdown()
         return;
     }
 
-    // Delete texture
     if (m_GlTextureId != 0)
     {
         GLuint texId = m_GlTextureId;
@@ -116,7 +115,6 @@ void EditorDisplay::Shutdown()
         m_GlTextureId = 0;
     }
 
-    // Delete buffer
     delete[] m_RgbaBuffer;
     m_RgbaBuffer = nullptr;
 
@@ -136,9 +134,9 @@ void EditorDisplay::Present(const uint8_t* framebuffer, int width, int height, C
 
     uint8_t* dst = m_RgbaBuffer;
 
-    // RGB565 is handed to GL as-is (GL_UNSIGNED_SHORT_5_6_5): the per-pixel
-    // conversion that ran here every frame at the game's resolution is gone.
-    if (format == ColorFormat::RGB565)  // RGB565
+    // RGB565 is handed to GL as-is (GL_UNSIGNED_SHORT_5_6_5), with no
+    // per-pixel conversion.
+    if (format == ColorFormat::RGB565)
     {
         glBindTexture(GL_TEXTURE_2D, m_GlTextureId);
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);

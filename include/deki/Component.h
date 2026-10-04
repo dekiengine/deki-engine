@@ -8,7 +8,6 @@
 namespace Deki
 {
 
-// Forward declarations
 class Object;
 class Component;
 class Scene;
@@ -19,17 +18,15 @@ namespace SceneFormat
 class SceneMsgPackParser;
 }
 
-/**
- * @brief Everything the engine knows about one component class.
- *
- * One of these exists per reflected class, emitted by the reflection codegen
- * into the owning package's generated sources and registered with
- * ComponentFactory at startup. A component instance points at its class's
- * entry (Component::GetTypeInfo), which is how GetType(), Deserialize() and
- * the reference fixups work without the class declaring anything itself.
- *
- * All strings are literals with static storage.
- */
+/// Everything the engine knows about one component class.
+///
+/// The reflection codegen emits one per class into the owning package's
+/// generated sources, and it is registered with ComponentFactory at startup.
+/// Each instance points at its class's entry (Component::GetTypeInfo), which
+/// is how GetType(), Deserialize() and the reference fixups work without the
+/// class declaring anything itself.
+///
+/// All strings are literals with static storage.
 struct ComponentTypeInfo
 {
     const char* name;          // fully qualified C++ name: the on-disk key; HashString(name) == typeId
@@ -50,27 +47,25 @@ struct ComponentTypeInfo
     const ComponentMeta* meta;  // editor-only rich metadata; nullptr on device builds
 };
 
-/**
- * @brief The base class of every component.
- *
- * A component is any class deriving publicly from Component. Nothing else is
- * declared: the reflection codegen finds the class by its base, its identity
- * is its qualified name (see TypeId.h) and the per-class operations below run
- * through the ComponentTypeInfo the engine attaches when the instance is
- * created (AddComponent<T>, the scene loader, the factory).
- *
- * A component with exported fields and no lifecycle methods is data. One that
- * declares Awake(), Start() or Update() takes part in the lifecycle, and only
- * a class that declares Update() is ticked: the codegen records that per
- * class, so a data component costs nothing per frame.
- *
- * Lifecycle order:
- * 1. InternalAwake (engine) - resolves AssetRefs and ObjectRefs
- * 2. Awake()  - once, after the references are resolved
- * 3. Start()  - once, before the first Update, after every Awake has run
- * 4. Update() - every frame
- * 5. Render (RendererComponent)
- */
+/// The base class of every component.
+///
+/// A component is any class deriving publicly from Component; it declares
+/// nothing else. The reflection codegen finds the class by its base, its
+/// identity is its qualified name (see TypeId.h), and the per-class operations
+/// below run through the ComponentTypeInfo the engine attaches when the
+/// instance is created (AddComponent<T>, the scene loader, the factory).
+///
+/// A component with exported fields and no lifecycle methods is data. One that
+/// declares Awake(), Start() or Update() takes part in the lifecycle. Only a
+/// class that declares Update() is ticked, so a data component costs nothing
+/// per frame.
+///
+/// Lifecycle order:
+/// 1. InternalAwake (engine) - resolves AssetRefs and ObjectRefs
+/// 2. Awake()  - once, after the references are resolved
+/// 3. Start()  - once, before the first Update, after every Awake has run
+/// 4. Update() - every frame
+/// 5. Render (RendererComponent)
 class Component
 {
 public:
@@ -84,113 +79,71 @@ public:
     }
     virtual ~Component() = default;
 
-    // Prevent copying - components have unique identity and owner
+    // Not copyable: a component has one identity and one owner.
     Component(const Component&) = delete;
     Component& operator=(const Component&) = delete;
 
-    /**
-     * @brief The class's type id (TypeId<T>()), 0 for an instance with no type info.
-     */
+    /// The class's type id (TypeId<T>()), 0 for an instance with no type info.
     ComponentType GetType() const { return m_TypeInfo ? m_TypeInfo->typeId : 0; }
 
-    /**
-     * @brief The direct component base's type id, so GetComponent<Base>() finds subclasses.
-     */
+    /// The direct component base's type id, so GetComponent<Base>() finds subclasses.
     ComponentType GetBaseType() const { return m_TypeInfo ? m_TypeInfo->baseTypeId : 0; }
 
-    /**
-     * @brief The class entry this instance runs through. nullptr only for an
-     *        instance created outside the engine's paths (a bare `new`).
-     */
+    /// The class entry this instance runs through. nullptr only for an
+    /// instance created outside the engine's paths (a bare `new`).
     const ComponentTypeInfo* GetTypeInfo() const { return m_TypeInfo; }
 
-    /**
-     * @brief Attach the class entry. Called by AddComponent<T>, the factory and
-     *        the scene loader; user code never needs it.
-     */
+    /// Attaches the class entry. AddComponent<T>, the factory and the scene
+    /// loader call this; user code never needs it.
     void SetTypeInfo(const ComponentTypeInfo* info) { m_TypeInfo = info; }
 
-    /**
-     * @brief Does this class (or a reflected base) declare Update()?
-     *
-     * Answered by the reflection codegen from the class declaration.
-     * LifecycleManager only calls Update() on components that answer true, so
-     * a component with no Update costs nothing per frame.
-     */
+    /// True when this class (or a reflected base) declares Update(), as the
+    /// codegen read it from the class declaration. LifecycleManager calls
+    /// Update() only on these.
     bool DeclaresUpdate() const { return m_TypeInfo && m_TypeInfo->declaresUpdate; }
 
-    // Owner access
     Object* GetOwner() const { return m_Owner; }
     void SetOwner(Object* owner) { m_Owner = owner; }
 
     // ========== Lifecycle (declare the ones you need) ==========
 
-    /**
-     * @brief Called once after AssetRefs and ObjectRefs are resolved
-     *
-     * Use for self-initialisation. All asset references are available.
-     */
+    /// Called once, after AssetRefs and ObjectRefs are resolved. Use it for
+    /// self-initialisation.
     virtual void Awake() {}
 
-    /**
-     * @brief Called once before the first Update, after ALL Awake calls complete
-     *
-     * Use for cross-component setup: every component has been awakened.
-     */
+    /// Called once before the first Update, after every component's Awake has
+    /// run. Use it for setup that touches other components.
     virtual void Start() {}
 
-    /**
-     * @brief Called every frame, only on classes that declare it
-     */
+    /// Called every frame, only on classes that declare it.
     virtual void Update() {}
 
-    // Lifecycle state checks
     bool HasAwoken() const { return m_HasAwoken; }
     bool HasStarted() const { return m_HasStarted; }
     void MarkAwoken() { m_HasAwoken = true; }
     void MarkStarted() { m_HasStarted = true; }
 
     // ========== Lifecycle methods for Play Mode ==========
-    // Components override these to handle asset loading and runtime updates
-    // without the editor needing to know about specific component types.
+    // Components override these to load assets and run per-frame engine work,
+    // so the editor needs no knowledge of specific component types.
 
-    /**
-     * @brief Load assets needed by this component
-     *
-     * Components override this to load their assets (sprites, fonts, etc.)
-     * Called by Play Mode during initialization.
-     * Use Deki::AssetManager::Get() to access the asset manager.
-     */
+    /// Loads the assets this component needs (sprites, fonts, ...). Play Mode
+    /// calls it during initialisation. Use Deki::AssetManager::Get().
     virtual void LoadAssets() {}
 
-    /**
-     * @brief Unload/clear assets held by this component
-     *
-     * Components override this to clear asset pointers before shutdown.
-     * The asset manager owns the memory, so just set pointers to nullptr.
-     */
+    /// Drops this component's asset pointers before shutdown. The asset
+    /// manager owns the memory, so only set the pointers to nullptr.
     virtual void UnloadAssets() {}
 
-    /**
-     * @brief Update this component (runtime only)
-     * @param deltaTime Time since last frame in seconds
-     *
-     * Engine-driven per-frame work (physics, animation, etc.), distinct from
-     * the script-facing Update(): it runs in every mode, including the editor
-     * in edit mode, on components that answer NeedsRuntimeUpdate().
-     */
+    /// Engine-driven per-frame work (physics, animation, ...), separate from
+    /// the script-facing Update(): it runs in every mode, including the editor
+    /// in edit mode, on components whose NeedsRuntimeUpdate() is true.
+    /// `deltaTime` is in seconds.
     virtual void RuntimeUpdate(float deltaTime) {}
 
-    /**
-     * @brief Called after an AssetRef property is resolved by LifecycleManager
-     * @param propertyName Name of the property that was resolved
-     * @param asset Pointer to the loaded asset
-     * @param guid The GUID that was used to load the asset
-     *
-     * Components can override this to perform post-load processing -
-     * e.g. inspecting whether the GUID resolves to a sub-asset and
-     * deriving extra runtime state from it.
-     */
+    /// Called after LifecycleManager resolves the AssetRef field `propertyName`
+    /// to `asset`, loaded from `guid`. Override it for post-load work, such as
+    /// checking whether the GUID names a sub-asset and deriving state from it.
     virtual void OnAssetRefResolved(const char* propertyName, void* asset, const char* guid)
     {
         (void)propertyName;
@@ -198,36 +151,21 @@ public:
         (void)guid;
     }
 
-    /**
-     * @brief Check if this component needs asset loading
-     * @return true if LoadAssets() should be called
-     */
+    /// True when LoadAssets() should be called.
     virtual bool NeedsAssetLoading() const { return false; }
 
-    /**
-     * @brief Check if this component needs runtime updates
-     * @return true if RuntimeUpdate() should be called each frame
-     */
+    /// True when RuntimeUpdate() should be called each frame.
     virtual bool NeedsRuntimeUpdate() const { return false; }
 
-    /**
-     * @brief Deserialize component data from MessagePack
-     * @param parser The msgpack parser positioned at component data map
-     * @param mapSize Number of key-value pairs in the data map
-     * @return true if deserialization succeeded
-     *
-     * Runs the codegen's hash-switch deserializer for this class. An instance
-     * without type info skips the map so the parser stays in step.
-     */
+    /// Reads this component's fields from the MessagePack map the parser is
+    /// at (`mapSize` key-value pairs), through the codegen's hash-switch
+    /// deserializer. An instance without type info skips the map so the
+    /// parser stays in step. Returns false on failure.
     bool Deserialize(SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
-    /**
-     * @brief Resolve all ObjectRef properties in this component
-     * @param scene The scene to look up objects in
-     *
-     * Called by LifecycleManager before Awake() to resolve ObjectRef.id → ObjectRef.resolved.
-     * Zero-overhead: direct field access, no metadata iteration.
-     */
+    /// Points every ObjectRef field at its object in `scene` (ObjectRef.id ->
+    /// ObjectRef.resolved). LifecycleManager calls it before Awake(). The
+    /// generated code reads the fields directly, with no metadata walk.
     void ResolveObjectRefs(Scene* scene)
     {
         if (m_TypeInfo && m_TypeInfo->resolveObjectRefs)
@@ -236,12 +174,8 @@ public:
         }
     }
 
-    /**
-     * @brief Remap ObjectRef IDs after cloning/instantiation
-     * @param idRemap Map of old object ID → new object ID
-     *
-     * Called after Instantiate() to update ObjectRef.id fields to new unique IDs.
-     */
+    /// Rewrites ObjectRef ids through `idRemap` (old id -> new id), after
+    /// Instantiate() gave the copies new ids.
     void RemapObjectRefs(const std::unordered_map<uint32_t, uint32_t>& idRemap)
     {
         if (m_TypeInfo && m_TypeInfo->remapObjectRefs)
@@ -250,18 +184,13 @@ public:
         }
     }
 
-    // Ref resolution tracking (prevents per-frame re-resolution in edit mode)
+    // Tracks resolution so edit mode does not resolve references every frame.
     bool HasRefsResolved() const { return m_RefsResolved; }
     void MarkRefsResolved() { m_RefsResolved = true; }
     void ResetRefsResolved() { m_RefsResolved = false; }
 
-    /**
-     * @brief Called when a property is modified via the editor
-     * @param propertyName Name of the property that changed
-     *
-     * Components can override this to react to property changes.
-     * Called after Execute() and Undo() in ModifyComponentPropertyCommand.
-     */
+    /// Called when the editor changes the field `propertyName`, after both
+    /// Execute() and Undo() of ModifyComponentPropertyCommand.
     virtual void OnPropertyChanged(const char* propertyName) { (void)propertyName; }
 
 protected:

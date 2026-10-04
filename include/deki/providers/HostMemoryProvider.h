@@ -10,27 +10,11 @@
 #include <malloc.h>
 #endif
 
-/**
- * @file DesktopMemoryProvider.h
- * @brief Memory provider over the C heap (malloc/free)
- *
- * Not platform-specific despite where this used to live: any host with a
- * normal C library heap uses it - the editor, the desktop simulator, a test.
- * It sat under platforms/desktop/ purely by habit, which made the engine
- * look like it shipped support for a particular target.
- *
- * Implementation for desktop platforms without external RAM:
- * - Desktop (Windows, macOS, Linux)
- * - Simulator builds
- * - Editor builds
- *
- * All external RAM methods return false/0/nullptr since there's no
- * external memory to manage - everything uses standard heap.
- */
-
 namespace Deki
 {
 
+/// Memory provider over the C heap (malloc/free), for any host with a normal
+/// C library heap: the editor, desktop and simulator builds, tests.
 class HostMemoryProvider : public IMemoryProvider
 {
 public:
@@ -40,11 +24,8 @@ public:
     bool Initialize() override { return true; }
     void Shutdown() override {}
 
-    // A desktop has one heap and it answers every request, so this is the
-    // whole provider. The same four lines are what a Switch or an Android
-    // build would write: on a platform where all memory is equally fast and
-    // equally reachable, "internal" and "external" are names for the same
-    // place, and saying so explicitly is the honest answer.
+    // One heap serves every request. Where all memory is equally fast and
+    // reachable, "internal" and "external" name the same place.
     bool Serves(Memory::Region region) const override
     {
         return region == Deki::Memory::Internal || region == Deki::Memory::External;
@@ -52,8 +33,7 @@ public:
 
     void* Allocate(Memory::Region region, size_t bytes, bool needsDma) override
     {
-        // needsDma is satisfied by construction: nothing here is behind a bus
-        // a DMA engine cannot cross.
+        // Always met: no host memory is out of a DMA engine's reach.
         (void)needsDma;
         return Serves(region) ? malloc(bytes) : nullptr;
     }
@@ -64,21 +44,17 @@ public:
         free(ptr);
     }
 
-    // Deliberately unmeasured: zero here means "not a meaningful question on
-    // this platform". A desktop's free memory is a question about the OS
-    // rather than the process, and the number would be meaningless next to a
-    // board's "280 KB of internal SRAM left".
+    // 0 means "not measured": a host's free memory belongs to the OS, not the
+    // process, and would mean nothing next to a board's internal SRAM left.
     size_t GetAvailable(Memory::Region region) const override
     {
         (void)region;
         return 0;
     }
 
-    // AllocateRaw/FreeRaw keep the base malloc/free. The size query has no
-    // portable spelling, so it is per-platform: _msize on the Windows CRT,
-    // malloc_usable_size on glibc and musl. It only feeds the reported byte
-    // total, so a platform without one simply reports nothing rather than
-    // guessing.
+    // AllocateRaw/FreeRaw keep the base malloc/free. The size query is
+    // per-platform: _msize on the Windows CRT, malloc_usable_size on glibc and
+    // musl. It only feeds the reported byte total, so elsewhere it reports 0.
     size_t GetRawBlockSize(void* ptr) const override
     {
         if (!ptr)

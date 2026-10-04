@@ -571,7 +571,8 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
         }
         else if (StringEquals(key, keyLen, Fields::kClearColor))
         {
-            // Clear color is now in CameraComponent - skip it for backwards compatibility
+            // Older files carry a clear color; CameraComponent holds it, so
+            // read past it.
             uint32_t arrSize;
             if (!ReadArraySize(arrSize) || arrSize != 3)
             {
@@ -583,7 +584,7 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
             {
                 return false;
             }
-            // Ignore clear color (it's now in CameraComponent)
+            // Ignore clear color (CameraComponent holds it)
         }
         else if (StringEquals(key, keyLen, Fields::kObjects))
         {
@@ -680,9 +681,9 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     std::vector<Object*> pendingChildren;
 
     // Children are parsed (and allocated) before the parent exists, and every
-    // key in the loop below can fail the parse. Without this, each malformed
-    // scene leaked every child parsed up to the failure - and the depth cap
-    // above makes that exit path reachable by design. Disarmed once the
+    // key in the loop below can fail the parse. Without this, a malformed
+    // scene would leak every child parsed up to the failure - and the depth
+    // cap above makes that exit path reachable by design. Disarmed once the
     // children are handed to the parent.
     struct PendingChildCleanup
     {
@@ -957,8 +958,8 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         }
     }
 
-    // Create the object
-    // Note: sortOrder from legacy files is ignored, now stored in RendererComponent
+    // Create the object. sortOrder in older files is ignored: RendererComponent
+    // holds it.
     obj = new Object(name);
     if (objectId != 0)
     {
@@ -1223,7 +1224,7 @@ bool SceneMsgPackWriter::WriteScene(Scene* scene)
     m_Buffer.clear();
 
     // Scene is a map with: version, objects
-    // (name and clearColor are no longer stored - clearColor is now in CameraComponent)
+    // (no name or clearColor: CameraComponent holds the clear color)
     WriteMapSize(2);
 
     // Version
@@ -1324,7 +1325,8 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
     WriteMapSize(0);
 #else
 #ifdef DEKI_TRANSFORM_3D
-    // Depth keys only when set, so a 2D scene compiles to what it always did.
+    // Depth keys only when set, so a 2D scene compiles to the same bytes as
+    // in a 2D build.
     const bool hasZ = obj->GetZ() != 0.0f;
     const bool hasRX = obj->GetRotationX() != 0.0f;
     const bool hasRY = obj->GetRotationY() != 0.0f;
@@ -1561,8 +1563,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     std::string guidToWrite = ref.guid;
                     std::string sourceToWrite = ref.source;
 
-                    // Migration: If guid is a subasset (frame GUID), swap it with parent
-                    // This fixes old scenes where frame GUIDs were stored in guid field
+                    // Migration: older scenes can hold a frame (subasset) GUID in
+                    // the guid field. Move it to source and write its parent as guid.
                     if (m_SubAssetResolver && !ref.guid.empty() && ref.source.empty())
                     {
                         std::string parentGuid;

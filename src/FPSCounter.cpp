@@ -47,8 +47,8 @@ void FPSCounter::EndFrame()
         frameTime = 1;
     }
 
-    // Store frame time in rolling buffer, keeping a running sum (the average
-    // was recomputed by summing all samples twice per frame).
+    // Rolling buffer of frame times with a running sum, so the average needs
+    // no pass over the samples.
     m_FrameTimeSum -= m_FrameTimes[m_CurrentIndex];
     m_FrameTimes[m_CurrentIndex] = frameTime;
     m_FrameTimeSum += frameTime;

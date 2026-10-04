@@ -1,8 +1,8 @@
 #pragma once
 
-// Engine angle convention: radians, matching std::sin/cos/atan2.
-// The inspector displays rotation fields as degrees via DEKI_UNIT(Angle) and
-// the existing UnitDisplay mechanism; storage and runtime math stay in radians.
+// Angles are in radians everywhere, matching std::sin/cos/atan2. The
+// inspector shows rotation fields in degrees through DEKI_UNIT(Angle); storage
+// and runtime math stay in radians.
 
 namespace Deki
 {

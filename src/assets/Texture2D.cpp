@@ -66,7 +66,6 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Open file
     Deki::IFileSystem::FileHandle file = fs->OpenFile(file_path, Deki::IFileSystem::OpenMode::ReadBinary);
     if (!file)
     {
@@ -74,7 +73,6 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Get file size
     long file_size = fs->GetFileSize(file);
     if (file_size < sizeof(Texture2D::Header))
     {
@@ -83,7 +81,6 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Read header
     Texture2D::Header header;
     size_t bytes_read = fs->ReadFile(file, &header, sizeof(Texture2D::Header));
     if (bytes_read != sizeof(Texture2D::Header))
@@ -93,7 +90,6 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Validate header
     if (!ValidateHeader(header))
     {
         DEKI_LOG_ERROR("Invalid texture header: %s", file_path);
@@ -101,8 +97,8 @@ Texture2D* Texture2D::Load(const char* file_path)
         return nullptr;
     }
 
-    // Validate file size. In 64 bits: on a 32-bit board a corrupt dataSize
-    // plus metadataSize wrapped to a small number and passed this check.
+    // Validate file size in 64 bits, so on a 32-bit board a corrupt dataSize
+    // plus metadataSize cannot wrap to a small number and pass.
     const uint64_t expected_size =
         uint64_t(sizeof(Texture2D::Header)) + uint64_t(header.dataSize) + uint64_t(header.metadataSize);
     if (file_size < 0 || uint64_t(file_size) < expected_size)
@@ -133,7 +129,6 @@ Texture2D* Texture2D::Load(const char* file_path)
 
     fs->CloseFile(file);
 
-    // Create texture instance
     Texture2D* texture = new Texture2D();
     if (!texture->LoadFromMemory(header, pixelData))
     {
@@ -227,8 +222,8 @@ bool Texture2D::ValidateHeader(const Texture2D::Header& header)
         return false;
     }
 
-    // Validate data size, in 64 bits: width * height * bpp wrapped in 32,
-    // so a huge corrupt image could match a small dataSize.
+    // Validate data size in 64 bits: width * height * bpp can wrap in 32, and
+    // a huge corrupt image would then match a small dataSize.
     const uint64_t expectedDataSize = uint64_t(header.width) * uint64_t(header.height) * bytesPerPixel;
     if (uint64_t(header.dataSize) != expectedDataSize)
     {

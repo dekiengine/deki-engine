@@ -50,7 +50,6 @@ bool FileSystem::SetFileSystem(IFileSystem* fs)
         return false;
     }
 
-    // Shutdown existing filesystem if any
     if (s_CurrentFilesystem)
     {
         s_CurrentFilesystem->Shutdown();

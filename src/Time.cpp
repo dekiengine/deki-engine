@@ -59,13 +59,12 @@ uint32_t Time::GetElapsed(uint32_t previousTime)
     {
         return now - previousTime;
     }
-    // Handle wrap-around (unlikely with uint32_t milliseconds)
+    // The millisecond clock wrapped (after about 49 days): report no time.
     return 0;
 }
 
 void Time::Update(uint32_t deltaTime)
 {
-    // Update current time
     s_CurrentTime = GetTime();
 
     // Calculate delta time if not provided
@@ -96,7 +95,6 @@ void Time::Update(uint32_t deltaTime)
 
 void Time::UpdateF(float deltaTimeMs)
 {
-    // Update current time
     s_CurrentTime = GetTime();
 
     // Store both integer and float versions
@@ -134,8 +132,8 @@ float Time::GetFPS()
 
 void Time::ResetFrameTime()
 {
-    // Reset s_LastFrameTime to current time so next Update() has delta ~0
-    // Call this after loading to prevent huge deltaTime from accumulated loading time
+    // The next Update() gets a delta of about 0. Call after loading, so the
+    // load time does not arrive as one huge deltaTime.
     s_LastFrameTime = GetTime();
     s_DeltaTime = 0;
     s_DeltaTimeF = 0.0f;

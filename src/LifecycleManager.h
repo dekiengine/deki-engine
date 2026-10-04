@@ -29,19 +29,15 @@ class Component;
 typedef void (*LifecycleProfileBeginCallback)(const char* name);
 typedef void (*LifecycleProfileEndCallback)();
 
-/**
- * @brief Manages the component lifecycle (InternalAwake, Awake, Start, Update)
- *
- * Centralizes all lifecycle method invocation and reference resolution.
- * Called by Engine during the update phase, before rendering.
- *
- * Lifecycle order:
- * 1. ProcessInternalAwake() - Resolves AssetRefs and ObjectRefs
- * 2. ProcessAwake() - Calls Awake() on every component that has not awoken
- * 3. ProcessStart() - Calls Start() on every component that has not started
- * 4. ProcessUpdate() - Every frame, on started components whose class declares Update()
- * 5. Render (handled separately by render system)
- */
+/// Runs the component lifecycle (InternalAwake, Awake, Start, Update) and
+/// resolves references. Engine calls it in the update phase, before rendering.
+///
+/// Lifecycle order:
+/// 1. ProcessInternalAwake() - resolves AssetRefs and ObjectRefs
+/// 2. ProcessAwake() - calls Awake() on every component that has not awoken
+/// 3. ProcessStart() - calls Start() on every component that has not started
+/// 4. ProcessUpdate() - every frame, on started components whose class declares Update()
+/// 5. Render (done by the render system)
 class LIFECYCLE_MANAGER_API LifecycleManager
 {
 public:
@@ -52,102 +48,59 @@ public:
     static LifecycleProfileBeginCallback s_ProfileBegin;
     static LifecycleProfileEndCallback s_ProfileEnd;
 
-    /**
-     * @brief Set profiling callbacks for lifecycle method instrumentation
-     *
-     * When set, these callbacks are invoked around each Update/Start/Awake call
-     * with the component type name (e.g., "TestComponent.Update").
-     * Set to nullptr to disable profiling (default on embedded devices).
-     */
+    /// Sets callbacks run around each Update/Start/Awake call, named after
+    /// the component type and method (such as "TestComponent.Update").
+    /// nullptr turns profiling off, as on embedded devices.
     static void SetProfilingCallbacks(LifecycleProfileBeginCallback begin, LifecycleProfileEndCallback end);
 
-    /**
-     * @brief Resolve AssetRefs and ObjectRefs for all behaviours that haven't awoken
-     *
-     * This is the internal setup phase where the engine resolves all
-     * dependencies before any user code runs.
-     * @param scene The current scene
-     */
+    /// Resolves AssetRefs and ObjectRefs for every behaviour in `scene` that
+    /// has not awoken, before any user code runs.
     void ProcessInternalAwake(Scene* scene);
 
-    /**
-     * @brief Process Awake for all behaviours that haven't awoken yet
-     *
-     * Called after InternalAwake. All asset and object references are
-     * available at this point.
-     * @param scene The current scene
-     */
+    /// Calls Awake on every behaviour in `scene` that has not awoken. Runs
+    /// after InternalAwake, so all asset and object references are resolved.
     void ProcessAwake(Scene* scene);
 
-    /**
-     * @brief Process Start for all behaviours that haven't started yet
-     *
-     * Called after all Awake calls complete. Safe to access other components.
-     * @param scene The current scene
-     */
+    /// Calls Start on every behaviour in `scene` that has not started. Runs
+    /// after every Awake, so other components are safe to use.
     void ProcessStart(Scene* scene);
 
-    /**
-     * @brief Process Update for all behaviours that have started
-     * @param scene The current scene
-     */
+    /// Calls Update on every started behaviour in `scene`.
     void ProcessUpdate(Scene* scene);
 
-    /**
-     * @brief Drive RuntimeUpdate() on every component that opts in via
-     *        NeedsRuntimeUpdate()
-     *
-     * This is the engine-runtime counterpart to the editor play-mode walk
-     * (EditorApp::UpdatePlayMode -> updateComponentsRecursive). Components such
-     * as RollerComponent / ScrollComponent put their per-frame physics in
-     * RuntimeUpdate(), which is distinct from the script-facing Component::Update()
-     * driven by ProcessUpdate(). Without this call their momentum/snap state
-     * machines never tick outside the editor.
-     *
-     * @param scene The current scene
-     * @param deltaTime Time since last frame in SECONDS
-     */
+    /// Calls RuntimeUpdate() on every component that opts in through
+    /// NeedsRuntimeUpdate(). `deltaTime` is in SECONDS.
+    ///
+    /// The engine-side counterpart of the editor play-mode walk
+    /// (EditorApp::UpdatePlayMode -> updateComponentsRecursive). Components
+    /// such as RollerComponent and ScrollComponent put their per-frame physics
+    /// in RuntimeUpdate(), apart from the script-facing Component::Update()
+    /// that ProcessUpdate() drives. Without this call their momentum and snap
+    /// state machines never tick outside the editor.
     void ProcessRuntimeUpdate(Scene* scene, float deltaTime);
 
 private:
-    /**
-     * Scratch buffers for the per-phase component snapshots.
-     *
-     * Each phase has to iterate a *copy* of the scene's component list, because
-     * user code can instantiate or destroy objects and rebuild the live cache
-     * mid-iteration. Building that copy as a fresh local vector allocated on
-     * every phase of every frame: measured at 4 allocations/frame with a single
-     * behaviour, rising to 12/frame and ~8.9 KB of churn at 200. On an MCU that
-     * is a steady fragmentation source and per-frame jitter, for buffers whose
-     * contents are discarded immediately.
-     *
-     * Reusing these keeps the copy (and its safety) while dropping the
-     * allocation: clear() preserves capacity, so steady state is allocation-free
-     * once the high-water mark is reached.
-     *
-     * Not re-entrant. ReentrancyGuard in the .cpp falls back to a local vector
-     * if a phase is somehow entered from inside itself, so behaviour stays
-     * correct even if that ever happens.
-     */
+    // Scratch buffers for the per-phase component snapshots.
+    //
+    // Each phase iterates a *copy* of the scene's component list, because user
+    // code can create or destroy objects and rebuild the live cache
+    // mid-iteration. A fresh vector per phase would allocate every frame (12
+    // allocations and ~8.9 KB a frame with 200 behaviours), which on an MCU
+    // fragments the heap and adds jitter. clear() keeps capacity, so once the
+    // high-water mark is reached nothing is allocated.
+    //
+    // Not re-entrant: ReentrancyGuard in the .cpp falls back to a local vector
+    // if a phase is entered from inside itself.
     std::vector<Component*> m_SnapshotScratch;
     std::vector<Component*> m_UpdateScratch;
     bool m_SnapshotScratchInUse = false;
     bool m_UpdateScratchInUse = false;
 
-    /**
-     * @brief Resolve ObjectRef properties on a component
-     * @param component The component to resolve
-     * @param scene The scene to look up objects in
-     */
+    // Resolves the component's ObjectRef properties against objects in `scene`.
     void ResolveObjectRefs(Component* component, Scene* scene);
 
-    /**
-     * @brief Resolve AssetRef properties on a component
-     *
-     * Scans component metadata for AssetRef properties and loads assets
-     * using AssetManager::LoadByGuidAndType().
-     * @param component The component to resolve
-     */
+    // Finds the component's AssetRef properties in its metadata and loads
+    // them with AssetManager::LoadByGuidAndType().
     void ResolveAssetRefs(Component* component);
 };
 

@@ -1,34 +1,30 @@
 // Global operator new / delete for builds with exceptions off.
 //
-// WHAT THIS FIXES
+// WHY
 //
-// `new` cannot report failure on a device. ESP-IDF builds with
-// -fno-exceptions, so libstdc++'s operator new calls std::__throw_bad_alloc,
-// which with exceptions removed is a direct abort() - the board reboots with
-// no message saying it ran out of memory. Worse, `new (std::nothrow) T[n]`
-// aborts identically, because libstdc++ implements the nothrow form by
-// calling the throwing form inside a try/catch that -fno-exceptions has
-// deleted. A caller who did everything right still gets a reboot.
+// ESP-IDF builds with -fno-exceptions, so libstdc++'s operator new calls
+// std::__throw_bad_alloc, which with exceptions removed is a direct abort():
+// the board reboots with no message saying it ran out of memory. And
+// `new (std::nothrow) T[n]` aborts the same way, because libstdc++ implements
+// the nothrow form by calling the throwing form inside a try/catch that
+// -fno-exceptions deletes.
 //
-// Replacing the operators fixes both halves:
+// With these operators:
 //
-//   * a failed allocation says how many bytes it wanted, and how much heap
-//     was left, before it aborts. That line is the difference between
-//     "the board reboots sometimes" and a diagnosis;
-//   * std::nothrow works. `new (std::nothrow) T[n]` returns nullptr, so code
-//     that wants to handle exhaustion itself now can, and the trap documented
-//     all over this engine stops being a trap.
+//   * a failed allocation logs how many bytes it wanted, and how much heap
+//     was left, before it aborts. That line turns "the board reboots
+//     sometimes" into a diagnosis;
+//   * std::nothrow works: `new (std::nothrow) T[n]` returns nullptr, so code
+//     can handle exhaustion itself.
 //
 // This also covers std::vector and std::string, which Deki::Buffer cannot:
-// they call operator new internally, so until now their growth failures were
-// the one remaining silent reboot.
+// they call operator new internally, so their growth failures are logged too.
 //
-// HOW IT GOES THROUGH THE ENGINE WITHOUT COSTING ANYTHING
+// HOW IT GOES THROUGH THE ENGINE AT NO COST
 //
-// Through Deki::Detail::RawAllocate, which is the provider's AllocateRaw -
-// so a board really does see every allocation on the device and can
-// substitute its own heap for all of them, and the engine can report what
-// containers are holding.
+// Through Deki::Detail::RawAllocate, which is the provider's AllocateRaw, so
+// a board sees every allocation on the device and can substitute its own heap
+// for all of them, and the engine can report what containers are holding.
 //
 // It is NOT Memory::Allocate, and that distinction is the whole design:
 //
@@ -45,9 +41,9 @@
 // heap returned. The bytes are accounted anyway by asking the heap for the
 // block size (GetRawBlockSize), which is what the header would have been for.
 //
-// What is given up is the header's magic value, so a double free here is as
-// undiagnosable as it was when this was plain malloc. Anything the engine can
-// describe goes through Allocate and keeps the guard.
+// What is given up is the header's magic value, so a double free here cannot
+// be diagnosed, as with plain malloc. Anything the engine can describe goes
+// through Allocate and keeps the guard.
 //
 // Placement is deliberately NOT decided here: these allocations are internal,
 // like everything a caller has not explicitly asked to place elsewhere.
@@ -123,7 +119,7 @@ void* operator new[](std::size_t size)
     return ::operator new(size);
 }
 
-// --- nothrow forms: these now do what their name says ---------------------
+// --- nothrow forms: these return nullptr on failure -----------------------
 
 void* operator new(std::size_t size, const std::nothrow_t&) noexcept
 {
@@ -143,8 +139,8 @@ void* operator new[](std::size_t size, const std::nothrow_t& tag) noexcept
 // --- the matching deletes -------------------------------------------------
 // All of them, including the sized and nothrow forms: a delete the compiler
 // can call that is not defined here would come from libstdc++ and pair its
-// free with our malloc. They happen to match today, and relying on that is
-// how a heap gets corrupted two releases from now.
+// free with our allocator. They happen to match, and relying on that would
+// corrupt the heap the day they stop matching.
 
 void operator delete(void* ptr) noexcept
 {

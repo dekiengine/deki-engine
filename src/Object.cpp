@@ -30,8 +30,8 @@
 //
 //   1. The layout must not depend on DEKI_EDITOR. Build the editor and a
 //      runtime config (see the engine CMakeLists) and confirm these asserts
-//      report the SAME numbers in both. That is the whole point of keeping the
-//      instance payload in a side table rather than in members.
+//      report the SAME numbers in both. That is why the instance payload lives
+//      in a side table rather than in members.
 //   2. The layout must not change without the package ABI version changing.
 //      If one of these fires, that is not a licence to update the number - it
 //      means every prebuilt package is now wrong. Bump
@@ -47,10 +47,9 @@ static_assert(!std::is_polymorphic<Object>::value,
               "layout. If this is intended, bump kDekiReflectionAbiVersion.");
 
 // Pinned on 64-bit desktop, where the editor and every package DLL are built.
-// Measured on both configurations at the time the instance payload moved to the
-// side table: editor and runtime agree at 152. Before that move they were 224
-// and 152 respectively - a 72-byte divergence sitting underneath inline
-// GetParent()/GetChildren(), which is the bug this pins shut.
+// The editor and runtime builds of one transform width must agree: a
+// difference sits underneath inline GetParent()/GetChildren() and makes every
+// package read the wrong offsets.
 //
 // 32-bit targets (ESP32) are deliberately not asserted: they have their
 // own consistent size, they load no DLLs, and hardcoding a second number here
@@ -83,7 +82,7 @@ namespace
 // Editor-only instance payload, keyed by object.
 //
 // Deliberately NOT a member: a member would make sizeof(Object) depend
-// on DEKI_EDITOR, which is exactly the hazard this table exists to remove.
+// on DEKI_EDITOR, which is exactly the hazard this table avoids.
 // Deliberately NOT in a header either - this accessor is non-inline and
 // non-template, so there is exactly one table in the process. Inlining it
 // would give every package DLL its own copy, and an object written through
@@ -119,8 +118,7 @@ const std::string& Object::GetSourceSceneGuid() const
 
 void Object::SetSourceSceneGuid(const std::string& guid)
 {
-    // The flag mirrors "guid is non-empty", which is what IsSceneInstance()
-    // used to compute directly from the string.
+    // The flag mirrors "guid is non-empty"; IsSceneInstance() reads the flag.
     if (guid.empty())
     {
         m_EditorFlags &= static_cast<uint8_t>(~kEditorFlagSceneInstance);
@@ -206,7 +204,6 @@ Object::~Object()
     EditorInstanceTable().erase(this);
 #endif
 
-    // Remove from parent if exists
     if (m_Parent)
     {
         m_Parent->RemoveChild(this);
@@ -245,7 +242,6 @@ void Object::AddChild(Object* child)
         child->m_Parent->RemoveChild(child);
     }
 
-    // Add to our children
     m_Children.push_back(child);
     child->m_Parent = this;
 
@@ -325,7 +321,6 @@ void Object::InsertChildAt(Object* child, size_t index)
         index = m_Children.size();
     }
 
-    // Insert at position
     m_Children.insert(m_Children.begin() + index, child);
     child->m_Parent = this;
 
@@ -765,8 +760,8 @@ void Internal::ReattachComponent(Object& object, Component* component, size_t in
 Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)
 {
     auto& registry = ComponentRegistry::Instance();
-    // The "type" key is the qualified class name; a bare class name and a
-    // 0.10 GUID (through the legacy table) are accepted too.
+    // The "type" key is the qualified class name; a bare class name is
+    // accepted too. A 0.10 GUID resolves through the class hint below.
     const ComponentMeta* meta = registry.GetMeta(typeName);
     if (!meta)
     {

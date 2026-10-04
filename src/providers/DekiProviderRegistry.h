@@ -4,32 +4,29 @@
 #include <deki/providers/IPackage.h>
 #include <type_traits>
 
-/**
- * @brief Header-only typed wrapper around ProviderRegistryBase.
- *
- * Each multi-provider package aliases this template to expose its registry
- * with two access methods only:
- *
- *   namespace Deki { using Location = ProviderRegistry<IDekiLocationProvider>; }
- *
- *   auto* p = Deki::Location::GetProvider<BeaconDBLocationProvider>();   // typed
- *   auto* d = Deki::Location::GetDefault();                              // first registered
- *
- * No GetProviderById(const char*) is exposed - selection is always either
- * compile-time-checked (typed) or convention-driven (default). String-keyed
- * runtime lookups invite the "if A fails, try B" fallback pattern that the
- * project's NEVER USE FALLBACKS rule forbids.
- *
- * Interface contract:
- *   - Interface must derive from IPackage.
- *   - Interface must define `static constexpr const char* Category` matching
- *     the category string used by ForCategory().
- *   - Each concrete provider T must define `static constexpr const char* ProviderId`.
- *
- * RTTI: not used. Lookups go through string comparison on ProviderId, and the
- * static_cast to T* is safe because the (category, ProviderId) pair is owned
- * by exactly one type. Builds cleanly under -fno-rtti.
- */
+// Typed, header-only wrapper around ProviderRegistryBase.
+//
+// Each multi-provider package aliases this template to expose its registry
+// with two access methods:
+//
+//   namespace Deki { using Location = ProviderRegistry<IDekiLocationProvider>; }
+//
+//   auto* p = Deki::Location::GetProvider<BeaconDBLocationProvider>();   // typed
+//   auto* d = Deki::Location::GetDefault();                              // first registered
+//
+// There is no GetProviderById(const char*): a provider is picked either by
+// type, checked at compile time, or as the default. Lookups by string invite
+// "if A fails, try B" fallbacks, which the project's rules forbid.
+//
+// Interface contract:
+//   - Interface must derive from IPackage.
+//   - Interface must define `static constexpr const char* Category` matching
+//     the category string used by ForCategory().
+//   - Each concrete provider T must define `static constexpr const char* ProviderId`.
+//
+// No RTTI: lookups compare ProviderId strings, and the static_cast to T* is
+// safe because each (category, ProviderId) pair belongs to exactly one type.
+// Builds under -fno-rtti.
 
 namespace Deki
 {
@@ -51,10 +48,10 @@ public:
         return static_cast<T*>(Base().GetById(T::ProviderId));
     }
 
-    /// First-registered provider, or nullptr if the registry is empty.
-    /// Registration order is the order of calls to Register() at
-    /// DekiPluginRegisterComponents time - i.e. source-code order in the
-    /// package that registers them. This is the only "default" knob.
+    /// The first provider registered, or nullptr when there is none.
+    /// Registration order is the order of the Register() calls in the
+    /// package's DekiPluginRegisterComponents, so source order picks the
+    /// default.
     static Interface* GetDefault() { return static_cast<Interface*>(Base().GetDefault()); }
 
     // --- Diagnostics-only enumeration. Do not use for selection logic. ---
@@ -65,16 +62,16 @@ public:
 
     // --- Registration. Called by the owning package's DekiPluginRegisterComponents. ---
 
-    /// Register a provider owned by a plugin DLL. The registry takes ownership
-    /// and will delete the pointer during ClearPluginProviders() (called by
-    /// PackageLoader before FreeLibrary).
+    /// Registers a provider owned by a plugin DLL. The registry takes ownership
+    /// and deletes it in ClearPluginProviders(), which PackageLoader calls
+    /// before FreeLibrary.
     static void RegisterPlugin(Interface* provider)
     {
         Base().Register(provider, provider->GetPackageId(), /*isPlugin=*/true);
     }
 
-    /// Register a provider owned by engine-core (rare; typically packages use
-    /// the plugin variant). The registry never deletes these.
+    /// Registers a provider owned by the engine core (rare; packages normally
+    /// use RegisterPlugin). The registry never deletes these.
     static void Register(Interface* provider)
     {
         Base().Register(provider, provider->GetPackageId(), /*isPlugin=*/false);

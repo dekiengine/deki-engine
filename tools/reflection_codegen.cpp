@@ -447,13 +447,12 @@ consteval bool is_node(m::info type)
 }
 // Index into kPackages of the package a reflected type belongs to, or -1 when the type
 // came from outside this unit (engine headers, a sibling package pulled in transitively).
-// Membership is "the package's tag appears in the type's source path" - the same rule the
-// single-package build has always used, just applied to every package in the unit.
-// -2 means the path matched two tags; the caller static_asserts on it.
+// Membership is "the package's tag appears in the type's source path", for
+// every package in the unit. -2 means the path matched two tags; the caller
+// static_asserts on it.
 // A tag is a package's directory name, so it matches a path only as a whole
-// path component: "deki-input" is not in ".../deki-input-embedded/Keyboard.h".
-// A bare substring search said it was, and the unit then failed as matching
-// two packages.
+// path component: "deki-input" is not in ".../deki-input-embedded/Keyboard.h"
+// (a plain substring search would match both packages).
 consteval bool path_has_component(std::string_view path, std::string_view tag)
 {
     size_t pos = 0;
@@ -510,8 +509,6 @@ consteval bool in_shard(std::string_view name)
         return static_cast<int>(h % static_cast<uint64_t>(DEKI_CODEGEN_SHARD_COUNT)) == DEKI_CODEGEN_SHARD_INDEX;
     }
 }
-
-// (see rel_src below, defined after src_rel_include)
 
 // ---- annotation readers ----
 consteval bool is_exported(m::info mem)
@@ -639,15 +636,9 @@ inline std::string src_rel_include(std::string_view full, std::string_view sd)
 // The "// Source:" path for a generated file's header comment: relative to the
 // package's source dir, with forward slashes on every host.
 //
-// This used to emit the absolute path using the host's native separator, so the
-// same component produced
-//   // Source: C:\work\...\deki-engine\src\SetupComponent.h            (Windows)
-//   // Source: /home/deck/...//deki-engine/src/SetupComponent.h      (Linux)
-// Generated files are committed - embedded builds glob them and never run the
-// codegen - so every build on a different machine rewrote all of them and the
-// churn landed in every diff. Both halves matter: making the path relative
-// removes the machine prefix, and normalising the separator removes the
-// remaining Windows/POSIX difference.
+// Generated files are committed (embedded builds glob them and never run the
+// codegen), so they must come out the same on every machine: the relative path
+// removes the machine prefix, the forward slashes the Windows/POSIX difference.
 inline std::string rel_src(std::string_view full, std::string_view sd)
 {
     std::string s = src_rel_include(full, sd);
@@ -809,7 +800,7 @@ consteval bool range_slider(m::info mem)
     }
     return false;
 }
-// Skip sentinel enumerators (COUNT/MAX/NUM/SIZE/LAST, NUM_*/MAX_*), like Python's scan_for_enums.
+// Sentinel enumerators (COUNT/MAX/NUM/SIZE/LAST, NUM_*/MAX_*), which are skipped.
 consteval bool is_sentinel(std::string_view n)
 {
     std::string u;
@@ -827,8 +818,8 @@ consteval bool is_sentinel(std::string_view n)
     }
     return false;
 }
-// runtime helpers for DEKI_RANGE/DEKI_SLIDER (stringized args), matching Python:
-// only simple numeric literals produce a range; floats format like Python str(float).
+// Runtime helpers for DEKI_RANGE/DEKI_SLIDER (stringized args): only simple
+// numeric literals produce a range; floats are formatted like Python's str(float).
 inline std::string _trim_f(std::string s)
 {
     while (!s.empty() && s.front() == ' ')
@@ -1644,13 +1635,10 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     {
         // FieldRef::offset is a uint16_t, to keep the device's field table at 8
         // bytes per entry in flash. The casts below are C-style and so silent:
-        // a component over 65535 bytes would have its later fields truncated to
-        // an offset pointing somewhere arbitrary inside the object, and every
-        // data-driven write through FindField (an FSM action, a tween target)
-        // would corrupt whatever sits there instead of failing. Nothing shipped
-        // is anywhere near the limit, but a user with a big inline buffer would
-        // meet it with no diagnostic at all. Turn it into a compile error that
-        // names the component.
+        // in a component over 65535 bytes the later fields would get truncated
+        // offsets, and every data-driven write through FindField (an FSM
+        // action, a tween target) would corrupt memory instead of failing. So
+        // it is a compile error that names the component.
         out << "static_assert(sizeof(" << QN << ") <= 0xFFFF,\n"
             << "    \"" << QN << " is larger than 65535 bytes. Deki's field table stores a \"\n"
             << "    \"16-bit field offset, so this component's fields cannot be addressed. \"\n"
@@ -1710,9 +1698,8 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
                 emittedEnums.push_back(en);
                 anyEnum = true;
                 // `emittedEnums` only dedupes within ONE type's body. Two components sharing
-                // an enum each emit their own table, which was invisible while every body was
-                // its own translation unit and is a redefinition now that a package's bodies are
-                // concatenated. Guard rather than dedupe globally: each body stays independent
+                // an enum each emit their own table, a redefinition once a package's bodies are
+                // concatenated. Guard instead of deduping globally: each body stays independent
                 // of what was emitted before it, so order and grouping never matter.
                 out << "#ifndef DEKI_GEN_ENUM_" << en << "\n";
                 out << "#define DEKI_GEN_ENUM_" << en << "\n";
@@ -2392,10 +2379,9 @@ void emit_serializable_header(std::ostream& out, std::string_view srcdir)
 // NodeFactory / NodeTypeRegistry so nothing leaks into the component/scene systems.
 // Fields use DEKI_EXPORT (own_exported), like components, for BOTH the property
 // table and the msgpack deserialize (so the canvas-authored JSON round-trips).
-// The property-table + enum-table blocks are copied verbatim from emit_component
-// (they only need CLS/offsetof/annotations, none of the component-only GUID/base
-// baggage); duplicating rather than refactoring keeps the proven component path
-// untouched.
+// The property-table and enum-table blocks are copied from emit_component (they
+// need only CLS, offsetof and annotations, none of the component-only GUID and
+// base handling); copying keeps the component path untouched.
 // Full DekiNodeMeta definition plus the REGISTER_RUNTIME_NODE / REGISTER_NODE macros;
 // DekiProperty.h only forward-declares DekiNodeMeta.
 static constexpr const char* kDekiNodeHeader = "deki-nodegraph/DekiNode.h";
@@ -2870,9 +2856,8 @@ inline void emit_registration_body(std::ostream& out, std::vector<CompInfo> comp
     out << "\nvoid " << fnName << "() {\n";
     // `done` alone is not enough: a shared library the platform did not really
     // unload (dlclose is often a no-op for GCC-built objects) keeps it set
-    // across an editor reload that cleared the registries, and the package's
-    // components were then never registered again. Register again whenever the
-    // registries no longer hold this package's first type.
+    // across an editor reload that cleared the registries. So register again
+    // whenever the registries no longer hold this package's first type.
     out << "    static bool done = false;\n";
     if (comps.empty())
     {
@@ -3040,17 +3025,17 @@ int main()
 
     // One MERGED .gen.cpp per package instead of one per type. The .gen.h stubs stay
     // per type because hand-written headers include them BY NAME; nothing includes a
-    // .gen.cpp, so their names are ours to choose - and choosing a FIXED one is what
-    // makes adding a type a one-build operation. The package source list comes from a
+    // .gen.cpp, so their names are ours to choose, and a FIXED name is what makes
+    // adding a type a one-build operation. The package source list comes from a
     // file(GLOB CONFIGURE_DEPENDS) evaluated at configure time, so a per-type .gen.cpp
-    // is a brand new path that only joins the build at the NEXT configure: build one
-    // generates it, build two compiles it. A file that always exists under the same
-    // name changes only in CONTENT, which the normal dependency scan already handles.
+    // would be a new path that joins the build only at the NEXT configure. A file that
+    // always exists under the same name changes only in CONTENT, which the normal
+    // dependency scan handles.
     //
-    // Nothing is lost by merging: the package DLLs are unity-built (UNITY_BUILD_BATCH_SIZE
-    // 8), so these files were already being concatenated into a handful of translation
-    // units. Each emitted body carries its own #include lines and every header is
-    // #pragma once, so concatenation is safe.
+    // Merging loses nothing: the package DLLs are unity-built (UNITY_BUILD_BATCH_SIZE
+    // 8), so these files are concatenated into a few translation units anyway. Each
+    // emitted body carries its own #include lines and every header is #pragma once,
+    // so concatenation is safe.
     std::vector<std::string> mergedCpp(kPackageCount);
     // The `template for` variable is only usable as a template argument in the loop body
     // itself (a lambda would capture it and lose its constant-expression-ness), so each
@@ -3068,8 +3053,8 @@ int main()
 #else
     constexpr bool kPluginBuild = false;
 #endif
-    // Components: their bodies go to the package's merged .gen.cpp. There is no
-    // per-type .gen.h any more: a component header includes nothing generated.
+    // Components: their bodies go to the package's merged .gen.cpp. A component
+    // header includes nothing generated, so there is no per-type .gen.h.
     template for (constexpr auto comp : kComponents)
     {
         if constexpr (package_index_of(comp) != -1)
@@ -3134,9 +3119,9 @@ int main()
             ++nn;
         }
     }
-    // Orphan per-type .gen.cpp files: from the old one-file-per-type scheme, or from a
-    // type that was deleted or renamed. They are still globbed into the package's source
-    // list, so left alone they define every symbol a second time.
+    // Orphan per-type .gen.cpp files, from the old one-file-per-type scheme or from a
+    // deleted or renamed type. They are still globbed into the package's source list,
+    // so left alone they define every symbol a second time.
     //
     // EMPTIED, never deleted. A consumer may already have globbed the path into a target
     // earlier in the same CMake configure, and removing it then fails the configure with
@@ -3223,11 +3208,11 @@ int main()
         // The field tables take offsetof() of components, which have a vtable
         // and so are not standard-layout. That is "conditionally supported"
         // C++; GCC and Clang support it (offsets are fixed without virtual
-        // bases, which components never have) and only warn. ESP-IDF 6.1 turns
-        // the warning into an error, which stopped every firmware build at
-        // these tables. Scoped with push/pop because package sources are
-        // unity-built: a bare `ignored` would switch the warning off for
-        // whichever hand-written file follows in the same translation unit.
+        // bases, which components never have) and only warn, but ESP-IDF 6.1
+        // turns the warning into an error. Scoped with push/pop because
+        // package sources are unity-built: a bare `ignored` would switch the
+        // warning off for the hand-written file that follows in the same
+        // translation unit.
         std::string body = mergedCpp[i];
         if (!body.empty())
         {

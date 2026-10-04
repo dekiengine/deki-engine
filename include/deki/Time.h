@@ -9,100 +9,61 @@ namespace Deki
 
 class ITimeProvider;
 
-/**
- * @brief Deki Engine timing system
- *
- * Provides platform-independent timing functionality for the engine.
- * All time values are in milliseconds for consistency.
- */
+/// The engine's clock, independent of the platform. All times are in
+/// milliseconds.
 class Time
 {
 public:
-    /**
-     * @brief Initialize the timing system
-     * Should be called once at engine startup
-     */
+    /// Call once at engine startup.
     static void Initialize();
 
-    /**
-     * @brief Get current time in milliseconds
-     * @return Current time since initialization in milliseconds
-     */
+    /// Milliseconds since Initialize().
     static uint32_t GetTime();
 
-    /**
-     * @brief Get elapsed time since a previous timestamp
-     * @param previousTime Previous time value from GetTime()
-     * @return Elapsed time in milliseconds
-     */
+    /// Milliseconds since `previousTime`, a value from GetTime().
     static uint32_t GetElapsed(uint32_t previousTime);
 
-    /**
-     * @brief Update the timing system
-     * Should be called once per frame
-     * @param deltaTime Frame delta time in milliseconds
-     */
+    /// Call once per frame with the frame's duration in milliseconds.
     static void Update(uint32_t deltaTime);
 
-    /**
-     * @brief Get the last frame delta time
-     * @return Delta time of last frame in milliseconds
-     */
+    /// Duration of the last frame in milliseconds.
     static uint32_t GetDeltaTime();
 
-    /**
-     * @brief Get the last frame delta time as float (high precision)
-     * @return Delta time of last frame in milliseconds with sub-ms precision
-     */
+    /// Duration of the last frame in milliseconds, with sub-millisecond precision.
     static float GetDeltaTimeF();
 
-    /**
-     * @brief Update with float delta time for high precision (used by editor FPS limiter)
-     * @param deltaTimeMs Frame delta time in milliseconds (float for sub-ms precision)
-     */
+    /// Update() with a float duration, for sub-millisecond precision (the
+    /// editor's frame limiter).
     static void UpdateF(float deltaTimeMs);
 
-    /**
-     * @brief Get frames per second
-     * @return Current FPS
-     */
     static float GetFPS();
 
-    /**
-     * @brief Reset frame time after loading
-     * Call after loading a scene to prevent huge deltaTime from accumulated loading time
-     */
+    /// Call after loading a scene, so the next frame's delta does not include
+    /// the loading time.
     static void ResetFrameTime();
 
-    /**
-     * @brief Register the platform-specific sleep implementation.
-     * Called during platform init before RunMainLoop begins.
-     */
+    /// Sets the platform's sleep function. Platform init calls it before
+    /// RunMainLoop starts.
     static void SetDelayFunction(std::function<void(uint32_t)> fn);
 
-    /**
-     * @brief Sleep for ms milliseconds using the registered delay function.
-     * No-op if no function has been registered.
-     */
+    /// Sleeps `ms` milliseconds through the delay function; does nothing when
+    /// none is set.
     static void Delay(uint32_t ms);
 
-    /**
-     * @brief Set the platform-specific time provider.
-     * Must be called before Initialize().
-     * @param provider The time provider implementation (takes ownership)
-     */
+    /// Sets the platform's time provider and takes ownership of it. Call it
+    /// before Initialize().
     static void SetTimeProvider(std::unique_ptr<ITimeProvider> provider);
 
 private:
     static std::unique_ptr<ITimeProvider> s_TimeProvider;
-    static uint32_t s_CurrentTime;    // Current time in milliseconds
-    static uint32_t s_LastFrameTime;  // Time of last frame
-    static uint32_t s_DeltaTime;      // Delta time between frames (integer)
-    static float s_DeltaTimeF;        // Delta time between frames (float, high precision)
-    static uint32_t s_StartTime;      // Time when system was initialized
-    static float s_Fps;               // Current frames per second
-    static uint32_t s_FpsCounter;     // Frame counter for FPS calculation
-    static uint32_t s_FpsTime;        // Time accumulator for FPS calculation
+    static uint32_t s_CurrentTime;
+    static uint32_t s_LastFrameTime;
+    static uint32_t s_DeltaTime;
+    static float s_DeltaTimeF;
+    static uint32_t s_StartTime;
+    static float s_Fps;
+    static uint32_t s_FpsCounter;  // frames counted toward the FPS figure
+    static uint32_t s_FpsTime;     // time accumulated toward the FPS figure
 };
 
 }  // namespace Deki

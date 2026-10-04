@@ -1,27 +1,19 @@
 #pragma once
 
-// An owning buffer. Allocates through Deki::Memory, frees itself.
+// An owning buffer. Allocates through Deki::Memory and frees itself.
 //
-// This is the type component and package code should reach for instead of
-// calling an allocator and remembering a matching Free. Every memory bug this
-// engine has actually had was an ownership bug rather than a churn bug: a
-// delete[] paired with a Deki::Memory allocation, a buffer nothing ever freed,
-// a cleanup path that freed something a borrowing function did not own, a null
-// pointer that reached a memcpy because one error branch forgot to return.
-// A destructor cannot make any of those mistakes.
+// Component and package code should use this instead of calling an allocator
+// and remembering the matching Free: the destructor cannot pair the wrong
+// free, forget one, or free memory it does not own.
 //
 // WHY NOT AN ARENA
-// A frame arena would remove the failure handling too, but it has to be sized
-// up front. One large enough for a single full-screen gradient bake reserves
-// 150 KB whether or not a project has a gradient, which on a part with a few
-// hundred KB of heap is half the memory held against a feature that may not
-// exist. Arenas pay off where there is headroom. Most allocations here are
-// long-lived and owned by something anyway - glyph tables, pixel data, particle
-// columns, framebuffers - which is what RAII serves and an arena does not.
+// An arena must be sized up front, and one big enough for a full-screen
+// gradient bake holds 150 KB whether or not a project has a gradient: half the
+// heap on some parts. Most allocations here are long-lived and owned anyway
+// (glyph tables, pixel data, particle columns, framebuffers), which suits RAII.
 //
-// WHAT IS NOT AUTOMATED
-// Whether the memory was available. `if (!buf)` once, where the buffer is
-// created, rather than an unwind on every branch after it.
+// The caller still checks that the memory was available: `if (!buf)` once,
+// where the buffer is created.
 
 #include <deki/providers/Memory.h>
 
@@ -34,31 +26,24 @@ namespace Deki
 
 namespace Detail
 {
-// Deliberately not templates: a Buffer<T> would otherwise emit a copy of the
-// allocate and free logic per element type, and this engine is built for parts
-// where code size is a budget. What the template generates is a cast and a
-// multiply.
+// Not templates on purpose, so each Buffer<T> adds only a cast and a multiply
+// rather than its own copy of the allocate and free logic: code size is a
+// budget on small parts.
 void* BufferAllocate(size_t bytes, Memory::Region region, AllocContext ctx);
 void BufferFree(void* ptr);
 }  // namespace Detail
 
-/**
- * @brief Owning array of `T`, freed when it goes out of scope
- *
- * Move-only, like every other owning handle: copying would need a second
- * allocation that could fail, which a copy constructor cannot report.
- *
- * T must be trivially copyable. Nothing here constructs or destroys elements;
- * these are the raw pixel, glyph and sample buffers the engine passes to
- * blitters and drivers, and Memory zeroes what it hands back.
- */
+/// Owning array of `T`, freed when it goes out of scope.
+///
+/// Move-only: a copy would need a second allocation that could fail, which a
+/// copy constructor cannot report.
+///
+/// For raw pixel, glyph and sample data handed to blitters and drivers. It
+/// never constructs or destroys elements (Memory returns them zeroed), so T
+/// must be trivially copyable and destructible; the static_asserts enforce it.
 template <typename T>
 class Buffer
 {
-    // Enforced, not merely documented: nothing here constructs or destroys
-    // elements, so a T with a destructor would have it silently never run.
-    // These are the raw pixel, glyph and sample buffers the engine hands to
-    // blitters and drivers, and Memory zeroes what it returns.
     static_assert(std::is_trivially_copyable<T>::value, "Deki::Buffer<T> is for trivially copyable T; it does not "
                                                         "construct or copy elements");
     static_assert(std::is_trivially_destructible<T>::value, "Deki::Buffer<T> does not destroy elements; a T with a "
@@ -96,15 +81,13 @@ public:
     Buffer(const Buffer&) = delete;
     Buffer& operator=(const Buffer&) = delete;
 
-    /**
-     * @brief (Re)allocate to `count` elements, returning whether it worked
-     *
-     * The old contents are released first rather than copied: every caller
-     * here overwrites the buffer immediately afterwards, and copying would
-     * need both allocations live at once, which is the one thing a constrained
-     * part cannot spare. A count that has not changed is left alone, which is
-     * what makes this safe to call from a render path every frame.
-     */
+    /// Allocates `count` elements, replacing what it held. Returns false on
+    /// failure.
+    ///
+    /// The old contents are freed first, not copied: callers overwrite the
+    /// buffer right away, and a copy would need both allocations at once. An
+    /// unchanged count keeps the existing memory, so calling this every frame
+    /// from a render path is cheap.
     bool Allocate(size_t count, Memory::Region region, AllocContext ctx = {})
     {
         if (count == m_Count && m_Data)
@@ -118,22 +101,22 @@ public:
             return true;  // an empty buffer is a success, not a failure
         }
 
-        // Checked here rather than in the allocator: a count from a file or a
-        // scene is corruption-controlled, and count * sizeof(T) is a 32-bit
-        // size_t on the device, so a large count silently wraps to a small one.
+        // A count can come from a corrupt file or scene, and count * sizeof(T)
+        // is a 32-bit size_t on the device, so a large count would wrap to a
+        // small size.
         if (count > (SIZE_MAX / sizeof(T)))
         {
             return false;
         }
 
-        // ctx forwarded, never re-defaulted: it must name whoever called
+        // Pass ctx on, never a new default: it must name whoever called
         // Allocate, not this header.
         m_Data = static_cast<T*>(Detail::BufferAllocate(count * sizeof(T), region, ctx));
         m_Count = m_Data ? count : 0;
         return m_Data != nullptr;
     }
 
-    /// Free now rather than at scope exit.
+    /// Frees now rather than at scope exit.
     void Reset()
     {
         if (m_Data)
@@ -144,13 +127,9 @@ public:
         m_Count = 0;
     }
 
-    /**
-     * @brief Give up ownership, returning the raw pointer
-     *
-     * For handing a buffer to something that will free it itself, or that
-     * outlives this object. The caller becomes responsible for
-     * Deki::Memory::Free. Rare by design.
-     */
+    /// Gives up ownership and returns the raw pointer, for handing the memory
+    /// to something that frees it itself or outlives this object. The caller
+    /// must then call Deki::Memory::Free. Rarely needed.
     T* Release()
     {
         T* out = m_Data;

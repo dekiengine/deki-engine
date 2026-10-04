@@ -1,17 +1,15 @@
 #pragma once
 
-/**
- * @file FormerTypeIds.h
- * @brief Engine 0.10 component GUIDs, mapped to the class names that replaced them.
- *
- * Until 0.11 a component declared a GUID and scene files referred to it by
- * that string (and ObjectRef / PropertyRef data by its hash). The identity is
- * the qualified class name now. The loaders consult this table when they meet
- * a GUID, so a 0.10 project opens unchanged and its next save writes names.
- *
- * Editor-only (the table is compiled under DEKI_EDITOR): exported scenes are
- * rewritten by the editor, so a device never sees a GUID.
- */
+// Component type ids saved under a name the class no longer has.
+//
+// ObjectRef and PropertyRef data store a component's type id (the hash of its
+// qualified class name) and no name. When a class is renamed, an id saved
+// under an old name is mapped to the current class through its
+// DEKI_FORMER_NAME markers, so an older project opens unchanged and its next
+// save writes the current id.
+//
+// Editor-only: exported scenes are rewritten by the editor, so a device never
+// sees a former id.
 
 #include <cstdint>
 #include <string>
@@ -19,12 +17,8 @@
 namespace Deki
 {
 
-/// The class name a 0.10 component GUID stands for, or nullptr when unknown.
-
-/// A type id that was the hash of a 0.10 GUID, as the hash of the class name
-/// that replaced it; ids that are not legacy GUIDs come back unchanged.
+/// The current type id for `typeId`: the id of the class that declared it as
+/// a former name, or `typeId` unchanged when no class did.
 uint32_t LegacyComponentTypeId(uint32_t typeId);
-
-/// True when the string has the shape of a component GUID.
 
 }  // namespace Deki

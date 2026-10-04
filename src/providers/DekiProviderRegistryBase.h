@@ -14,21 +14,19 @@
 #define PROVIDER_REGISTRY_API
 #endif
 
-/**
- * @brief Per-category provider registry that lives in deki-engine-core.dll.
- *
- * One instance per category string (e.g. "location", "weather"). Package DLLs
- * register their concrete providers here at DekiPluginRegisterComponents time.
- *
- * The base stores IPackage* pointers and is interface-agnostic on purpose:
- * the typed wrapper (ProviderRegistry<Interface>) downcasts via static_cast.
- * Safe because each (category, providerId) pair is owned by exactly one type.
- *
- * Same DLL-boundary pattern as SettingsRegistry - singleton symbol is
- * exported from deki-engine-core.dll so every package DLL sees the same
- * instance via dllimport. Plugin-aware ClearPlugin path lets PackageLoader
- * drop providers before FreeLibrary without dangling vtables.
- */
+// Provider registry for one category, living in deki-engine-core.dll.
+//
+// One instance per category string (such as "location" or "weather"). Package
+// DLLs register their providers here in DekiPluginRegisterComponents.
+//
+// The base stores IPackage* and knows no interface, on purpose: the typed
+// wrapper (ProviderRegistry<Interface>) downcasts with static_cast. That is
+// safe because each (category, providerId) pair belongs to exactly one type.
+//
+// Like SettingsRegistry, the singleton is exported from deki-engine-core.dll
+// so every package DLL sees the same instance. ClearPluginProviders lets
+// PackageLoader drop a plugin's providers before FreeLibrary, so no vtable is
+// left dangling.
 
 namespace Deki
 {
@@ -47,13 +45,13 @@ public:
     IPackage* GetAt(int idx) const;
 
     /// Called by PackageLoader before FreeLibrary on each plugin DLL. Removes
-    /// every provider registered with isPlugin=true and frees the owned
-    /// memory. Engine-core-owned providers (isPlugin=false) are preserved.
+    /// every provider registered with isPlugin=true and frees its memory.
+    /// Providers owned by the engine core (isPlugin=false) stay.
     void ClearPluginProviders();
 
-    /// Static convenience: clear plugin-owned providers across every known
-    /// category. Used by PackageLoader::UnloadAllPackages as belt-and-braces
-    /// in case a plugin's DekiPluginShutdown didn't clean up after itself.
+    /// Clears plugin-owned providers in every category.
+    /// PackageLoader::UnloadAllPackages calls it in case a plugin's
+    /// DekiPluginShutdown did not clean up after itself.
     static void ClearAllPluginProviders();
 
     ProviderRegistryBase() = default;

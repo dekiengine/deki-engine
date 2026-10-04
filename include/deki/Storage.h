@@ -15,17 +15,17 @@ enum Location
 {
     Internal,  // F:/
     External,  // S:/
-    Default    // Use default filesystem (no prefix)
+    Default    // the default filesystem, no prefix
 };
 
-// Get the path prefix for a storage location
+// The path prefix for a location, such as "F:/".
 const char* GetPrefix(Location location);
 
 // Where a build's exported assets (asset_table.bin, pack_index.bin and the
 // assets) live on that storage: F:/assets/ inside, the card's root outside.
 const char* AssetRoot(Location location);
 
-// Build a full path: prefix + filename
+// Prefix + filename.
 std::string BuildPath(Location location, const char* filename);
 
 }  // namespace Storage

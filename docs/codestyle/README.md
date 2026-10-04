@@ -26,6 +26,10 @@ To format your C++ files on every commit, turn on the hook in each repository:
 git config core.hooksPath <path to deki-engine>/tools/hooks
 ```
 
+To check that a change touched comments only (a comment clean-up, say),
+run `python tools/comment_guard.py <files>` from the engine: it compares each
+file with its committed version without comments and fails on anything else.
+
 ## Commits and pull requests
 
 A brief title, a blank line, then one bullet per change:

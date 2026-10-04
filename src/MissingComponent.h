@@ -9,14 +9,9 @@
 #include <nlohmann/json.hpp>
 #endif
 
-/**
- * @brief Placeholder for components whose type no longer exists
- *
- * When a scene references a component type that isn't registered
- * (e.g., deleted package, missing plugin), a MissingComponent is created
- * instead. It preserves the raw serialized data so saving the scene
- * doesn't permanently lose the component data.
- */
+// Stands in for a component whose type is not registered (a deleted package,
+// a missing plugin). It keeps the raw serialized data, so saving the scene
+// writes the component back unchanged.
 
 namespace Deki
 {

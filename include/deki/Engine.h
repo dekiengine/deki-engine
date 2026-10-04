@@ -18,7 +18,6 @@
 #include <deki/SceneSystem.h>
 #include <deki/Time.h>
 
-// Forward declaration to avoid circular dependency
 #include <deki/reflection/Property.h>
 #include <deki/reflection/ObjectRef.h>
 #include <deki/LogSystem.h>
@@ -35,7 +34,7 @@ class IInputSystem;
 class SceneSystem;
 class LifecycleManager;
 
-// Color format options for Engine
+// Pixel format of a framebuffer.
 enum class ColorFormat
 {
     RGB565 = 0,    // 16-bit: 2 bytes per pixel
@@ -44,21 +43,14 @@ enum class ColorFormat
     RGB565A8 = 3   // 24-bit: 3 bytes per pixel - RGB565 (2 bytes) + A8 (1 byte)
 };
 
-/**
- * @brief Bytes a `width` x `height` framebuffer of `format` occupies
- *
- * Here, once, because it was previously a ladder of literals inside a display
- * package -- `(format == 2) ? 4 : (format == 1) ? 3 : 2` -- which gave
- * RGB565A8 two bytes per pixel instead of three. That number decides how much
- * of a PSRAM framebuffer is flushed from CPU cache before DMA reads it, so
- * undercounting leaves the tail of the screen showing stale pixels.
- *
- * Whole-framebuffer rather than bytes-per-pixel on purpose. LovyanGFX drives
- * 1-bit monochrome panels (SSD1306 and the like) and e-paper, where a pixel
- * costs less than a byte and any per-pixel answer is either zero or a lie.
- * Adding MONO1 here is one arm returning (w * h + 7) / 8 and no caller
- * changes.
- */
+/// Bytes a `width` x `height` framebuffer of `format` occupies. Use this
+/// rather than counting bytes per pixel yourself: it decides how much of a
+/// PSRAM framebuffer is flushed from CPU cache before DMA reads it, and an
+/// undercount leaves the bottom of the screen showing stale pixels.
+///
+/// It answers for the whole framebuffer, not per pixel, because 1-bit
+/// monochrome panels and e-paper use less than a byte per pixel. A MONO1
+/// format would be one more case returning (w * h + 7) / 8.
 constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
 {
     if (width <= 0 || height <= 0)
@@ -77,14 +69,13 @@ constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
     return 0;
 }
 
-// Engine settings (loaded from project config)
-// Global settings accessible without Engine initialization
+// Engine settings, loaded from the project config. Global() reads them
+// without an initialised Engine.
 struct DEKI_ENGINE_API EngineSettings
 {
-    // Inspector display preference (Pixels or Meters). This is purely a UI
-    // concern: internal storage, serialization, runtime math and Box2D
-    // integration always work in meters. The inspector multiplies by
-    // pixelsPerMeter for display when inspectorUnit == Pixels.
+    // Units the inspector shows. Display only: storage, serialization,
+    // runtime math and Box2D always work in meters. In Pixels mode the
+    // inspector multiplies by pixelsPerMeter.
     UnitMode inspectorUnit = UnitMode::Pixels;
 
     // Art density: how many pixels of art make one meter of world. Sizes
@@ -95,14 +86,12 @@ struct DEKI_ENGINE_API EngineSettings
     // Inspector display only; stored temperatures are always Celsius.
     TemperatureUnit temperatureUnit = TemperatureUnit::Celsius;
 
-    // Global instance for use by Object etc without requiring engine init
     static EngineSettings& Global();
 };
 
 // How the engine is hosted. A device runs everything itself; the editor owns
 // the providers, input, presenting and the frame loop and only asks the
-// engine for lifecycle + render. One loop, two configurations - there used to
-// be two copies of Initialize/Update/Shutdown that had drifted apart.
+// engine for lifecycle + render. Both run the same loop with different flags.
 struct DEKI_ENGINE_API EngineHost
 {
     bool initializeProviders = true;  // FileSystem, ProjectSettings, Memory in Initialize()
@@ -116,52 +105,37 @@ struct DEKI_ENGINE_API EngineHost
     static EngineHost Editor();
 };
 
-// Update callback function type
+// deltaTime is in milliseconds.
 using UpdateCallback = std::function<void(uint32_t deltaTime)>;
 
 using GameUpdateCallback = std::function<void()>;
 
-// Include core game engine headers
-
-// Include reflection headers
-
-// Include utility headers
-
-// Include interface headers
-
-// Forward declarations
 class Object;
 
-/**
- * @brief Engine singleton: owns the scene system, lifecycle and frame loop.
- *
- * Holds the active scene graph via SceneSystem, drives the component
- * lifecycle (Awake, Start, Update) through LifecycleManager, and dispatches
- * to whichever render, input and display providers a package has installed -
- * all four are optional, so a headless or editor-hosted engine is the same
- * class with null providers.
- */
+/// Engine singleton: owns the scene system, lifecycle and frame loop.
+///
+/// Holds the active scene graph through SceneSystem, drives the component
+/// lifecycle (Awake, Start, Update) through LifecycleManager, and calls
+/// whichever render, input and display providers packages have installed.
+/// The providers are optional, so a headless or editor-hosted engine is the
+/// same class with null providers.
 class DEKI_ENGINE_API Engine
 {
 private:
     bool m_Initialized;
-    bool m_IsDirty;  // Track if engine needs redraw
+    bool m_IsDirty;  // needs a redraw
 
-    // Scene management system
     SceneSystem* m_SceneSystem;
 
-    // Lifecycle management (PreRender, Start, Update)
     LifecycleManager* m_LifecycleManager;
 
-    // Rendering system (provided by rendering package, nullptr if headless)
+    // From a rendering package; nullptr when headless.
     IRenderSystem* m_Renderer;
 
-    // Input system (provided by input package, nullptr if no input)
+    // From an input package; nullptr when there is no input.
     IInputSystem* m_InputSystem;
 
-    // Display (provided by a display integration package: SDL3, LovyanGFX, editor preview).
-    // Package owns lifetime; engine-core just holds the pointer + name. Replaces the
-    // old static DekiDisplay facade.
+    // From a display package (SDL3, LovyanGFX, editor preview), which owns it.
     IDisplay* m_Display = nullptr;
     std::string m_DisplayName;
 
@@ -173,275 +147,157 @@ private:
     // false when there is no display, it reports no size, or the allocation fails.
     bool SizeFramebufferToDisplay();
 
-    // Update callbacks
     std::vector<UpdateCallback> m_UpdateCallbacks;
 
     GameUpdateCallback m_GameUpdateCallback;
 
-    // Main loop configuration
     uint32_t m_TargetFps;
     bool m_Running;
 
-    // FPS counter
     FPSCounter m_FpsCounter;
 
-    // Engine settings
     EngineSettings m_Settings;
 
-    // How this engine instance is hosted (see EngineHost)
     EngineHost m_Host;
 
 public:
-    /**
-     * @brief Get the singleton instance of Engine
-     * @return Reference to the Engine instance
-     */
     static Engine& GetInstance();
 
-    /**
-     * @brief Initialize the engine from the active project settings
-     * @return true if initialization successful, false otherwise
-     *
-     * Picks the host configuration for this build: EngineHost::Editor()
-     * in editor builds, EngineHost::Device() otherwise.
-     */
+    /// Starts the engine from the active project settings, with
+    /// EngineHost::Editor() in editor builds and EngineHost::Device()
+    /// otherwise. Returns false on failure.
     static bool Initialize();
 
-    /**
-     * @brief Initialize the engine for an explicit host configuration
-     */
+    /// Starts the engine with the given host configuration.
     static bool Initialize(const EngineHost& host);
 
     const EngineHost& GetHost() const { return m_Host; }
 
-    /**
-     * @brief Shutdown the game engine and free resources
-     */
+    /// Shuts the engine down and frees its resources.
     void Shutdown();
 
-    /**
-     * @brief Update game logic and animations (called every frame)
-     * @param deltaTime Time since last update in milliseconds
-     */
+    /// Runs one frame. `deltaTime` is milliseconds since the last call.
     void Update(uint32_t deltaTime);
 
-    /**
-     * @brief Process lifecycle methods on the active scene
-     * Handles Awake, Start, Update and detects scene changes during lifecycle
-     */
+    /// Runs Awake, Start and Update on the active scene, and handles a scene
+    /// change made during them.
     void ProcessLifecycle();
 
-    /**
-     * @brief Render the current scene to internal buffer
-     */
+    /// Renders the current scene into the render system's framebuffer.
     void Render();
 
-    /**
-     * @brief Present the render system's framebuffer through the display.
-     *
-     * Only the rectangles the render system reports as changed are pushed
-     * when the display can present partial frames (IRenderSystem::
-     * GetPresentRects + IDisplay::PresentRegions); otherwise the whole
-     * frame. Every present in the engine goes through here.
-     */
+    /// Sends the render system's framebuffer to the display. When the display
+    /// can present partial frames, only the changed rectangles are sent
+    /// (IRenderSystem::GetPresentRects + IDisplay::PresentRegions); otherwise
+    /// the whole frame. Every present in the engine goes through here.
     void PresentFrame();
 
-    /**
-     * @brief Make the next present cover the whole screen (the display's own
-     *        RequestFullRefresh included).
-     */
+    /// Makes the next present cover the whole screen, including the
+    /// display's own RequestFullRefresh.
     void RequestFullRefresh();
 
-    /**
-     * @brief Register an update callback to be called each frame
-     * @param callback Function to call during update
-     * @return ID of the registered callback (can be used to unregister)
-     */
+    /// Calls `callback` every frame. Returns an id for UnregisterUpdate.
     size_t RegisterUpdate(const UpdateCallback& callback);
 
-    /**
-     * @brief Remove a callback registered with RegisterUpdate
-     * @param id The value RegisterUpdate returned
-     *
-     * A package DLL that registers a callback MUST unregister it before it
-     * unloads, or the engine calls into unmapped code on the next frame.
-     */
+    /// Removes the callback that RegisterUpdate returned `id` for. A package
+    /// DLL that registers a callback must unregister it before it unloads, or
+    /// the engine calls into unmapped code on the next frame.
     void UnregisterUpdate(size_t id);
 
-    /**
-     * @brief Run the registered update callbacks once
-     * @param deltaTime Milliseconds since the previous call
-     *
-     * Update() does this itself. Hosts that drive the lifecycle by hand (the
-     * editor's play mode) call it so package systems (tweens, ...) tick there
-     * exactly as they do on a device.
-     */
+    /// Runs the registered update callbacks once. `deltaTime` is milliseconds
+    /// since the previous call. Update() does this itself; hosts that drive the
+    /// lifecycle by hand (the editor's play mode) call it so package systems
+    /// (tweens, ...) tick there as they do on a device.
     void RunUpdateCallbacks(uint32_t deltaTime);
 
-    /**
-     * @brief Set the current root scene
-     * @param scene Pointer to the scene to set as root
-     * @param takeOwnership If true, engine will delete the scene when replaced or on shutdown
-     */
+    /// Makes `scene` the root scene. With `takeOwnership`, the engine deletes
+    /// it when it is replaced or on shutdown.
     void SetRootScene(Scene* scene, bool takeOwnership = true);
 
-    /**
-     * @brief Get the current root scene
-     * @return Pointer to the current root scene, or nullptr if none set
-     */
+    /// The root scene, or nullptr when none is set.
     Scene* GetRootScene() const;
 
-    /**
-     * @brief Create a new empty scene
-     * @return Pointer to the created scene
-     */
+    /// Creates an empty scene.
     Scene* CreateScene();
 
-    /**
-     * @brief Get the renderer instance
-     * @return The installed render system, or nullptr when headless
-     */
+    /// The installed render system. Call it only when one is installed (see
+    /// GetRenderSystem).
     IRenderSystem& GetRenderer() const { return *m_Renderer; }
 
-    /**
-     * @brief Get the scene system instance
-     * @return Reference to the SceneSystem instance
-     */
     SceneSystem& GetSceneSystem() const { return *m_SceneSystem; }
 
-    /**
-     * @brief Get the lifecycle manager instance
-     * @return Pointer to the LifecycleManager instance
-     */
     LifecycleManager* GetLifecycleManager() const { return m_LifecycleManager; }
 
-    /**
-     * @brief Get the render system instance
-     * @return Pointer to the DekiRenderSystem instance (nullptr if no rendering package)
-     */
+    /// The render system, or nullptr when no rendering package is loaded.
     IRenderSystem* GetRenderSystem() const { return m_Renderer; }
 
-    /**
-     * @brief Set the render system (called by rendering package during registration)
-     * @param rs Pointer to the render system (package owns lifetime)
-     */
+    /// Called by a rendering package when it registers. The package owns `rs`.
     void SetRenderSystem(IRenderSystem* rs) { m_Renderer = rs; }
 
-    /**
-     * @brief Get the input system instance
-     * @return Pointer to the IInputSystem instance (nullptr if no input package)
-     */
+    /// The input system, or nullptr when no input package is loaded.
     IInputSystem* GetInputSystem() const { return m_InputSystem; }
 
-    /**
-     * @brief Set the input system (called by input package during registration)
-     * @param is Pointer to the input system (package owns lifetime)
-     */
+    /// Called by an input package when it registers. The package owns `is`.
     void SetInputSystem(IInputSystem* is) { m_InputSystem = is; }
 
-    /**
-     * @brief Get the active display.
-     * Set at runtime by a display integration package via SetDisplay().
-     * nullptr if no display package is loaded.
-     */
+    /// The active display, set by a display package through SetDisplay(), or
+    /// nullptr when none is loaded.
     IDisplay* GetDisplay() const { return m_Display; }
 
-    /**
-     * @brief Register the active display (called by SDL3Display, LovyanGFXDisplay,
-     *        EditorDisplay, etc. at package load).
-     *
-     * The package owns the display instance's lifetime. Engine-core stores the
-     * pointer + a name (for diagnostics) and sizes the framebuffer to the size
-     * the display reports: every target renders at its own native resolution.
-     */
+    /// Registers the active display; SDL3Display, LovyanGFXDisplay,
+    /// EditorDisplay and the like call it when their package loads. The
+    /// package owns the display. The engine keeps the pointer and a name for
+    /// diagnostics, and sizes the framebuffer to the display, so every target
+    /// renders at its own native resolution.
     void SetDisplay(IDisplay* display, const std::string& name = "");
 
-    /**
-     * @brief Display name set by the registering package (e.g. "SDL3").
-     */
+    /// Display name set by the registering package, such as "SDL3".
     const std::string& GetDisplayName() const { return m_DisplayName; }
 
-    /**
-     * @brief True iff a display has been registered AND its IsInitialized() is true.
-     */
+    /// True when a display is registered and its IsInitialized() is true.
     bool IsDisplayInitialized() const { return m_Display && m_Display->IsInitialized(); }
 
-    /**
-     * @brief Check if the game engine is initialized
-     * @return true if initialized, false otherwise
-     */
     bool IsInitialized() const { return m_Initialized; }
 
-    /**
-     * @brief Check if the engine is in runtime mode (play mode or device)
-     *
-     * In runtime mode, components follow the device code path:
-     * no editor GUID sync, no font preview, no on-demand baking.
-     * On device (!DEKI_EDITOR), always returns true.
-     * In editor, returns true only during play mode.
-     */
+    /// True on a device, and in the editor during play mode. In runtime mode
+    /// components follow the device code path: no editor GUID sync, no font
+    /// preview, no on-demand baking.
     static bool IsRuntimeMode();
 
-    /**
-     * @brief Set runtime mode (called by editor play mode init/shutdown)
-     */
+    /// Called by the editor's play mode when it starts and stops.
     static void SetRuntimeMode(bool runtime);
 
-    /**
-     * @brief Set the game update callback for game logic updates
-     * @param callback Function to call for game logic updates
-     */
+    /// Sets the callback that runs game logic each frame.
     void SetGameUpdateCallback(const GameUpdateCallback& callback);
 
-    /**
-     * @brief Set the target FPS for the main loop
-     * @param fps Target frames per second (default: 30)
-     */
+    /// Frame rate the main loop aims for. The default is 30.
     void SetTargetFPS(uint32_t fps);
 
-    /**
-     * @brief Run the main game loop
-     * This handles timing, platform updates, rendering, and callbacks
-     */
+    /// Runs the main loop (timing, platform updates, rendering, callbacks)
+    /// until StopMainLoop().
     void RunMainLoop();
 
-    /**
-     * @brief Stop the main game loop
-     */
     void StopMainLoop();
 
-    /**
-     * @brief Check if the main loop is running
-     * @return true if running, false otherwise
-     */
     bool IsRunning() const { return m_Running; }
 
-    /**
-     * @brief Mark the engine as dirty (needs redraw)
-     */
+    /// Asks for a redraw.
     void MarkDirty() { m_IsDirty = true; }
 
-    /**
-     * @brief Check if engine needs redraw
-     * @return true if dirty, false otherwise
-     */
+    /// True when a redraw is needed.
     bool IsDirty() const { return m_IsDirty; }
 
-    // Renderer access methods for external systems
+    // The render system's framebuffer, for code outside the engine.
     const uint8_t* GetFrameBuffer() const;
     int32_t GetScreenWidth() const;
     int32_t GetScreenHeight() const;
     ColorFormat GetFrameBufferFormat() const;
 
-    /**
-     * @brief Get engine settings
-     * @return Reference to the engine settings
-     */
     EngineSettings& GetSettings() { return m_Settings; }
     const EngineSettings& GetSettings() const { return m_Settings; }
 
 private:
-    // Private constructor and destructor (singleton pattern)
+    // Singleton: use GetInstance().
     Engine();
     ~Engine();
 

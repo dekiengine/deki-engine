@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include <deki/reflection/Property.h>  // DekiFieldRef, DekiPropertyType
+#include <deki/reflection/Property.h>  // FieldRef, PropertyType
 
 namespace Deki
 {
@@ -11,18 +11,15 @@ namespace Deki
 class Object;
 class Component;
 
-/**
- * @brief The object's own transform, addressable like a component.
- *
- * The transform is not a component: it lives on Object with private fields
- * and setters that invalidate the cached world transform of the object and all
- * its descendants. So a Transform-targeted reference is DISPATCHED by id rather
- * than written through an offset, and every write goes through the real setter.
- *
- * Position and Scale address both axes at once (a Vector2-typed target), which
- * is what makes "move this object to (x, y)" a single generic action instead of
- * two that would run one after the other.
- */
+/// A field of the object's own transform, addressable like a component field.
+///
+/// The transform is not a component: it lives on Object, with private fields
+/// and setters that invalidate the cached world transform of the object and
+/// its descendants. So a reference to it is dispatched by this id, not written
+/// through an offset, and every write goes through the setter.
+///
+/// Position and Scale cover both axes at once (a Vector2 target), so "move
+/// this object to (x, y)" is one action, not two.
 enum class TransformField : uint8_t
 {
     None = 0,
@@ -34,101 +31,87 @@ enum class TransformField : uint8_t
     ScaleY,
     Scale,
     Active,
-    // The third axis, appended so the values above keep their numbers.
+    // The third axis. Append only, so the values above keep their numbers.
     Z,
     RotationX,
     RotationY,
     ScaleZ,
 };
 
-/** @brief The component name a reference stores to mean "the object's transform". */
+/// The component name a reference stores to mean "the object's transform".
 inline constexpr const char* kTransformRefComponent = "Transform";
 
-/**
- * @brief The component name a reference stores to mean "a variable of this graph".
- *
- * Variables are declared by a node carrying DEKI_NODE_VARIABLES and live in
- * storage the graph's RUNNER allocates per instance, so the engine cannot
- * resolve them: BindPropertyRef leaves these alone and the runner binds them
- * itself with DekiVariableFieldRef. Field = the variable's name.
- */
+/// The component name a reference stores to mean "a variable of this graph".
+/// The field is the variable's name.
+///
+/// Variables are declared by a node with DEKI_NODE_VARIABLES and live in
+/// storage the graph's runner allocates per instance. BindPropertyRef skips
+/// them; the runner binds them itself with DekiVariableFieldRef.
 inline constexpr const char* kVariableRefComponent = "Variable";
 
-/**
- * @brief A field descriptor for a standalone value of `type`, at offset 0.
- *
- * For runners binding their own storage (graph variables): point
- * PropertyBinding::field at the value and its `info` at this, and every
- * Read/Write/Compare helper below works on it unchanged. Returns nullptr for a
- * type that has no literal form.
- */
+/// A field descriptor for a standalone value of `type`, at offset 0, or
+/// nullptr for a type with no literal form.
+///
+/// For runners binding their own storage (graph variables): point
+/// PropertyBinding::field at the value and its `info` at this, and the
+/// Read/Write/Compare helpers below work on it.
 const FieldRef* DekiVariableFieldRef(PropertyType type);
 
-/**
- * @brief The transform's field table, for pickers and binding.
- *
- * NOTE: in THIS table only, FieldRef::offset carries a TransformField
- * id, not a byte offset (the fields are private and dispatched, see above).
- * Nothing outside BindPropertyRef should read it as an offset.
- */
+/// The transform's field table, for pickers and binding.
+///
+/// In this table only, FieldRef::offset holds a TransformField id, not a byte
+/// offset, because the fields are private and dispatched (see above). Only
+/// BindPropertyRef reads it.
 const FieldRef* TransformFields(int& outCount);
 
-/**
- * @brief Transform field names, index-aligned with TransformFields.
- *
- * FieldRef stores only a name hash (that is the point: 8 bytes per field),
- * so the names live here for the editor's pickers and for error messages.
- */
+/// Transform field names, in the same order as TransformFields. FieldRef
+/// stores only a name hash, so the names for pickers and error messages live
+/// here.
 const char* const* TransformFieldNames(int& outCount);
 
-/**
- * @brief A picked "field of a component on an object".
- *
- * The editor authors one of these with three cascading dropdowns (object ->
- * component -> field), so an invalid reference cannot be authored at all. What
- * gets stored is ids, not prose: the component is identified by the same type
- * GUID scenes use, the field by its name. Both are hashed ONCE at load
- * (Rehash), after which resolving costs a small linear scan and never touches a
- * string again.
- *
- * The object stays a NAME on purpose. Object ids are per-scene, and a graph
- * asset is shared across every scene that uses it, so a name is the only
- * identity that survives. "" means "the object this component is on".
- *
- * Resolve once (Awake, state entry) into a PropertyBinding and reuse it; do not
- * resolve per frame.
- */
+/// A picked field of a component on an object.
+///
+/// The editor sets one with three dropdowns (object, then component, then
+/// field), so only valid references can be made. The component is stored by
+/// the qualified class name scenes use, the field by its name. Both are hashed
+/// once at load (Rehash); resolving is then a small linear scan with no string
+/// work.
+///
+/// The object is a name, because object ids are per scene and a graph asset is
+/// shared by every scene that uses it. "" means the object this component is
+/// on.
+///
+/// Resolve once (Awake, state entry) into a PropertyBinding and reuse it, not
+/// every frame.
 struct PropertyRef
 {
-    // ---- Authored / serialized ----
+    // ---- Authored and serialized ----
     std::string object;     // object name in the scene; "" = own object
-    std::string component;  // component type GUID (::Deki::TypeName<Component>())
+    std::string component;  // qualified class name (::Deki::TypeName<Component>())
     std::string field;      // field name as declared in C++
 
     // ---- Derived at load (Rehash), never serialized ----
     uint32_t componentTypeId = 0;  // HashString(component)
     uint32_t fieldHash = 0;        // HashString(field)
 
-    // Recompute the ids from the authored strings. Called by the generated
-    // Deserialize and by the editor whenever the reference is edited.
+    // Recomputes the ids from the strings. Called by the generated Deserialize
+    // and by the editor whenever the reference is edited.
     void Rehash();
 
     bool IsSet() const { return componentTypeId != 0 && fieldHash != 0; }
 };
 
-/**
- * @brief A resolved PropertyRef: where the field lives and what it is.
- *
- * Plain old data on purpose - callers cache it in zero-initialized scratch
- * memory (e.g. an FSM action's per-run state blob), so it must survive being
- * memset to zero and must not own anything.
- */
+/// A resolved PropertyRef: where the field lives and what it is.
+///
+/// Must stay plain old data: callers keep it in zero-initialized scratch
+/// memory (e.g. an FSM action's per-run state), so it must survive a memset
+/// to zero and own nothing.
 struct PropertyBinding
 {
     void* field = nullptr;  // component field (null for transform targets)
     const FieldRef* info = nullptr;
-    // Literal operand pre-parsed for this field's type (see ParsePropertyLiteral).
-    // Unused for String fields, which read their text straight from the caller.
+    // Literal operand parsed for this field's type (see ParsePropertyLiteral).
+    // Unused for String fields, which take their text from the caller.
     double number = 0.0;
     double number2 = 0.0;  // second axis, for Vector2-typed targets
 
@@ -140,46 +123,38 @@ struct PropertyBinding
     bool IsTransform() const { return transform != TransformField::None; }
 };
 
-/**
- * @brief Resolve `ref` against `object` (already found by name by the caller).
- *
- * Fills out.field / out.info. Returns false when the object carries no such
- * component or the component has no such field; `outError` (optional, may be
- * null) then receives a short human-readable reason for the caller to log.
- * Does not touch out.number.
- */
+/// Resolves `ref` on `object`, which the caller has already found by name.
+/// Fills out.field and out.info, and leaves out.number as it is.
+///
+/// Returns false when the object has no such component or the component no
+/// such field. `outError`, when not null, then gets a short reason to log.
 bool BindPropertyRef(Object* object, const PropertyRef& ref, PropertyBinding& out, const char** outError = nullptr);
 
-/**
- * @brief Parse an authored literal per the bound field's type.
- *
- * Numbers, bools ("true"/"1") and enums (stored as their index - the editor
- * resolves value names, the device never needs the name table) land in `out`.
- * Vector2-typed targets read "x, y" and fill `out2` as well. String fields need
- * no parsing and return true with both untouched. Returns false when the text
- * is not a number for a numeric field.
- */
+/// Parses a literal by the bound field's type.
+///
+/// Numbers, bools ("true"/"1") and enums go into `out`. Enums are stored as
+/// their index, so the device needs no name table. Vector2 targets read
+/// "x, y" and also fill `out2`. String fields return true and leave both
+/// alone. Returns false when a numeric field's text is not a number.
 bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out, double& out2);
 
-/** @brief Single-value overload for targets that are not Vector2-typed. */
+/// For targets that are not Vector2.
 bool ParsePropertyLiteral(const FieldRef& info, const char* text, double& out);
 
-/** @brief Read the bound target's live value (first axis for Vector2). */
+/// The bound target's current value (the first axis for Vector2).
 double ReadBoundProperty(const PropertyBinding& binding);
 
-/** @brief Read the bound target's second axis (Vector2 targets only, else 0). */
+/// The bound target's second axis, or 0 when it is not a Vector2.
 double ReadBoundProperty2(const PropertyBinding& binding);
 
-/** @brief Write raw numbers to the bound target, bypassing the parsed literal. */
+/// Writes `v` and `v2` to the bound target instead of the parsed literal.
 void WriteBoundNumbers(const PropertyBinding& binding, double v, double v2);
 
-/** @brief Write the bound literal (or `text` for String fields) into the field. */
+/// Writes the parsed literal, or `text` for String fields, into the field.
 void WriteBoundProperty(const PropertyBinding& binding, const std::string& text);
 
-/**
- * @brief Compare the field's live value against the bound literal.
- * @return <0, 0 or >0 like strcmp. String fields compare against `text`.
- */
+/// Compares the field's current value with the parsed literal, or with `text`
+/// for String fields. Returns <0, 0 or >0 like strcmp.
 int CompareBoundProperty(const PropertyBinding& binding, const std::string& text);
 
 }  // namespace Deki

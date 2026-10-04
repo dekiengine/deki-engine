@@ -31,8 +31,7 @@ ProviderRegistryBase& ProviderRegistryBase::ForCategory(const char* category)
         return *it->second;
     }
 
-    // Allocate a fresh instance for this category. The instances are intentionally
-    // leaked at process exit (matches the singleton model of other engine registries).
+    // Leaked at process exit on purpose, like the engine's other registries.
     auto* fresh = new ProviderRegistryBase();
     map.emplace(std::move(key), fresh);
     return *fresh;
@@ -46,9 +45,8 @@ void ProviderRegistryBase::Register(IPackage* provider, const char* providerId, 
         return;
     }
 
-    // Idempotent by providerId: replace existing entry with the same id rather
-    // than duplicating. This handles hot-reload cleanly when a package re-registers
-    // after its previous instance was already cleared by ClearPluginProviders.
+    // An entry with the same providerId is replaced, not duplicated, so a
+    // package that re-registers after a hot reload has one entry.
     for (auto& e : m_Entries)
     {
         if (std::strcmp(e.providerId, providerId) == 0)

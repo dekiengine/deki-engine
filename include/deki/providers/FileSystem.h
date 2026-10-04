@@ -5,25 +5,19 @@
 #include <string>
 #include <deki/providers/IFileSystem.h>
 
-/**
- * @brief File System Provider for handling different platform filesystem implementations
- *
- * Holds the process-wide filesystem. Platform integration packages install a
- * concrete implementation via SetFileSystem(); there is no build-time platform
- * enum - which one you get is decided by which package is loaded.
- */
-
 namespace Deki
 {
 
+/// Holds the process-wide filesystems. Platform packages install their
+/// implementation with SetFileSystem(), so the loaded package decides which
+/// one is used.
 class FileSystem
 {
 private:
     static std::unique_ptr<IFileSystem> s_CurrentFilesystem;
     static bool s_Initialized;
     // Two or three entries ("F:/", "S:/"), matched by prefix on every file
-    // open. A std::map keyed by std::string built a std::string from the
-    // path and one substr per entry for each lookup.
+    // open. A plain vector, so a lookup builds no strings.
     struct PrefixEntry
     {
         std::string prefix;
@@ -33,87 +27,44 @@ private:
     static IFileSystem* s_DefaultFilesystem;
 
 public:
-    /**
-     * @brief Initialize the filesystem manager
-     * @return true if initialization successful, false otherwise
-     */
+    /// Returns false on failure.
     static bool Initialize();
 
-    /**
-     * @brief Shutdown the current filesystem
-     */
     static void Shutdown();
 
-    /**
-     * @brief Get the current filesystem implementation
-     * @return Pointer to current filesystem, or nullptr if not initialized
-     */
+    /// The installed filesystem, or nullptr before one is set.
     static IFileSystem* GetCurrentFileSystem();
 
-    /**
-     * @brief Check if the filesystem manager is initialized
-     * @return true if initialized, false otherwise
-     */
     static bool IsInitialized() { return s_Initialized; }
 
-    /**
-     * @brief Set a custom filesystem implementation
-     * @param fs Pointer to filesystem (takes ownership)
-     * @return true if successful
-     */
+    /// Installs `fs` and takes ownership of it.
     static bool SetFileSystem(IFileSystem* fs);
 
-    /**
-     * @brief Check if storage mode (USB MSC) is supported
-     * @return true if the current filesystem supports storage mode
-     */
+    /// True when the filesystem can be exposed as USB mass storage.
     static bool SupportsStorageMode();
 
-    /**
-     * @brief Enter or exit storage mode (USB Mass Storage)
-     * @param enabled true to enter storage mode, false to exit
-     * @return true if mode change successful
-     */
+    /// Enters or leaves USB mass storage mode. Returns false on failure.
     static bool SetStorageMode(bool enabled);
 
-    /**
-     * @brief Check if currently in storage mode
-     * @return true if in storage mode (USB MSC active)
-     */
+    /// True while USB mass storage is active.
     static bool IsStorageMode();
 
     // =========================================================================
-    // Multi-Filesystem Support (F:/, S:/ prefix routing)
+    // Several filesystems, chosen by path prefix (F:/, S:/)
     // =========================================================================
 
-    /**
-     * @brief Register a filesystem for a specific path prefix
-     * @param prefix Path prefix (e.g., "F:/", "S:/")
-     * @param fs Filesystem to handle paths with this prefix
-     */
+    /// Routes paths starting with `prefix` (such as "F:/" or "S:/") to `fs`.
     static void RegisterFileSystem(const std::string& prefix, IFileSystem* fs);
 
-    /**
-     * @brief Unregister a filesystem for a path prefix
-     * @param prefix Path prefix to unregister
-     */
     static void UnregisterFileSystem(const std::string& prefix);
 
-    /**
-     * @brief Get the filesystem that handles a specific path
-     * @param path Path to look up (e.g., "F:/boot.scene", "S:/main.scene", or "scenes/Demo")
-     * @return Filesystem for this path, or default filesystem if no prefix match
-     */
+    /// The filesystem for `path` (such as "F:/boot.scene" or "scenes/Demo"):
+    /// the one registered for its prefix, else the default.
     static IFileSystem* GetFileSystemForPath(const char* path);
 
-    /**
-     * @brief Set the default filesystem for non-prefixed paths
-     * @param fs Filesystem to use for paths without a registered prefix (e.g., "scenes/Demo")
-     *
-     * This allows code to use simple relative paths like "scenes/Demo" instead of
-     * prefixed paths like "S:/scenes/Demo". The default filesystem will handle
-     * path resolution appropriately for the platform.
-     */
+    /// The filesystem for paths with no registered prefix, so code can use
+    /// "scenes/Demo" instead of "S:/scenes/Demo"; it resolves them as suits
+    /// the platform.
     static void SetDefaultFileSystem(IFileSystem* fs);
 };
 

@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <deki/Object.h>
 
-/**
- * @brief Base class for type-erased ObjectRef access (used by engine)
- */
+// ObjectRefBase is the type-erased part of ObjectRef, which the engine uses.
 
 namespace Deki
 {
@@ -13,16 +11,13 @@ namespace Deki
 struct ObjectRefBase
 {
     uint32_t id = 0;
-    uint32_t componentTypeId = 0;  // 0 = any (backward compat), nonzero = specific component type
+    uint32_t componentTypeId = 0;  // 0 = first component of type T, nonzero = that component type
     Object* resolved = nullptr;
 
     bool IsValid() const { return id != 0; }
     bool IsResolved() const { return resolved != nullptr; }
 
-    /**
-     * @brief Set the reference to an object (runtime assignment)
-     * @param obj The object to reference, or nullptr to clear
-     */
+    /// Points the reference at `obj` at runtime. nullptr clears it.
     void Set(Object* obj)
     {
         id = obj ? obj->GetId() : 0;
@@ -30,11 +25,8 @@ struct ObjectRefBase
         resolved = obj;
     }
 
-    /**
-     * @brief Set the reference to a specific component on an object
-     * @param obj The object to reference, or nullptr to clear
-     * @param typeId The component type ID to target
-     */
+    /// Points the reference at the component of type `typeId` on `obj`.
+    /// nullptr clears it.
     void Set(Object* obj, uint32_t typeId)
     {
         id = obj ? obj->GetId() : 0;
@@ -43,26 +35,18 @@ struct ObjectRefBase
     }
 };
 
-/**
- * @brief Object reference wrapper for editor-assignable object IDs
- *
- * ObjectRef<T> provides a uint32_t object ID that the property generator
- * recognizes as an ObjectRef type, causing the inspector to draw an object
- * picker dropdown filtered by component type T.
- *
- * The engine automatically resolves ObjectRef references before Start() is called,
- * so you can use Get() to retrieve the component directly.
- *
- * When componentTypeId is set, Get() returns the specific component matching
- * that type ID. When componentTypeId is 0, Get() returns the first component
- * matching template type T (backward compatible behavior).
- *
- * @tparam T The component type to filter by in the object picker
- */
+/// An object reference the user assigns in the editor.
+///
+/// The property generator recognizes ObjectRef<T>, and the inspector draws an
+/// object picker filtered to objects with component T. The engine resolves the
+/// reference before Start(), so Get() returns the component directly.
+///
+/// When componentTypeId is set, Get() returns the component with that type id.
+/// When it is 0, Get() returns the first component of type T.
 template <typename T>
 struct ObjectRef : ObjectRefBase
 {
-    // Get the resolved component (nullptr if not resolved or object doesn't have component)
+    // The resolved component, or nullptr when unresolved or the object lacks it.
     T* Get() const
     {
         if (!resolved)
@@ -77,13 +61,12 @@ struct ObjectRef : ObjectRefBase
         return resolved->GetComponent<T>();
     }
 
-    // Get the resolved object (nullptr if not resolved)
+    // The resolved object, or nullptr when unresolved.
     Object* GetObject() const { return resolved; }
 
-    // Implicit conversion to uint32_t for runtime use
     operator uint32_t() const { return id; }
 
-    // Assignment from uint32_t (legacy format, clears componentTypeId)
+    // Sets a bare object id and clears componentTypeId and the resolved object.
     ObjectRef& operator=(uint32_t newId)
     {
         id = newId;
@@ -92,14 +75,12 @@ struct ObjectRef : ObjectRefBase
         return *this;
     }
 
-    // Comparison with other ObjectRef
     bool operator==(const ObjectRef& other) const { return id == other.id && componentTypeId == other.componentTypeId; }
     bool operator!=(const ObjectRef& other) const { return !(*this == other); }
 
-    // Pointer-like access to the resolved component
     T* operator->() const { return Get(); }
 
-    // Check if reference is set AND resolved (safe to dereference)
+    // True when the reference is set and resolved, so safe to dereference.
     explicit operator bool() const { return id != 0 && resolved != nullptr; }
 };
 

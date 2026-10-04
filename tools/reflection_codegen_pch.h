@@ -1,14 +1,16 @@
 // Precompiled include prefix for the Deki reflection codegen (reflection_codegen.cpp).
 //
-// Holds ONLY the stable headers (stdlib + <meta> + engine reflection headers) that are
-// identical across every package and the plugin. DekiReflectionCodegen.cmake precompiles
-// this once into a shared .gch and force-includes it (-include) so each per-package
-// generator compile skips re-parsing <meta> (the dominant fixed cost). The per-package
-// component headers are NOT here - they arrive via deki_codegen_includes.inc.
+// Holds ONLY the stable headers (stdlib, <meta>, engine reflection headers),
+// the same for every package and the plugin. DekiReflectionCodegen.cmake
+// precompiles this once into a shared .gch and force-includes it (-include), so
+// each per-package generator compile skips re-parsing <meta>, the largest fixed
+// cost. The per-package component headers are NOT here; they come through
+// deki_codegen_includes.inc.
 //
-// This is a pure accelerator: reflection_codegen.cpp includes the same headers itself and
-// compiles fine without any PCH. Keep this list in sync with the stable includes at the
-// top of reflection_codegen.cpp (drift only costs speed, never correctness).
+// Only a speed-up: reflection_codegen.cpp includes the same headers itself and
+// compiles fine without a PCH. Keep this list in step with the stable includes
+// at the top of reflection_codegen.cpp (a mismatch costs speed, never
+// correctness).
 #pragma once
 
 #include <cstdint>

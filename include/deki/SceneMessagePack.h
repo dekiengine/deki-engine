@@ -7,8 +7,6 @@
 #include <functional>
 #endif
 
-// Forward declarations
-
 namespace Deki
 {
 
@@ -19,7 +17,7 @@ class Component;
 namespace SceneFormat
 {
 
-// MessagePack types we need
+// The MessagePack type tags scene files use.
 enum class MPType : uint8_t
 {
     Nil = 0xc0,
@@ -41,63 +39,55 @@ enum class MPType : uint8_t
     Array16 = 0xdc,
 };
 
-/**
- * @brief Embedded-friendly MessagePack parser for scene files
- * No dynamic allocation, fixed stack depth
- */
+/// MessagePack parser for compiled scene files, made for embedded targets: it
+/// allocates nothing and its recursion depth is capped (kMaxDepth).
 class SceneMsgPackParser
 {
 public:
     SceneMsgPackParser(const uint8_t* data, size_t size);
 
-    // Parse the scene data into a Scene object (as active/main scene)
+    // Fills `scene` from the data.
     bool ParseScene(Scene* scene);
 
-    // Parse scene data for instancing - returns root object (doesn't set as active)
+    // Builds the objects for an instance and returns the root, without
+    // touching the active scene.
     Object* ParseSceneInstance();
 
     // =========================================================================
-    // Public value readers (used by component Deserialize methods)
+    // Value readers, used by the components' generated Deserialize code
     // =========================================================================
 
-    // Basic reading
     bool ReadByte(uint8_t& value);
     bool PeekByte(uint8_t& value);
     bool ReadBytes(uint8_t* buffer, size_t count);
 
-    // MessagePack value readers
     bool ReadInt(int32_t& value);
     bool ReadFloat(float& value);
     bool ReadBool(bool& value);
     bool ReadString(const char*& str, uint16_t& length);
     bool SkipValue();
 
-    // Map/Array readers
     bool ReadMapSize(uint32_t& size);
     bool ReadArraySize(uint32_t& size);
 
-    // Big-endian primitives. These exist so the shift is written once: the
-    // open-coded form was `(b3 << 24) | ...` on uint8_t operands, which promote
-    // to int, so any value with the high bit set was signed left-shift overflow
-    // (UB) - reachable from any msgpack uint32/int32 >= 0x80000000.
+    // Big-endian reads. Use these rather than open-coding `(b3 << 24) | ...`:
+    // uint8_t operands promote to int, so a value with the high bit set is a
+    // signed shift overflow (undefined behaviour).
     bool ReadBE16(uint16_t& value);
     bool ReadBE32(uint32_t& value);
 
     // Shared by ReadMapSize/ReadArraySize, which differ only in their tags.
     bool ReadContainerSize(uint8_t fixPrefix, uint8_t tag16, uint8_t tag32, uint32_t& size);
 
-    // String comparison helper (for null-terminated vs length-prefixed)
+    // Compares a length-prefixed MessagePack string with a C string.
     bool StringEquals(const char* msgpackStr, uint16_t length, const char* cstr);
 
-    // Maximum container nesting the parser will follow.
-    //
-    // A MessagePack fixarray/fixmap header is a single byte, so a run of them
-    // nests one level per input byte. Without a cap, SkipValue and
-    // ParseObjectInternal recursed once per level and ~20 KB of input exhausted
-    // a 1 MB desktop stack - on an ESP32 task stack (commonly 8 KB) a couple of
-    // hundred bytes was enough, which a corrupt SD card can produce on its own.
-    // Real scenes nest far below this: object trees are a handful deep and
-    // component data is one or two levels.
+    // Deepest container nesting the parser follows. A fixarray/fixmap header
+    // is one byte, so corrupt input (a bad SD card is enough) can nest one
+    // level per byte, and SkipValue and ParseObjectInternal recurse per level:
+    // a few hundred bytes would overflow an 8 KB ESP32 task stack. Real scenes
+    // nest far less: object trees are a handful deep and component data one
+    // or two levels.
     static constexpr int kMaxDepth = 64;
 
 private:
@@ -106,8 +96,8 @@ private:
     size_t m_Pos;
     int m_Depth = 0;  // current container nesting level
 
-    // RAII depth counter. Returns false from Enter() when the limit is hit so
-    // the caller can fail the parse instead of recursing further.
+    // Counts nesting for one scope. Enter() returns false at the limit so the
+    // caller fails the parse instead of recursing further.
     class DepthGuard
     {
     public:
@@ -139,28 +129,21 @@ private:
         bool m_Entered;
     };
 
-    // Scene-specific parsers
     bool ParseSceneMetadata(Scene* scene);
     bool ParseObjects(Scene* scene);
-    bool ParseObjectInternal(Object*& obj);  // Internal object parsing
+    bool ParseObjectInternal(Object*& obj);
     bool ParseTransform(Object* obj);
     bool ParseComponents(Object* obj);
 };
 
-// Component creation is now handled by ComponentFactory in reflection/ComponentFactory.h
-// Use: ComponentFactory::Instance().Create(typeId)
+// Components are created by ComponentFactory (reflection/ComponentFactory.h):
+// ComponentFactory::Instance().Create(typeId).
 
-/**
- * @brief Scene file extension
- */
 constexpr const char* kSceneExtension = ".scene";
 
-/**
- * @brief Scene format version
- */
 constexpr uint16_t kSceneFormatVersion = 1;
 
-// Field names used in serialization (shared with editor)
+// Key names in the compiled format, shared with the editor's writer.
 namespace Fields
 {
 constexpr const char* kVersion = "version";
@@ -170,7 +153,6 @@ constexpr const char* kHeight = "height";
 constexpr const char* kClearColor = "clear_color";
 constexpr const char* kObjects = "objects";
 
-// Object fields
 constexpr const char* kObjID = "id";
 constexpr const char* kObjName = "name";
 constexpr const char* kObjActive = "active";
@@ -178,64 +160,50 @@ constexpr const char* kObjSortOrder = "sort_order";
 constexpr const char* kObjTransform = "transform";
 constexpr const char* kObjComponents = "components";
 constexpr const char* kObjChildren = "children";
-constexpr const char* kObjInstance = "instance";  // New: path to instanced scene
+constexpr const char* kObjInstance = "instance";  // path to the instanced scene
 
-// Transform fields
 constexpr const char* kTrX = "x";
 constexpr const char* kTrY = "y";
-// The third axis, present only when a 3D build set it. A 2D build skips them.
+// The third axis, present only when a 3D build wrote it. A 2D build skips them.
 constexpr const char* kTrZ = "z";
 constexpr const char* kTrRotationX = "rotationX";
 constexpr const char* kTrRotationY = "rotationY";
 constexpr const char* kTrScaleZ = "scaleZ";
 constexpr const char* kTrRotation = "rotation";  // the Z angle, always
-// These were "m_ScaleX" and "scale_y": a rename of Object::scale_x to
-// m_ScaleX rewrote the string literal too, putting a C++ private-member prefix
-// into the compiled scene format and leaving the four transform keys using
-// three different conventions. The authored (JSON) form in Scene.cpp always
-// wrote scaleX/scaleY, so this is also what makes the two agree.
-//
-// Safe to change without a migration only because MessagePack scenes are build
-// output - the editor compiles them from the authored .scene JSON on export.
-// Authored data is never in this format.
+// Same keys as the authored JSON form in Scene.cpp. Keys in this format can
+// change without a migration because MessagePack scenes are build output,
+// compiled from the authored .scene JSON on export; they are not C++ member
+// names, so renaming a member must not change them.
 constexpr const char* kTrScaleX = "scaleX";
 constexpr const char* kTrScaleY = "scaleY";
 
-// Component fields
 constexpr const char* kCompType = "type";
 constexpr const char* kCompData = "data";
 }  // namespace Fields
 
 #ifdef DEKI_EDITOR
-// Function type to resolve asset GUID to runtime path
-// Returns empty string if GUID cannot be resolved
+// Turns an asset GUID into its runtime path, or "" when it cannot.
 using AssetResolver = std::function<std::string(const std::string& guid)>;
 
-// Callback to check if GUID is a subasset and get parent GUID
-// Returns true if guid is a subasset, sets outParentGuid to parent
+// True when `guid` is a sub-asset, with its parent's GUID in outParentGuid.
 using SubAssetResolverCallback = std::function<bool(const std::string& guid, std::string& outParentGuid)>;
 
-/**
- * @brief MessagePack writer for saving scenes from editor
- */
+/// Writes a scene in the compiled MessagePack format (editor only).
 class SceneMsgPackWriter
 {
 public:
     SceneMsgPackWriter();
 
-    // Set asset resolver for converting GUIDs to runtime paths
-    // When set, Asset properties are written as resolved paths (for runtime export)
-    // When not set, Asset properties are written as GUIDs (for editor save)
+    // With a resolver, asset fields are written as runtime paths (export);
+    // without one, as GUIDs.
     void SetAssetResolver(AssetResolver resolver) { m_AssetResolver = resolver; }
 
-    // Set subasset resolver for migrating old scenes with frame GUIDs in guid field
-    // When set, checks if AssetRef.guid is a subasset and swaps with parent GUID
+    // With this resolver, an AssetRef.guid that names a sub-asset (such as a
+    // sprite frame, as older scenes stored) is written as its parent's GUID.
     void SetSubAssetResolver(SubAssetResolverCallback resolver) { m_SubAssetResolver = std::move(resolver); }
 
-    // Write scene to MessagePack buffer
     bool WriteScene(Scene* scene);
 
-    // Get the written data
     const uint8_t* GetData() const { return m_Buffer.data(); }
     size_t GetSize() const { return m_Buffer.size(); }
 
@@ -244,11 +212,9 @@ private:
     AssetResolver m_AssetResolver;
     SubAssetResolverCallback m_SubAssetResolver;
 
-    // Basic writers
     void WriteByte(uint8_t value);
     void WriteBytes(const uint8_t* data, size_t count);
 
-    // MessagePack value writers
     void WriteNil();
     void WriteBool(bool value);
     void WriteInt(int32_t value);
@@ -256,11 +222,9 @@ private:
     void WriteString(const char* str);
     void WriteString(const std::string& str);
 
-    // Map/Array writers
     void WriteMapSize(uint32_t size);
     void WriteArraySize(uint32_t size);
 
-    // Scene-specific writers
     void WriteSceneMetadata(Scene* scene);
     void WriteObject(Object* obj);
     void WriteTransform(Object* obj);

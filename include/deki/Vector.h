@@ -3,19 +3,15 @@
 #include <deki/Math.h>
 #include <cmath>
 
-/**
- * @brief 2D vector for positions, directions, and scales.
- */
-
 namespace Deki
 {
 
+/// 2D vector for positions, directions and scales.
 struct Vector2
 {
     float x;
     float y;
 
-    // Constructors
     Vector2()
         : x(0.0f),
           y(0.0f)
@@ -27,7 +23,6 @@ struct Vector2
     {
     }
 
-    // Static constants
     static Vector2 Zero() { return Vector2(0.0f, 0.0f); }
     static Vector2 One() { return Vector2(1.0f, 1.0f); }
     static Vector2 Up() { return Vector2(0.0f, 1.0f); }
@@ -35,7 +30,6 @@ struct Vector2
     static Vector2 Left() { return Vector2(-1.0f, 0.0f); }
     static Vector2 Right() { return Vector2(1.0f, 0.0f); }
 
-    // Operators
     Vector2 operator+(const Vector2& o) const { return Vector2(x + o.x, y + o.y); }
     Vector2 operator-(const Vector2& o) const { return Vector2(x - o.x, y - o.y); }
     Vector2 operator*(float s) const { return Vector2(x * s, y * s); }
@@ -107,7 +101,7 @@ struct Vector2
         return Vector2(Math::Lerp(a.x, b.x, t), Math::Lerp(a.y, b.y, t));
     }
 
-    /// Rotate by angle in radians.
+    /// This vector rotated by `radians`.
     Vector2 Rotated(float radians) const
     {
         float c = std::cos(radians);
@@ -125,9 +119,7 @@ inline Vector2 operator*(float s, const Vector2& v)
     return v * s;
 }
 
-/**
- * @brief 3D vector for positions, directions, scales, and rotations.
- */
+/// 3D vector for positions, directions, scales and rotations.
 struct Vector3
 {
     float x;
@@ -247,11 +239,8 @@ inline Vector3 operator*(float s, const Vector3& v)
     return v * s;
 }
 
-/**
- * @brief 4x4 column-major matrix used as the OpenGL/GLSL FFI bridge.
- *
- * Storage: column-major (m[col][row]). Identity by default.
- */
+/// 4x4 matrix in the layout OpenGL/GLSL expect: column-major, m[col][row].
+/// Identity by default.
 struct Mat4
 {
     float m[4][4];
@@ -289,7 +278,7 @@ struct Mat4
         return r;
     }
 
-    /// OpenGL-style perspective: vertical field of view in radians.
+    /// OpenGL-style perspective; `fovYRadians` is the vertical field of view.
     static Mat4 Perspective(float fovYRadians, float aspect, float nearZ, float farZ)
     {
         Mat4 r;

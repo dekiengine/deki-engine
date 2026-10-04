@@ -1,17 +1,12 @@
-/**
- * @file AssetLookupTable.h
- * @brief Binary asset lookup table for embedded runtime
- *
- * Provides O(log n) lookup of "path:type" -> GUID using a sorted binary table.
- * Zero heap allocation - just stores a pointer to the loaded table data.
- *
- * Binary format (created by AssetExporter::ExportAssetLookupTable):
- * - [4 bytes] entry count (uint32_t)
- * - [N entries, each 44 bytes, sorted by hash]:
- *   - [4 bytes] FNV-1a hash of "path:type" (uint32_t)
- *   - [37 bytes] GUID string (null-terminated)
- *   - [3 bytes] padding
- */
+// The runtime's "path:type" -> GUID table: a binary search over a sorted
+// table, with no heap allocation (it only keeps a pointer to the data).
+//
+// Format, written by AssetExporter::ExportAssetLookupTable:
+// - [4 bytes] entry count (uint32_t)
+// - [N entries, each 44 bytes, sorted by hash]:
+//   - [4 bytes] FNV-1a hash of "path:type" (uint32_t)
+//   - [37 bytes] GUID string (null-terminated)
+//   - [3 bytes] padding
 
 #pragma once
 
@@ -24,72 +19,37 @@ namespace Deki
 class AssetLookupTable
 {
 public:
-    /**
-     * @brief Load the asset lookup table from memory
-     *
-     * The data must remain valid for the lifetime of lookups.
-     * Typically loaded from SD card or flash memory.
-     *
-     * @param data Pointer to binary table data
-     * @param size Size of data in bytes
-     * @return true on success
-     */
+    /// Uses the table in `data`, which must stay valid while lookups run (it
+    /// is not copied). Returns false when the data is not a valid table.
     static bool Load(const uint8_t* data, size_t size);
 
-    /**
-     * @brief Unload the lookup table
-     */
     static void Unload();
 
-    /**
-     * @brief Check if table is loaded
-     */
     static bool IsLoaded() { return s_Data != nullptr; }
 
-    /**
-     * @brief Look up GUID by hash (binary search)
-     * @param hash FNV-1a hash of "path:type" key
-     * @return GUID string or nullptr if not found
-     */
+    /// The GUID for `hash` (from Hash()), or nullptr when not found.
     static const char* Lookup(uint32_t hash);
 
-    /**
-     * @brief Compute FNV-1a hash of a path:type key
-     * @param path Asset path (e.g., "scenes/Demo")
-     * @param type Asset type name (e.g., "Scene")
-     * @return Hash value
-     */
+    /// FNV-1a hash of the key "path:type", such as "scenes/Demo:Scene".
     static uint32_t Hash(const char* path, const char* type);
 
-    /**
-     * @brief Compute FNV-1a hash of a string
-     * @param str String to hash
-     * @return Hash value
-     */
+    /// FNV-1a hash of `str`.
     static uint32_t HashString(const char* str);
 
-    /**
-     * @brief Get entry count
-     */
     static uint32_t GetEntryCount() { return s_Count; }
 
-    /**
-     * @brief Check if a GUID exists in the table
-     * @param guid GUID string to find
-     * @return true if GUID exists as a value in any entry
-     *
-     * O(n) scan - acceptable for asset loading (not per-frame)
-     */
+    /// True when any entry holds `guid`. A linear scan: fine at asset load,
+    /// too slow per frame.
     static bool ContainsGuid(const char* guid);
 
 private:
-    // Entry layout (must match AssetExporter)
+    // Must match what AssetExporter writes.
 #pragma pack(push, 1)
     struct Entry
     {
         uint32_t hash;
         char guid[37];    // 36 chars + null terminator
-        char padding[3];  // Align to 44 bytes
+        char padding[3];  // pads the entry to 44 bytes
     };
 #pragma pack(pop)
     static_assert(sizeof(Entry) == 44, "Entry must be 44 bytes");
