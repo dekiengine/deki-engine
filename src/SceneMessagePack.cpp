@@ -2,6 +2,7 @@
 #include <deki/Scene.h>
 #include <deki/Object.h>
 #include <deki/Component.h>
+#include <deki/ScreenAnchor.h>
 #include "MissingComponent.h"
 #include "ObjectInternal.h"
 #include <deki/reflection/ComponentFactory.h>
@@ -1296,11 +1297,13 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
     WriteMapSize(5);
 #endif
 
+    // A Screen Anchor sets the position each frame; see Scene::SaveObjectToJson.
+    const bool anchored = obj->HasComponent<ScreenAnchor>();
     WriteString(Fields::kTrX);
-    WriteFloat(obj->GetX());
+    WriteFloat(anchored ? 0.0f : obj->GetX());
 
     WriteString(Fields::kTrY);
-    WriteFloat(obj->GetY());
+    WriteFloat(anchored ? 0.0f : obj->GetY());
 
     WriteString(Fields::kTrRotation);
     WriteFloat(obj->GetLocalRotation());

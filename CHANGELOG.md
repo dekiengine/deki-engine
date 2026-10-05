@@ -6,6 +6,14 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Added
+- **Screen Anchor** (`Deki::ScreenAnchor`) keeps its object at a point on the
+  screen (a corner, the middle of an edge, or the centre) plus an offset in
+  meters, on every screen size and while the camera moves. For a HUD. The
+  render system places anchored objects before each frame through
+  `ScreenAnchor::PlaceAll`; a scene file stores 0 for an anchored object's
+  position.
+
 ### Changed
 - `project_data.bin` is version 7 and must match the engine: the firmware and
   the data are exported together, so another version is refused with a

@@ -94,6 +94,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/settings/CoreProjectSettings.cpp
     src/settings/UnitProjectSettings.cpp
     src/PlatformSetupComponent.cpp
+    src/ScreenAnchor.cpp
     src/SetupComponent.cpp
     src/assets/AssetManager.cpp
     src/assets/AssetLookupTable.cpp

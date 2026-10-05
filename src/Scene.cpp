@@ -19,6 +19,7 @@
 #include <deki/Time.h>
 #include <deki/assets/AssetManager.h>
 #include <deki/SceneMigration.h>
+#include <deki/ScreenAnchor.h>
 
 #ifdef DEKI_EDITOR
 #include <fstream>
@@ -918,8 +919,11 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     json["active"] = obj->IsActive();
 
 #ifdef DEKI_TRANSFORM_2D
-    json["transform"] = { { "x", obj->GetX() },
-                          { "y", obj->GetY() },
+    // A Screen Anchor sets the position from the screen size, so the file
+    // keeps 0 rather than the position on whichever screen the editor showed.
+    const bool anchored = obj->HasComponent<ScreenAnchor>();
+    json["transform"] = { { "x", anchored ? 0.0f : obj->GetX() },
+                          { "y", anchored ? 0.0f : obj->GetY() },
                           { "rotation", obj->GetLocalRotation() },
                           { "scaleX", obj->GetScaleX() },
                           { "scaleY", obj->GetScaleY() } };
