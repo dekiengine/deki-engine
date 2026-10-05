@@ -33,7 +33,7 @@ namespace Internal
 {
 void AttachComponent(Object& object, Component* component);
 #ifdef DEKI_EDITOR
-Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint);
+Component* AddComponentByName(Object& object, const std::string& typeName);
 int DetachComponent(Object& object, Component* component);
 void ReattachComponent(Object& object, Component* component, size_t index);
 void ForgetComponentData(const Component* component);
@@ -346,11 +346,10 @@ private:
         m_Components.push_back(component);
     }
 #ifdef DEKI_EDITOR
-    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName,
-                                                   const std::string& classHint);
+    friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName);
     friend int Internal::DetachComponent(Object& object, Component* component);
     friend void Internal::ReattachComponent(Object& object, Component* component, size_t index);
-    Component* AddComponent(const std::string& typeName, const std::string& classHint);
+    Component* AddComponent(const std::string& typeName);
 #endif
 
 public:

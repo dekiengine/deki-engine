@@ -988,10 +988,6 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         {
             auto* missing = static_cast<const MissingComponent*>(comp);
             compJson["type"] = missing->typeName;
-            if (!missing->className.empty())
-            {
-                compJson["class"] = missing->className;
-            }
             compJson["properties"] = missing->jsonProperties;
             json["components"].push_back(compJson);
             continue;
@@ -1002,12 +998,6 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
         if (meta)
         {
             compJson["type"] = meta->serializedName;
-            // "class" is not written. Identity is the qualified class name, so
-            // "class" would hold the same string as "type" minus the namespace:
-            // a second name that can drift from the first and says nothing the
-            // first does not. It is still READ, below, for files that have it,
-            // and still written for a component whose package is missing,
-            // where it is the only record of what the type was called.
             compJson["properties"] = nlohmann::json::object();
 
             // Serialize base class properties first (e.g., sortingOrder from RendererComponent)
@@ -1300,14 +1290,13 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
         for (const auto& compJson : components)
         {
             std::string typeName = compJson.value("type", "");
-            std::string classHint = compJson.value("class", "");
-            Component* comp = Internal::AddComponentByName(*obj, typeName, classHint);
+            Component* comp = Internal::AddComponentByName(*obj, typeName);
 
             if (comp)
             {
                 // Load properties using reflection
                 const ComponentMeta* meta =
-                    registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
+                    registry.GetMeta(comp->GetType());  // not typeName: a former name resolves to the current type
                 if (meta && compJson.contains("properties"))
                 {
                     // Load base class properties first (e.g., sortingOrder from RendererComponent)
@@ -1398,7 +1387,6 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                 // Component type not found - create MissingComponent to preserve data
                 auto* missing = new MissingComponent();
                 missing->typeName = typeName;
-                missing->className = classHint;
                 missing->originalTypeId = HashString(typeName.c_str());
                 if (compJson.contains("properties"))
                 {
@@ -1567,9 +1555,8 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             }
             break;
         case PropertyType::Color:
-            // "#RRGGBBAA" is what is written; the packed number older files
-            // hold still reads. A malformed string keeps the field's default
-            // rather than silently turning it black.
+            // "#RRGGBBAA". A malformed string keeps the field's default rather
+            // than silently turning it black.
             if (value.is_string())
             {
                 Deki::Color parsed;
@@ -1582,15 +1569,6 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                     DEKI_LOG_WARNING("Scene: '%s' is not a colour like #RRGGBBAA on property '%s'",
                                      value.get<std::string>().c_str(), prop.name);
                 }
-            }
-            else if (value.is_number_unsigned())
-            {
-                GetPropertyRef<Deki::Color>(comp, prop) = Deki::Color::FromRGBA8888(value.get<uint32_t>());
-            }
-            else if (value.is_number_integer())
-            {
-                GetPropertyRef<Deki::Color>(comp, prop) =
-                    Deki::Color::FromRGBA8888(static_cast<uint32_t>(value.get<int64_t>()));
             }
             break;
         case PropertyType::Enum:
@@ -1841,12 +1819,11 @@ bool Scene::ExpandInstance(Object* instanceObj)
             for (const auto& compJson : rootJson["components"])
             {
                 std::string typeName = compJson.value("type", "");
-                std::string classHint = compJson.value("class", "");
-                Component* comp = Internal::AddComponentByName(*instanceObj, typeName, classHint);
+                Component* comp = Internal::AddComponentByName(*instanceObj, typeName);
                 if (comp)
                 {
                     const ComponentMeta* meta =
-                        registry.GetMeta(comp->GetType());  // not typeName: a stale GUID resolved by class name
+                        registry.GetMeta(comp->GetType());  // not typeName: a former name resolves to the current type
                     if (meta && compJson.contains("properties"))
                     {
                         if (meta->baseTypeId != 0)
@@ -1870,7 +1847,6 @@ bool Scene::ExpandInstance(Object* instanceObj)
                 {
                     auto* missing = new MissingComponent();
                     missing->typeName = typeName;
-                    missing->className = classHint;
                     missing->originalTypeId = HashString(typeName.c_str());
                     if (compJson.contains("properties"))
                     {

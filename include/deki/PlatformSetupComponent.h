@@ -25,11 +25,8 @@ DEKI_DESCRIPTION("Runs each Setup Component in order at boot, then loads the sta
 class PlatformSetupComponent : public Component
 {
 public:
-    // The SetupComponents to run, in order. Older boot scenes spell the key
-    // setup_components; keep the alias or they load an empty list and the
-    // device comes up with no display.
+    // The SetupComponents to run, in order.
     DEKI_EXPORT
-    DEKI_RENAMED_FROM("setup_components")
     std::vector<ObjectRef<SetupComponent>> setupComponents;
 
     PlatformSetupComponent();

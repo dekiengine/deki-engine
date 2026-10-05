@@ -558,34 +558,6 @@ bool SceneMsgPackParser::ParseScene(Scene* scene)
                 return false;
             }
         }
-        else if (StringEquals(key, keyLen, Fields::kName))
-        {
-            // Scene name - skip it (stored externally)
-            const char* name;
-            uint16_t nameLen;
-            if (!ReadString(name, nameLen))
-            {
-                return false;
-            }
-            // Ignore name
-        }
-        else if (StringEquals(key, keyLen, Fields::kClearColor))
-        {
-            // Older files carry a clear color; CameraComponent holds it, so
-            // read past it.
-            uint32_t arrSize;
-            if (!ReadArraySize(arrSize) || arrSize != 3)
-            {
-                DEKI_LOG_ERROR("SceneMsgPackParser: clear_color must be array of 3");
-                return false;
-            }
-            int32_t r, g, b;
-            if (!ReadInt(r) || !ReadInt(g) || !ReadInt(b))
-            {
-                return false;
-            }
-            // Ignore clear color (CameraComponent holds it)
-        }
         else if (StringEquals(key, keyLen, Fields::kObjects))
         {
             if (!ParseObjects(scene))
@@ -671,7 +643,6 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
     std::string name = "DekiObject";
     uint32_t objectId = 0;
     bool active = true;
-    int sortOrder = 0;
     float x = 0, y = 0, rotation = 0, scaleX = 1, scaleY = 1;
 #ifdef DEKI_TRANSFORM_3D
     float z = 0, rotationX = 0, rotationY = 0, scaleZ = 1;
@@ -737,15 +708,6 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             {
                 return false;
             }
-        }
-        else if (StringEquals(key, keyLen, Fields::kObjSortOrder))
-        {
-            int32_t order;
-            if (!ReadInt(order))
-            {
-                return false;
-            }
-            sortOrder = order;
         }
         else if (StringEquals(key, keyLen, Fields::kObjTransform))
         {
@@ -958,8 +920,6 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
         }
     }
 
-    // Create the object. sortOrder in older files is ignored: RendererComponent
-    // holds it.
     obj = new Object(name);
     if (objectId != 0)
     {
@@ -1543,21 +1503,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     // Write as a map with two keys: "guid" and "source"
                     const Deki::AssetRefBase& ref = GetPropertyRef<Deki::AssetRefBase>(comp, prop);
 
-                    std::string guidToWrite = ref.guid;
-                    std::string sourceToWrite = ref.source;
-
-                    // Migration: older scenes can hold a frame (subasset) GUID in
-                    // the guid field. Move it to source and write its parent as guid.
-                    if (m_SubAssetResolver && !ref.guid.empty() && ref.source.empty())
-                    {
-                        std::string parentGuid;
-                        if (m_SubAssetResolver(ref.guid, parentGuid))
-                        {
-                            // guid was a frame GUID - fix it
-                            sourceToWrite = ref.guid;  // Frame GUID goes to source
-                            guidToWrite = parentGuid;  // Parent GUID goes to guid
-                        }
-                    }
+                    const std::string& guidToWrite = ref.guid;
+                    const std::string& sourceToWrite = ref.source;
 
                     DEKI_LOG_INTERNAL("SceneMsgPackWriter: AssetRef '%s' -> guid='%s', source='%s'", prop.name,
                                       guidToWrite.c_str(), sourceToWrite.c_str());

@@ -41,7 +41,6 @@ public:
 #ifdef DEKI_EDITOR
     // JSON data (editor path)
     nlohmann::json jsonProperties;  // Preserved JSON properties object
-    std::string className;          // Class-name hint carried through from "class" JSON field
 #endif
 
 private:

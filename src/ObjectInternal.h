@@ -23,10 +23,10 @@ void AttachComponent(Object& object, Component* component);
 
 #ifdef DEKI_EDITOR
 /// Creates and attaches a component by its qualified class name, the string a
-/// scene file carries. A bare class name resolves too. The loader passes the
-/// file's "class" hint, so a renamed type or a 0.10 GUID still loads.
-/// Returns the new component, or nullptr when the class is not registered.
-Component* AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint = {});
+/// scene file carries. A bare class name resolves too, and so does a name the
+/// class declares with DEKI_FORMER_NAME. Returns the new component, or nullptr
+/// when the class is not registered.
+Component* AddComponentByName(Object& object, const std::string& typeName);
 
 /// Takes a component off its object WITHOUT destroying it: the editor's undo
 /// keeps the instance and puts the same one back, so every pointer other undo

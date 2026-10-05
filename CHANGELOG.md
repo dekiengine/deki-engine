@@ -33,6 +33,15 @@ and package DLLs has its own numbered history in
   used it. The `PropertyType` values after it moved down by one.
 - `SceneMsgPackWriter::SetAssetResolver`, which only that type used.
 - `Memory::Allocate(size, bool preferExternal)`. Name the region instead.
+- Reading colours stored as packed integers in scenes. They are `#RRGGBBAA`.
+- `Object::AddComponent(type, classHint)` and the scene's `"class"` key: a
+  component is found by its type name, a bare class name, or a
+  `DEKI_FORMER_NAME`. `MissingComponent::className` is gone.
+- The `setup_components` alias of `PlatformSetupComponent::setupComponents`.
+- The compiled scene keys nothing writes: `name`, `width`, `height`,
+  `clear_color` and an object's `sort_order`.
+- `SceneMsgPackWriter::SetSubAssetResolver`, which rewrote asset references
+  that named a sprite frame in their `guid`.
 
 ### Added
 - An enum value saved by name still loads after its enumerator is renamed to

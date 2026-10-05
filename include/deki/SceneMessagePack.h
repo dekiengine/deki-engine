@@ -4,7 +4,6 @@
 #include <string>
 #ifdef DEKI_EDITOR
 #include <vector>
-#include <functional>
 #endif
 
 namespace Deki
@@ -147,16 +146,11 @@ constexpr uint16_t kSceneFormatVersion = 1;
 namespace Fields
 {
 constexpr const char* kVersion = "version";
-constexpr const char* kName = "name";
-constexpr const char* kWidth = "width";
-constexpr const char* kHeight = "height";
-constexpr const char* kClearColor = "clear_color";
 constexpr const char* kObjects = "objects";
 
 constexpr const char* kObjID = "id";
 constexpr const char* kObjName = "name";
 constexpr const char* kObjActive = "active";
-constexpr const char* kObjSortOrder = "sort_order";
 constexpr const char* kObjTransform = "transform";
 constexpr const char* kObjComponents = "components";
 constexpr const char* kObjChildren = "children";
@@ -182,18 +176,11 @@ constexpr const char* kCompData = "data";
 }  // namespace Fields
 
 #ifdef DEKI_EDITOR
-// True when `guid` is a sub-asset, with its parent's GUID in outParentGuid.
-using SubAssetResolverCallback = std::function<bool(const std::string& guid, std::string& outParentGuid)>;
-
 /// Writes a scene in the compiled MessagePack format (editor only).
 class SceneMsgPackWriter
 {
 public:
     SceneMsgPackWriter();
-
-    // With this resolver, an AssetRef.guid that names a sub-asset (such as a
-    // sprite frame, as older scenes stored) is written as its parent's GUID.
-    void SetSubAssetResolver(SubAssetResolverCallback resolver) { m_SubAssetResolver = std::move(resolver); }
 
     bool WriteScene(Scene* scene);
 
@@ -202,7 +189,6 @@ public:
 
 private:
     std::vector<uint8_t> m_Buffer;
-    SubAssetResolverCallback m_SubAssetResolver;
 
     void WriteByte(uint8_t value);
     void WriteBytes(const uint8_t* data, size_t count);

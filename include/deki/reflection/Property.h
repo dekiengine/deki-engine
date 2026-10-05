@@ -414,7 +414,7 @@ inline int EnumIndexForValue(const PropertyInfo& prop, int32_t value)
 
 /// Component metadata for runtime reflection.
 struct ComponentMeta {
-    const char* name;           // The identifier alone ("Health"): display, and the scene file's "class" hint
+    const char* name;           // The identifier alone ("Health"), for display
     const char* serializedName; // The fully qualified C++ name ("Game::Health"): the scene file's "type" key
     const char* category;       // e.g. "2D", "Rendering"
     const char* description;

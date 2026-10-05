@@ -130,7 +130,6 @@ static bool DekiGen_Deki_PlatformSetupComponent_Deserialize(::Deki::Component* _
 
         uint32_t keyHash = ::Deki::HashStringLen(key, keyLen);
         switch (keyHash) {
-            case ::Deki::HashString("setup_components"):  // DEKI_RENAMED_FROM
             case ::Deki::HashString("setupComponents"): {
                 uint32_t arrSize;
                 if (parser.ReadArraySize(arrSize)) {
@@ -194,7 +193,6 @@ static_assert(sizeof(Deki::PlatformSetupComponent) <= 0xFFFF,
     "inline in the component.");
 static const ::Deki::FieldRef DekiGen_Deki_PlatformSetupComponent_Fields[] = {
     { ::Deki::HashString("setupComponents"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },
-    { ::Deki::HashString("setup_components"), (uint16_t)offsetof(Deki::PlatformSetupComponent, setupComponents), (uint8_t)::Deki::PropertyType::Array, 0 },  // DEKI_RENAMED_FROM
 };
 
 // =============================================================================
@@ -205,7 +203,7 @@ static const ::Deki::FieldRef DekiGen_Deki_PlatformSetupComponent_Fields[] = {
 
 static const ::Deki::PropertyInfo DekiGen_Deki_PlatformSetupComponent_Props[] = {
     { "setupComponents", nullptr, ::Deki::PropertyType::Array, offsetof(Deki::PlatformSetupComponent, setupComponents),
-      nullptr, 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::ObjectRef, nullptr, 0, 0, "SetupComponent", false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, "setup_components" }
+      nullptr, 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::ObjectRef, nullptr, 0, 0, "SetupComponent", false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None }
 };
 
 extern const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta;
@@ -226,7 +224,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_PlatformSetupComponent_TypeInfo = {
     &DekiGen_Deki_PlatformSetupComponent_Deserialize,
     &DekiGen_Deki_PlatformSetupComponent_ResolveObjectRefs,
     &DekiGen_Deki_PlatformSetupComponent_RemapObjectRefs,
-    DekiGen_Deki_PlatformSetupComponent_Fields, 2,
+    DekiGen_Deki_PlatformSetupComponent_Fields, 1,
 #ifdef DEKI_EDITOR
     &DekiGen_Deki_PlatformSetupComponent_Meta
 #else

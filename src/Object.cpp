@@ -723,9 +723,9 @@ void Internal::AttachComponent(Object& object, Component* component)
 }
 
 #ifdef DEKI_EDITOR
-Component* Internal::AddComponentByName(Object& object, const std::string& typeName, const std::string& classHint)
+Component* Internal::AddComponentByName(Object& object, const std::string& typeName)
 {
-    return object.AddComponent(typeName, classHint);
+    return object.AddComponent(typeName);
 }
 
 int Internal::DetachComponent(Object& object, Component* component)
@@ -757,56 +757,23 @@ void Internal::ReattachComponent(Object& object, Component* component, size_t in
     comps.insert(comps.begin() + static_cast<std::ptrdiff_t>(index), component);
 }
 
-Component* Object::AddComponent(const std::string& typeName, const std::string& classHint)
+Component* Object::AddComponent(const std::string& typeName)
 {
     auto& registry = ComponentRegistry::Instance();
     // The "type" key is the qualified class name; a bare class name is
-    // accepted too. A 0.10 GUID resolves through the class hint below.
+    // accepted too.
     const ComponentMeta* meta = registry.GetMeta(typeName);
     if (!meta)
     {
         meta = registry.GetMetaByClassName(typeName);
     }
-    if (!meta && !classHint.empty())
-    {
-        // The type in the file is not registered but the class name written
-        // beside it is: the class was renamed or moved, or the file predates
-        // 0.11 and holds a project component's GUID. Load it by name; the next
-        // save writes the current type.
-        meta = registry.GetMetaByClassName(classHint);
-        if (meta)
-        {
-            DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: type '%s' is not registered; resolved '%s' by class name "
-                     "(object='%s' id=%u). Re-save the scene to write the current type.",
-                     typeName.c_str(), classHint.c_str(), m_Name.c_str(), m_Id);
-        }
-    }
     if (!meta)
     {
-        const bool looksLikeGuid = typeName.size() == 36 && typeName[8] == '-';
         const char* sceneName = m_OwnerScene ? m_OwnerScene->GetName().c_str() : "<no scene>";
-        if (!classHint.empty())
-        {
-            DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: '%s' (type %s) not registered on object '%s' (id=%u, scene='%s'). "
-                     "Package providing this component is likely not loaded.",
-                     classHint.c_str(), typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
-        }
-        else if (looksLikeGuid)
-        {
-            DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: 0.10 GUID '%s' not registered - class name unknown "
-                     "(object='%s' id=%u scene='%s'). Re-save this scene in the editor to embed a class-name hint.",
-                     typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
-        }
-        else
-        {
-            DEKI_LOG(LogLevel::Warning,
-                     "AddComponent: class '%s' not registered "
-                     "(object='%s' id=%u scene='%s'). Check spelling or that its package is loaded.",
-                     typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
-        }
+        DEKI_LOG(LogLevel::Warning,
+                 "AddComponent: '%s' not registered on object '%s' (id=%u, scene='%s'). The package providing it "
+                 "is likely not loaded.",
+                 typeName.c_str(), m_Name.c_str(), m_Id, sceneName);
         return nullptr;
     }
     if (!meta->createFunc || meta->isAbstract)

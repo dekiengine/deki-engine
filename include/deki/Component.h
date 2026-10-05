@@ -30,7 +30,7 @@ class SceneMsgPackParser;
 struct ComponentTypeInfo
 {
     const char* name;          // fully qualified C++ name: the on-disk key; HashString(name) == typeId
-    const char* shortName;     // the identifier alone, for display and the scene file's "class" hint
+    const char* shortName;     // the identifier alone, for display
     ComponentType typeId;      // TypeId<T>()
     ComponentType baseTypeId;  // TypeId of the direct component base (Deki::Component or a user base)
     bool isAbstract;           // no create()
