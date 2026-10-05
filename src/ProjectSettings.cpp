@@ -20,10 +20,10 @@ namespace ProjectSettings
 {
 
 // ============================================================================
-// Package-settings binary chunk (version 5+)
+// Package-settings binary chunk
 // ============================================================================
 //
-// Format appended after the v4 pipeline-config block:
+// Format appended after the render pipeline block:
 //
 //   packageSettingsCount   : uint16_t
 //   For each section:
@@ -43,7 +43,7 @@ namespace ProjectSettings
 //   String                              : uint16_t length + bytes (no null terminator)
 //   Enum                                : 1, 2, or 4 bytes per the type's enumSize
 //
-// Unsupported property types (Color, Vector2, Vector3, Asset, AssetRef,
+// Unsupported property types (Color, Vector2, Vector3, AssetRef,
 // ObjectRef, Array) are silently skipped on Write; Load skips unknown
 // type tags by walking the per-property bounds.
 
@@ -294,17 +294,13 @@ const char* GetPassName(int index)
 
 bool Load(const uint8_t* data, size_t size)
 {
-    // Minimum size: header (8 bytes) + base display settings
-    // Version 1: 12 bytes (without dirty rect fields)
-    // Version 2: 16 bytes (with dirty rect fields - now deprecated)
-    constexpr size_t kV1DisplaySize = 12;
     // Each rejection names its reason: the caller reports every `false` as
     // "no project settings found", so without this a corrupt file would look
     // like a missing one.
-    if (!data || size < sizeof(FileHeader) + kV1DisplaySize)
+    if (!data || size < sizeof(FileHeader) + sizeof(DisplaySettings))
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: file too small (%zu bytes, need at least %zu)", size,
-                       sizeof(FileHeader) + kV1DisplaySize);
+                       sizeof(FileHeader) + sizeof(DisplaySettings));
         return false;
     }
 
@@ -320,12 +316,13 @@ bool Load(const uint8_t* data, size_t size)
         return false;
     }
 
-    // Check version
-    if (header.version > kVersion)
+    // The file is exported with the firmware, so a different version means
+    // the two were built by different editors.
+    if (header.version != kVersion)
     {
-        DEKI_LOG_ERROR("ProjectSettings::Load: file version %u is newer than this engine supports (%u)",
+        DEKI_LOG_ERROR("ProjectSettings::Load: file version %u, this engine reads %u; export the project again",
                        (unsigned)header.version, (unsigned)kVersion);
-        return false;  // Future version, can't read
+        return false;
     }
 
     // Reset runtime settings
@@ -335,376 +332,358 @@ bool Load(const uint8_t* data, size_t size)
     s_PassCount = 0;
     s_PassNames.clear();
     s_PackageChunkSize = 0;
-    s_AssetStorage = header.version < 6 || (header.flags & kFlagAssetsExternal) ? Storage::External : Storage::Internal;
+    s_AssetStorage = (header.flags & kFlagAssetsExternal) ? Storage::External : Storage::Internal;
 
-    // Version 3+: read runtime settings (targetFPS + startup scene)
-    if (header.version >= 3)
+    // Runtime settings: target FPS and startup scene.
+    size_t offset = sizeof(FileHeader) + sizeof(DisplaySettings);
+
+    // Read targetFPS
+    if (offset + sizeof(int32_t) <= size)
     {
-        size_t offset = sizeof(FileHeader) + sizeof(DisplaySettings);
+        memcpy(&s_TargetFPS, data + offset, sizeof(int32_t));
+        offset += sizeof(int32_t);
+    }
 
-        // Read targetFPS
-        if (offset + sizeof(int32_t) <= size)
+    // Read scene path length + string
+    if (offset + sizeof(uint16_t) <= size)
+    {
+        uint16_t sceneLen = 0;
+        memcpy(&sceneLen, data + offset, sizeof(uint16_t));
+        offset += sizeof(uint16_t);
+
+        if (sceneLen > 0 && offset + sceneLen <= size)
         {
-            memcpy(&s_TargetFPS, data + offset, sizeof(int32_t));
-            offset += sizeof(int32_t);
-        }
-
-        // Read scene path length + string
-        if (offset + sizeof(uint16_t) <= size)
-        {
-            uint16_t sceneLen = 0;
-            memcpy(&sceneLen, data + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            if (sceneLen > 0 && offset + sceneLen <= size)
-            {
-                s_StartupScene.assign(reinterpret_cast<const char*>(data + offset), sceneLen);
-                offset += sceneLen;
-            }
+            s_StartupScene.assign(reinterpret_cast<const char*>(data + offset), sceneLen);
+            offset += sceneLen;
         }
     }
 
-    // Version 4+: read render pipeline config
-    if (header.version >= 4)
+    // Render pipeline: the renderer name, then the pass names.
+    if (offset + sizeof(uint16_t) <= size)
     {
-        size_t offset = sizeof(FileHeader) + sizeof(DisplaySettings) + sizeof(int32_t);
+        uint16_t nameLen = 0;
+        memcpy(&nameLen, data + offset, sizeof(uint16_t));
+        offset += sizeof(uint16_t);
 
-        // Skip past scene path (already read above)
-        if (offset + sizeof(uint16_t) <= size)
+        if (nameLen > 0 && offset + nameLen <= size)
         {
-            uint16_t sceneLen = 0;
-            memcpy(&sceneLen, data + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t) + sceneLen;
+            s_RendererName.assign(reinterpret_cast<const char*>(data + offset), nameLen);
+            offset += nameLen;
         }
+    }
 
-        // Read renderer name length + string
-        if (offset + sizeof(uint16_t) <= size)
+    // Read pass count
+    if (offset + sizeof(uint8_t) <= size)
+    {
+        uint8_t passCount = 0;
+        memcpy(&passCount, data + offset, sizeof(uint8_t));
+        offset += sizeof(uint8_t);
+
+        s_PassCount = passCount;
+        s_PassNames.assign(static_cast<size_t>(passCount), std::string());
+
+        // Read each pass name (uint16_t length + string)
+        for (int i = 0; i < s_PassCount; i++)
         {
-            uint16_t nameLen = 0;
-            memcpy(&nameLen, data + offset, sizeof(uint16_t));
+            if (offset + sizeof(uint16_t) > size)
+            {
+                // Truncated file: keep only what actually parsed, so a
+                // caller iterating GetPassCount() cannot read a name that
+                // was never there.
+                s_PassNames.resize(static_cast<size_t>(i));
+                s_PassCount = i;
+                break;
+            }
+
+            uint16_t passNameLen = 0;
+            memcpy(&passNameLen, data + offset, sizeof(uint16_t));
             offset += sizeof(uint16_t);
 
-            if (nameLen > 0 && offset + nameLen <= size)
+            if (passNameLen > 0 && offset + passNameLen <= size)
             {
-                s_RendererName.assign(reinterpret_cast<const char*>(data + offset), nameLen);
-                offset += nameLen;
+                s_PassNames[i].assign(reinterpret_cast<const char*>(data + offset), passNameLen);
+                offset += passNameLen;
             }
         }
 
-        // Read pass count
-        if (offset + sizeof(uint8_t) <= size)
+        // The packageSettings chunk follows the pass names. It fills the
+        // registered SettingsRegistry instances directly.
+        if (offset + sizeof(uint16_t) <= size)
         {
-            uint8_t passCount = 0;
-            memcpy(&passCount, data + offset, sizeof(uint8_t));
-            offset += sizeof(uint8_t);
+            RetainPackageChunk(data + offset, size - offset);
 
-            s_PassCount = passCount;
-            s_PassNames.assign(static_cast<size_t>(passCount), std::string());
+            uint16_t packageCount = 0;
+            memcpy(&packageCount, data + offset, sizeof(uint16_t));
+            offset += sizeof(uint16_t);
 
-            // Read each pass name (uint16_t length + string)
-            for (int i = 0; i < s_PassCount; i++)
+            for (uint16_t mi = 0; mi < packageCount; ++mi)
             {
+                // Truncation inside the package block: stop reading, but
+                // say which section was cut short rather than silently
+                // leaving the remaining sections at their defaults.
                 if (offset + sizeof(uint16_t) > size)
                 {
-                    // Truncated file: keep only what actually parsed, so a
-                    // caller iterating GetPassCount() cannot read a name that
-                    // was never there.
-                    s_PassNames.resize(static_cast<size_t>(i));
-                    s_PassCount = i;
+                    DEKI_LOG_WARNING("ProjectSettings::Load: truncated before package section %u of %u", (unsigned)mi,
+                                     (unsigned)packageCount);
                     break;
                 }
-
-                uint16_t passNameLen = 0;
-                memcpy(&passNameLen, data + offset, sizeof(uint16_t));
+                uint16_t sectionNameLen = 0;
+                memcpy(&sectionNameLen, data + offset, sizeof(uint16_t));
                 offset += sizeof(uint16_t);
 
-                if (passNameLen > 0 && offset + passNameLen <= size)
+                if (offset + sectionNameLen + sizeof(uint32_t) > size)
                 {
-                    s_PassNames[i].assign(reinterpret_cast<const char*>(data + offset), passNameLen);
-                    offset += passNameLen;
+                    DEKI_LOG_WARNING("ProjectSettings::Load: truncated in the name of package section %u of %u",
+                                     (unsigned)mi, (unsigned)packageCount);
+                    break;
                 }
-            }
+                std::string sectionName(reinterpret_cast<const char*>(data + offset), sectionNameLen);
+                offset += sectionNameLen;
 
-            // Version 5+: packageSettings chunk lives after the pass-name list.
-            // Hydrates registered SettingsRegistry instances directly.
-            if (header.version >= 5 && offset + sizeof(uint16_t) <= size)
-            {
-                RetainPackageChunk(data + offset, size - offset);
+                uint32_t payloadSize = 0;
+                memcpy(&payloadSize, data + offset, sizeof(uint32_t));
+                offset += sizeof(uint32_t);
 
-                uint16_t packageCount = 0;
-                memcpy(&packageCount, data + offset, sizeof(uint16_t));
-                offset += sizeof(uint16_t);
-
-                for (uint16_t mi = 0; mi < packageCount; ++mi)
+                size_t sectionStart = offset;
+                if (sectionStart + payloadSize > size)
                 {
-                    // Truncation inside the package block: stop reading, but
-                    // say which section was cut short rather than silently
-                    // leaving the remaining sections at their defaults.
-                    if (offset + sizeof(uint16_t) > size)
-                    {
-                        DEKI_LOG_WARNING("ProjectSettings::Load: truncated before package section %u of %u",
-                                         (unsigned)mi, (unsigned)packageCount);
-                        break;
-                    }
-                    uint16_t sectionNameLen = 0;
-                    memcpy(&sectionNameLen, data + offset, sizeof(uint16_t));
-                    offset += sizeof(uint16_t);
-
-                    if (offset + sectionNameLen + sizeof(uint32_t) > size)
-                    {
-                        DEKI_LOG_WARNING("ProjectSettings::Load: truncated in the name of package section %u of %u",
-                                         (unsigned)mi, (unsigned)packageCount);
-                        break;
-                    }
-                    std::string sectionName(reinterpret_cast<const char*>(data + offset), sectionNameLen);
-                    offset += sectionNameLen;
-
-                    uint32_t payloadSize = 0;
-                    memcpy(&payloadSize, data + offset, sizeof(uint32_t));
-                    offset += sizeof(uint32_t);
-
-                    size_t sectionStart = offset;
-                    if (sectionStart + payloadSize > size)
-                    {
-                        DEKI_LOG_WARNING("ProjectSettings::Load: package section '%s' is truncated (%u bytes declared)",
-                                         sectionName.c_str(), (unsigned)payloadSize);
-                        break;  // truncated; bail
-                    }
-                    size_t sectionEnd = sectionStart + payloadSize;
+                    DEKI_LOG_WARNING("ProjectSettings::Load: package section '%s' is truncated (%u bytes declared)",
+                                     sectionName.c_str(), (unsigned)payloadSize);
+                    break;  // truncated; bail
+                }
+                size_t sectionEnd = sectionStart + payloadSize;
 
 #ifndef DEKI_EDITOR
-                    // The editor pushes project unit settings into
-                    // EngineSettings::Global() on project open
-                    // (UnitProjectSettings::ApplyToGlobalCache). The runtime has
-                    // no settings-registry metadata, so the generic hydration
-                    // below is a no-op; apply the runtime-relevant unit settings
-                    // (camera world scale) directly. Without this, cameras using
-                    // the inherit sentinel (pixelsPerMeter == 0) fall back to the
-                    // engine-default ppm and the scene renders at the wrong scale.
-                    if (sectionName == "Units")  // UnitProjectSettings' DEKI_SETTINGS_SECTION
+                // The editor pushes project unit settings into
+                // EngineSettings::Global() on project open
+                // (UnitProjectSettings::ApplyToGlobalCache). The runtime has
+                // no settings-registry metadata, so the generic hydration
+                // below is a no-op; apply the runtime-relevant unit settings
+                // (camera world scale) directly. Without this, cameras using
+                // the inherit sentinel (pixelsPerMeter == 0) fall back to the
+                // engine-default ppm and the scene renders at the wrong scale.
+                if (sectionName == "Units")  // UnitProjectSettings' DEKI_SETTINGS_SECTION
+                {
+                    float ppm = 0.0f;
+                    if (ReadFloatSettingByHash(data, sectionStart, sectionEnd, HashStringLen("pixelsPerMeter", 14),
+                                               ppm) &&
+                        ppm > 0.0f)
                     {
-                        float ppm = 0.0f;
-                        if (ReadFloatSettingByHash(data, sectionStart, sectionEnd, HashStringLen("pixelsPerMeter", 14),
-                                                   ppm) &&
-                            ppm > 0.0f)
-                        {
-                            EngineSettings::Global().pixelsPerMeter = ppm;
-                            DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache",
-                                              (double)ppm);
-                        }
+                        EngineSettings::Global().pixelsPerMeter = ppm;
+                        DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache", (double)ppm);
                     }
+                }
 #endif
 
-                    Component* inst = SettingsRegistry::Instance().GetByName(sectionName.c_str());
-                    if (!inst)
-                    {
-                        offset = sectionEnd;  // unknown section: skip whole payload
-                        continue;
-                    }
+                Component* inst = SettingsRegistry::Instance().GetByName(sectionName.c_str());
+                if (!inst)
+                {
+                    offset = sectionEnd;  // unknown section: skip whole payload
+                    continue;
+                }
 
-                    // Look up metadata directly via the registry's stored info
-                    // (avoids ComponentRegistry round-trip and Just Works on
-                    // embedded where ComponentRegistry has linear lookups).
-                    const ComponentMeta* meta = nullptr;
-                    for (const auto& info : SettingsRegistry::Instance().GetAll())
+                // Look up metadata directly via the registry's stored info
+                // (avoids ComponentRegistry round-trip and Just Works on
+                // embedded where ComponentRegistry has linear lookups).
+                const ComponentMeta* meta = nullptr;
+                for (const auto& info : SettingsRegistry::Instance().GetAll())
+                {
+                    if (info.instance == inst)
                     {
-                        if (info.instance == inst)
+                        meta = info.meta;
+                        break;
+                    }
+                }
+                if (!meta)
+                {
+                    offset = sectionEnd;
+                    continue;
+                }
+
+                if (offset + sizeof(uint16_t) > sectionEnd)
+                {
+                    offset = sectionEnd;
+                    continue;
+                }
+                uint16_t propCount = 0;
+                memcpy(&propCount, data + offset, sizeof(uint16_t));
+                offset += sizeof(uint16_t);
+
+                for (uint16_t pi = 0; pi < propCount && offset < sectionEnd; ++pi)
+                {
+                    if (offset + sizeof(uint32_t) + 1 > sectionEnd)
+                    {
+                        break;
+                    }
+                    uint32_t keyHash = 0;
+                    memcpy(&keyHash, data + offset, sizeof(uint32_t));
+                    offset += sizeof(uint32_t);
+                    uint8_t typeTag = data[offset++];
+
+                    // Find the property in the metadata by name hash.
+                    const PropertyInfo* matched = nullptr;
+                    for (int q = 0; q < meta->propertyCount; ++q)
+                    {
+                        const PropertyInfo& p = meta->properties[q];
+                        if (p.name && HashStringLen(p.name, (uint16_t)strlen(p.name)) == keyHash)
                         {
-                            meta = info.meta;
+                            matched = &p;
                             break;
                         }
                     }
-                    if (!meta)
+
+                    // Read the value bytes regardless of whether we matched
+                    // (so we keep parsing the rest of the payload).
+                    PropertyType propType = (PropertyType)typeTag;
+                    switch (propType)
                     {
-                        offset = sectionEnd;
-                        continue;
-                    }
-
-                    if (offset + sizeof(uint16_t) > sectionEnd)
-                    {
-                        offset = sectionEnd;
-                        continue;
-                    }
-                    uint16_t propCount = 0;
-                    memcpy(&propCount, data + offset, sizeof(uint16_t));
-                    offset += sizeof(uint16_t);
-
-                    for (uint16_t pi = 0; pi < propCount && offset < sectionEnd; ++pi)
-                    {
-                        if (offset + sizeof(uint32_t) + 1 > sectionEnd)
+                        case PropertyType::Bool:
                         {
-                            break;
-                        }
-                        uint32_t keyHash = 0;
-                        memcpy(&keyHash, data + offset, sizeof(uint32_t));
-                        offset += sizeof(uint32_t);
-                        uint8_t typeTag = data[offset++];
-
-                        // Find the property in the metadata by name hash.
-                        const PropertyInfo* matched = nullptr;
-                        for (int q = 0; q < meta->propertyCount; ++q)
-                        {
-                            const PropertyInfo& p = meta->properties[q];
-                            if (p.name && HashStringLen(p.name, (uint16_t)strlen(p.name)) == keyHash)
+                            if (offset + 1 > sectionEnd)
                             {
-                                matched = &p;
-                                break;
-                            }
-                        }
-
-                        // Read the value bytes regardless of whether we matched
-                        // (so we keep parsing the rest of the payload).
-                        PropertyType propType = (PropertyType)typeTag;
-                        switch (propType)
-                        {
-                            case PropertyType::Bool:
-                            {
-                                if (offset + 1 > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint8_t v = data[offset++];
-                                if (matched && matched->type == propType)
-                                {
-                                    SetPropertyValue<bool>(inst, *matched, v != 0);
-                                }
-                                break;
-                            }
-                            case PropertyType::Int8:
-                            case PropertyType::UInt8:
-                            {
-                                if (offset + 1 > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint8_t v = data[offset++];
-                                if (matched && matched->type == propType)
-                                {
-                                    if (propType == PropertyType::Int8)
-                                    {
-                                        SetPropertyValue<int8_t>(inst, *matched, (int8_t)v);
-                                    }
-                                    else
-                                    {
-                                        SetPropertyValue<uint8_t>(inst, *matched, v);
-                                    }
-                                }
-                                break;
-                            }
-                            case PropertyType::Int16:
-                            case PropertyType::UInt16:
-                            {
-                                if (offset + 2 > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint16_t v = 0;
-                                memcpy(&v, data + offset, 2);
-                                offset += 2;
-                                if (matched && matched->type == propType)
-                                {
-                                    if (propType == PropertyType::Int16)
-                                    {
-                                        SetPropertyValue<int16_t>(inst, *matched, (int16_t)v);
-                                    }
-                                    else
-                                    {
-                                        SetPropertyValue<uint16_t>(inst, *matched, v);
-                                    }
-                                }
-                                break;
-                            }
-                            case PropertyType::Int32:
-                            case PropertyType::UInt32:
-                            case PropertyType::Float:
-                            {
-                                if (offset + 4 > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint32_t raw = 0;
-                                memcpy(&raw, data + offset, 4);
-                                offset += 4;
-                                if (matched && matched->type == propType)
-                                {
-                                    if (propType == PropertyType::Int32)
-                                    {
-                                        SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw);
-                                    }
-                                    else if (propType == PropertyType::UInt32)
-                                    {
-                                        SetPropertyValue<uint32_t>(inst, *matched, raw);
-                                    }
-                                    else
-                                    {
-                                        float f;
-                                        memcpy(&f, &raw, 4);
-                                        SetPropertyValue<float>(inst, *matched, f);
-                                    }
-                                }
-                                break;
-                            }
-                            case PropertyType::Enum:
-                            {
-                                // Read the value sized by the on-disk header - but
-                                // we don't have an enumSize byte in v5; fall back
-                                // to the matched property's enumSize, else 4.
-                                size_t valSize = matched ? SettingsValueSize(*matched) : 4;
-                                if (offset + valSize > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint32_t raw = 0;
-                                memcpy(&raw, data + offset, valSize);
-                                offset += valSize;
-                                if (matched && matched->type == propType)
-                                {
-                                    switch (matched->enumSize)
-                                    {
-                                        case 1: SetPropertyValue<uint8_t>(inst, *matched, (uint8_t)raw); break;
-                                        case 2: SetPropertyValue<uint16_t>(inst, *matched, (uint16_t)raw); break;
-                                        default: SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw); break;
-                                    }
-                                }
-                                break;
-                            }
-                            case PropertyType::String:
-                            {
-                                if (offset + 2 > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                uint16_t slen = 0;
-                                memcpy(&slen, data + offset, 2);
-                                offset += 2;
-                                if (offset + slen > sectionEnd)
-                                {
-                                    offset = sectionEnd;
-                                    break;
-                                }
-                                if (matched && matched->type == propType)
-                                {
-                                    std::string s((const char*)(data + offset), slen);
-                                    SetPropertyValue<std::string>(inst, *matched, s);
-                                }
-                                offset += slen;
-                                break;
-                            }
-                            default:
-                                // Unknown / unsupported tag - bail on this section
-                                // since we can't compute the value size.
                                 offset = sectionEnd;
                                 break;
+                            }
+                            uint8_t v = data[offset++];
+                            if (matched && matched->type == propType)
+                            {
+                                SetPropertyValue<bool>(inst, *matched, v != 0);
+                            }
+                            break;
                         }
+                        case PropertyType::Int8:
+                        case PropertyType::UInt8:
+                        {
+                            if (offset + 1 > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            uint8_t v = data[offset++];
+                            if (matched && matched->type == propType)
+                            {
+                                if (propType == PropertyType::Int8)
+                                {
+                                    SetPropertyValue<int8_t>(inst, *matched, (int8_t)v);
+                                }
+                                else
+                                {
+                                    SetPropertyValue<uint8_t>(inst, *matched, v);
+                                }
+                            }
+                            break;
+                        }
+                        case PropertyType::Int16:
+                        case PropertyType::UInt16:
+                        {
+                            if (offset + 2 > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            uint16_t v = 0;
+                            memcpy(&v, data + offset, 2);
+                            offset += 2;
+                            if (matched && matched->type == propType)
+                            {
+                                if (propType == PropertyType::Int16)
+                                {
+                                    SetPropertyValue<int16_t>(inst, *matched, (int16_t)v);
+                                }
+                                else
+                                {
+                                    SetPropertyValue<uint16_t>(inst, *matched, v);
+                                }
+                            }
+                            break;
+                        }
+                        case PropertyType::Int32:
+                        case PropertyType::UInt32:
+                        case PropertyType::Float:
+                        {
+                            if (offset + 4 > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            uint32_t raw = 0;
+                            memcpy(&raw, data + offset, 4);
+                            offset += 4;
+                            if (matched && matched->type == propType)
+                            {
+                                if (propType == PropertyType::Int32)
+                                {
+                                    SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw);
+                                }
+                                else if (propType == PropertyType::UInt32)
+                                {
+                                    SetPropertyValue<uint32_t>(inst, *matched, raw);
+                                }
+                                else
+                                {
+                                    float f;
+                                    memcpy(&f, &raw, 4);
+                                    SetPropertyValue<float>(inst, *matched, f);
+                                }
+                            }
+                            break;
+                        }
+                        case PropertyType::Enum:
+                        {
+                            // Read the value sized by the on-disk header - but
+                            // we don't have an enumSize byte in v5; fall back
+                            // to the matched property's enumSize, else 4.
+                            size_t valSize = matched ? SettingsValueSize(*matched) : 4;
+                            if (offset + valSize > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            uint32_t raw = 0;
+                            memcpy(&raw, data + offset, valSize);
+                            offset += valSize;
+                            if (matched && matched->type == propType)
+                            {
+                                switch (matched->enumSize)
+                                {
+                                    case 1: SetPropertyValue<uint8_t>(inst, *matched, (uint8_t)raw); break;
+                                    case 2: SetPropertyValue<uint16_t>(inst, *matched, (uint16_t)raw); break;
+                                    default: SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw); break;
+                                }
+                            }
+                            break;
+                        }
+                        case PropertyType::String:
+                        {
+                            if (offset + 2 > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            uint16_t slen = 0;
+                            memcpy(&slen, data + offset, 2);
+                            offset += 2;
+                            if (offset + slen > sectionEnd)
+                            {
+                                offset = sectionEnd;
+                                break;
+                            }
+                            if (matched && matched->type == propType)
+                            {
+                                std::string s((const char*)(data + offset), slen);
+                                SetPropertyValue<std::string>(inst, *matched, s);
+                            }
+                            offset += slen;
+                            break;
+                        }
+                        default:
+                            // Unknown / unsupported tag - bail on this section
+                            // since we can't compute the value size.
+                            offset = sectionEnd;
+                            break;
                     }
-                    offset = sectionEnd;  // ensure we land on the section boundary
                 }
+                offset = sectionEnd;  // ensure we land on the section boundary
             }
         }
     }
@@ -782,7 +761,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
     display.reserved4 = 0;
     Append(buf, &display, sizeof(DisplaySettings));
 
-    // Write runtime settings (version 3)
+    // Write runtime settings
     Append(buf, &targetFPS, sizeof(int32_t));
 
     uint16_t sceneLen = 0;
@@ -797,7 +776,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         Append(buf, startupScene, sceneLen);
     }
 
-    // Version 4: write render pipeline config
+    // Write render pipeline config
     // Renderer name (uint16_t length + string)
     const char* rName = rendererName ? rendererName : "standard2d";
     uint16_t rNameLen = static_cast<uint16_t>(strlen(rName));
@@ -838,7 +817,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         }
     }
 
-    // Version 5: packageSettings chunk. Walk the registry; emit each section
+    // The packageSettings chunk. Walk the registry; emit each section
     // with a payloadSize prefix so the runtime can skip unknown sections.
     const auto& sections = SettingsRegistry::Instance().GetAll();
     uint16_t packageCount = (uint16_t)sections.size();

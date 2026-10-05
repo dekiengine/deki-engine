@@ -225,13 +225,6 @@ public:
     /// Where all memory is DMA-reachable this is the same as Allocate.
     static void* AllocateDma(size_t size, Memory::Region region, AllocContext ctx = {});
 
-    /// Deprecated: name the region instead. true means Deki::Memory::External,
-    /// false Deki::Memory::Internal.
-    static void* Allocate(size_t size, bool preferExternal, AllocContext ctx = {})
-    {
-        return Allocate(size, preferExternal ? Deki::Memory::External : Deki::Memory::Internal, ctx);
-    }
-
     // Placement is never decided by size: a caller names
     // Deki::Memory::External or gets internal RAM.
 

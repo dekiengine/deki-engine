@@ -215,7 +215,6 @@ enum class PropertyType : uint8_t {
     Color,
     Vector2,
     Vector3,
-    Asset,      // Legacy std::string GUID field; use AssetRef
     Enum,
     ObjectRef,  // Another Object, by id (uint32_t)
     Array,      // std::vector<T>; elementType is T's PropertyType

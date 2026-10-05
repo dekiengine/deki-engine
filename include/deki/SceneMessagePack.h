@@ -182,9 +182,6 @@ constexpr const char* kCompData = "data";
 }  // namespace Fields
 
 #ifdef DEKI_EDITOR
-// Turns an asset GUID into its runtime path, or "" when it cannot.
-using AssetResolver = std::function<std::string(const std::string& guid)>;
-
 // True when `guid` is a sub-asset, with its parent's GUID in outParentGuid.
 using SubAssetResolverCallback = std::function<bool(const std::string& guid, std::string& outParentGuid)>;
 
@@ -193,10 +190,6 @@ class SceneMsgPackWriter
 {
 public:
     SceneMsgPackWriter();
-
-    // With a resolver, asset fields are written as runtime paths (export);
-    // without one, as GUIDs.
-    void SetAssetResolver(AssetResolver resolver) { m_AssetResolver = resolver; }
 
     // With this resolver, an AssetRef.guid that names a sub-asset (such as a
     // sprite frame, as older scenes stored) is written as its parent's GUID.
@@ -209,7 +202,6 @@ public:
 
 private:
     std::vector<uint8_t> m_Buffer;
-    AssetResolver m_AssetResolver;
     SubAssetResolverCallback m_SubAssetResolver;
 
     void WriteByte(uint8_t value);

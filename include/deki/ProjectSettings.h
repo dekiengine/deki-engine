@@ -18,9 +18,9 @@ namespace ProjectSettings
 constexpr const char* kFilename = "F:/project_data.bin";     // runtime path, on internal storage
 constexpr const char* kExportFilename = "project_data.bin";  // file name the editor exports
 constexpr uint32_t kMagic = 0x444B5052;                      // "DKPR" in little-endian
-constexpr uint16_t kVersion = 6;
+constexpr uint16_t kVersion = 7;                             // 7: PropertyType numbers moved
 
-// FileHeader::flags (version 6+)
+// FileHeader::flags
 constexpr uint16_t kFlagAssetsExternal = 1u << 0;  // the assets are on external storage
 
 // Largest project_data.bin LoadFromFile accepts. The packageSettings chunk
@@ -33,7 +33,7 @@ struct FileHeader
 {
     uint32_t magic;    // kMagic
     uint16_t version;  // format version
-    uint16_t flags;    // kFlag* (version 6+; 0 before)
+    uint16_t flags;    // kFlag*
 };
 
 // Every field is unused and kept only so the file layout stays the same. The
@@ -49,7 +49,7 @@ struct DisplaySettings
     float reserved4;    // formerly dirtyRectOverlapThreshold
 };
 
-// Version 3+.
+// Follows DisplaySettings.
 struct RuntimeSettings
 {
     int32_t targetFPS;      // 0 = no limit
@@ -57,7 +57,7 @@ struct RuntimeSettings
     // Followed by scenePathLen bytes of scene path, not null-terminated.
 };
 
-// Render pipeline (version 4+): baked from the .rpipeline asset at export,
+// Render pipeline: baked from the .rpipeline asset at export,
 // the renderer to activate and the passes to run, read back through
 // GetRenderPipeline(), GetPassCount() and GetPassName(). Each name is stored
 // as a length then bytes, so names have no length cap; the pass count is one
@@ -70,8 +70,7 @@ bool Load(const uint8_t* data, size_t size);
 /// Target frame rate, 0 for no limit.
 int32_t GetTargetFPS();
 
-/// Whether this build's assets are on internal or external storage. Files
-/// before version 6 read as External, since assets were always on the SD card.
+/// Whether this build's assets are on internal or external storage.
 Storage::Location GetAssetStorage();
 
 /// Startup scene path, empty when not set.

@@ -7,6 +7,9 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Changed
+- `project_data.bin` is version 7 and must match the engine: the firmware and
+  the data are exported together, so another version is refused with a
+  message to export again. Older versions are not read.
 - **Code style.** docs/codestyle holds the C++ style as a compiled example
   (CodeStyle.h, CodeStyle.cpp), with `.clang-format`, `.clang-tidy` and a
   pre-commit hook (tools/hooks). All engine code is formatted with
@@ -24,6 +27,12 @@ and package DLLs has its own numbered history in
     `DekiPluginInit`, ... A project's `src/PluginExports.cpp` written before
     this has to use the new names.
 - **Reflection ABI 21.** Packages built before this are rebuilt.
+
+### Removed
+- `PropertyType::Asset`, the string GUID field type `AssetRef` replaced. Nothing
+  used it. The `PropertyType` values after it moved down by one.
+- `SceneMsgPackWriter::SetAssetResolver`, which only that type used.
+- `Memory::Allocate(size, bool preferExternal)`. Name the region instead.
 
 ### Added
 - An enum value saved by name still loads after its enumerator is renamed to

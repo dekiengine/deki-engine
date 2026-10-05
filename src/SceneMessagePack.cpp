@@ -1488,23 +1488,6 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     WriteFloat(v.z);
                     break;
                 }
-                case PropertyType::Asset:
-                {
-                    // Asset properties store GUIDs in editor
-                    // When exporting for runtime, resolve GUID to path
-                    std::string guid = GetPropertyValue<std::string>(comp, prop);
-                    if (m_AssetResolver && !guid.empty())
-                    {
-                        std::string path = m_AssetResolver(guid);
-                        WriteString(path);
-                    }
-                    else
-                    {
-                        // No resolver or empty GUID - write as-is
-                        WriteString(guid);
-                    }
-                    break;
-                }
                 case PropertyType::ObjectRef:
                 {
                     const ObjectRefBase& ref = GetPropertyRef<ObjectRefBase>(comp, prop);

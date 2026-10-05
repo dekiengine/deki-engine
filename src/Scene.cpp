@@ -1129,10 +1129,6 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             }
             break;
         }
-        case PropertyType::Asset:
-            // Asset paths are stored as strings
-            propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop);
-            break;
         case PropertyType::ObjectRef:
         {
             const ObjectRefBase& ref = GetPropertyRef<ObjectRefBase>(comp, prop);
@@ -1631,13 +1627,6 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             }
             break;
         }
-        case PropertyType::Asset:
-            // Asset paths are stored as strings
-            if (value.is_string())
-            {
-                SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
-            }
-            break;
         case PropertyType::ObjectRef:
         {
             ObjectRefBase& ref = GetPropertyRef<ObjectRefBase>(comp, prop);
