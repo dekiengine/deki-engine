@@ -4,6 +4,11 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.18.1 - 2026-10-06
+
+- No engine changes; released with editor 0.18.1, which fixes moving a
+  project onto a new release's packages. Packages stay at 0.18.0.
+
 ## 0.18.0 - 2026-10-06
 
 - **0.17 packages are refused.** `DEKI_OLDEST_SUPPORTED_PACKAGE` is 0.18.0:
