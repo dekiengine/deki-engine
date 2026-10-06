@@ -4,7 +4,12 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.18.0 - 2026-10-06
+
+- **0.17 packages are refused.** `DEKI_OLDEST_SUPPORTED_PACKAGE` is 0.18.0:
+  reflection ABI 21 breaks every package, so a project on 0.17 packages is
+  told to move to 0.18.0 rather than failing to load them. Every package is
+  released at 0.18.0 alongside this.
 
 ### Added
 - **Screen Anchor** (`Deki::ScreenAnchor`) keeps its object at a point on the
