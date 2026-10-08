@@ -23,8 +23,10 @@ g++ -std=c++26 -freflection -DDEKI_REFLECT <includes/defines> reflection_codegen
 autogen_tool <output-dir>
 ```
 
-It requires **GCC 16.1+** (set `-DDEKI_GXX16=<path to g++>`, or it is auto-detected
-from `C:/msys64/mingw64/bin` then `PATH`). There is no fallback backend: the editor
+It requires **GCC 16 with C++26 reflection** (`-freflection`): MSYS2's 16.2
+and the Ubuntu toolchain PPA's 16.0.1 snapshot both have it. Set
+`-DDEKI_GXX16=<path to g++>`, or it is auto-detected from
+`C:/msys64/mingw64/bin` then `PATH`. There is no fallback backend: the editor
 build, every package build, and the desktop/firmware builds all consume the
 reflection-generated `.gen.cpp`.
 

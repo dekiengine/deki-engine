@@ -63,7 +63,7 @@ namespace SceneFormat { class SceneMsgPackParser; }
 //
 // C++26 static reflection.
 //
-// Only the reflection codegen tool (built with GCC 16.1+) defines DEKI_REFLECT.
+// Only the reflection codegen tool (built with GCC 16, -freflection) defines DEKI_REFLECT.
 // There the markers expand to P2996 annotations the generator reads back. In
 // every other build (MSVC editor, ESP32) they are empty macros.
 //

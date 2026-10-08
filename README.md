@@ -43,7 +43,7 @@ public:
 };
 ```
 
-The codegen (`tools/reflection_codegen.cpp`, GCC 16.1+) emits the deserializer,
+The codegen (`tools/reflection_codegen.cpp`, GCC 16 with `-freflection`) emits the deserializer,
 the field table, `DeclaresUpdate()` and, under `DEKI_EDITOR`, the inspector
 metadata for every `DEKI_EXPORT` member. Reflected member names are the keys in
 scene files: renaming one is a file-format change, done with

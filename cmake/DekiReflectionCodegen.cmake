@@ -2,7 +2,7 @@
 #
 # Build-time codegen step using the C++26 static-reflection generator
 # (reflection_codegen.cpp). It compiles the generator with a reflection-capable
-# GCC (16.1+) and runs it to emit, per package, one <Component>.gen.h stub per
+# GCC (16, with -freflection) and runs it to emit, per package, one <Component>.gen.h stub per
 # reflected type plus ONE merged <Prefix>Reflection<shard>.gen.cpp holding every
 # definition. The generator is invoked via COMMAND (a plain g++ call), so this
 # works regardless of the project's own compiler (MSVC, xtensa-gcc, etc.).
@@ -38,7 +38,7 @@
 #     PACKAGE_PREFIXES  <Pfx1> <Pfx2> ...      # {Prefix}Registration.gen.cpp
 #     PACKAGE_OUTDIRS   <out1> <out2> ...      # where that package's .gen.* go
 #     GENERATOR_SRC    <path to reflection_codegen.cpp>
-#     GXX              <path to g++ 16.1+>
+#     GXX              <path to g++ 16 with -freflection>
 #     INCLUDE_DIRS     <list of -I roots>
 #     DEFINES          <list of compile defines, same as the engine build>
 #     [UNIT_TARGET_HEADERS <n>]               # unit sizing knob, default 12
@@ -541,7 +541,7 @@ function(deki_reflection_codegen)
       else()
         string(REPLACE ";" " " _flags_shown "${_flags}")
         message(FATAL_ERROR "deki_reflection_codegen: generator compile failed for ${_unitid}.\n"
-                            "The C++26 reflection generator needs GCC 16.1+ (${ARG_GXX} was used); "
+                            "The C++26 reflection generator needs GCC 16 with -freflection (${ARG_GXX} was used); "
                             "install it (MSYS2: pacman -S mingw-w64-x86_64-gcc; Ubuntu: ppa:ubuntu-toolchain-r/test g++-16) "
                             "and pass -DDEKI_GXX16=<path to g++>.\n\n"
                             "Command:\n  ${ARG_GXX} ${_flags_shown} ${ARG_GENERATOR_SRC} -o ${_tool}\n\n"

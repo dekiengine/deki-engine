@@ -214,17 +214,18 @@ if(DEKI_EDITOR)
     # Output directory for generated files
     set(GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/deki/generated")
 
-    # C++26 static-reflection generator (needs GCC 16.1+ at DEKI_GXX16). It emits
+    # C++26 static-reflection generator (needs a GCC 16 with -freflection at
+    # DEKI_GXX16; the 16.0.1 snapshot in the Ubuntu toolchain PPA has it). It emits
     # the engine-core metadata + CoreRegistration + aggregation files. The generator
     # runs via a plain g++ call, independent of the project's own compiler.
     if(NOT DEKI_GXX16)
-        # Prefer the msys64 GCC 16.1 install before any older g++ on PATH.
+        # Prefer the msys64 GCC 16 install before any older g++ on PATH.
         find_program(DEKI_GXX16 NAMES g++-16 g++ PATHS "C:/msys64/mingw64/bin" NO_DEFAULT_PATH)
         if(NOT DEKI_GXX16)
             find_program(DEKI_GXX16 NAMES g++-16 g++)
         endif()
         if(NOT DEKI_GXX16)
-            message(FATAL_ERROR "Deki reflection codegen needs GCC 16.1+; pass -DDEKI_GXX16=<path to g++>")
+            message(FATAL_ERROR "Deki reflection codegen needs GCC 16 with C++26 reflection (-freflection); pass -DDEKI_GXX16=<path to g++>")
         endif()
     endif()
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DekiReflectionCodegen.cmake)
