@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.18.2 - 2026-10-11
 
 ### Added
 - `Engine::GetLastFrameTimings()`: how long the last frame's update, render
