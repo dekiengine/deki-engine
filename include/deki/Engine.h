@@ -121,6 +121,18 @@ class Object;
 /// same class with null providers.
 class DEKI_ENGINE_API Engine
 {
+public:
+    /// How long the parts of a frame took, in milliseconds of the engine's
+    /// clock: update (input, lifecycle, update callbacks), render and present.
+    /// For a frame-rate readout; average over many frames, as each is whole
+    /// milliseconds.
+    struct FrameTimings
+    {
+        uint32_t update = 0;
+        uint32_t render = 0;
+        uint32_t present = 0;
+    };
+
 private:
     bool m_Initialized;
     bool m_IsDirty;  // needs a redraw
@@ -155,6 +167,7 @@ private:
     bool m_Running;
 
     FPSCounter m_FpsCounter;
+    FrameTimings m_LastFrameTimings;
 
     EngineSettings m_Settings;
 
@@ -286,6 +299,9 @@ public:
 
     /// True when a redraw is needed.
     bool IsDirty() const { return m_IsDirty; }
+
+    /// How long the parts of the last frame took: see FrameTimings.
+    FrameTimings GetLastFrameTimings() const { return m_LastFrameTimings; }
 
     // The render system's framebuffer, for code outside the engine.
     const uint8_t* GetFrameBuffer() const;

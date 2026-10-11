@@ -326,6 +326,7 @@ void Engine::Update(uint32_t deltaTime)
     }
 
     m_FpsCounter.EndFrame();
+    m_LastFrameTimings = FrameTimings{ t1 - t0, t2 - t1, t3 - t2 };
 
     if (m_Host.logFrameStats)
     {
