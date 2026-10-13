@@ -1,4 +1,5 @@
 #include <deki/Scene.h>
+#include <deki/ThreadLocal.h>
 #include "AuthoredFormat.h"
 
 #include <algorithm>
@@ -1759,7 +1760,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
 std::function<std::string(const std::string& guid)> Scene::s_GuidToPathResolver;
 
 // Static set to detect circular instance references during expansion
-static thread_local std::set<std::string> s_ExpandingGuids;
+static DEKI_THREAD_LOCAL std::set<std::string> s_ExpandingGuids;
 
 bool Scene::ExpandInstance(Object* instanceObj)
 {

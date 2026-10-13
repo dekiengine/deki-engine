@@ -1,4 +1,5 @@
 #include <deki/LogSystem.h>
+#include <deki/ThreadLocal.h>
 
 #include <cstdarg>
 #include <cstdio>
@@ -12,7 +13,7 @@ namespace Deki
 LogCallback LogSystem::s_LogCallback = nullptr;
 
 // Thread-local log context: tracks which Object is currently executing
-static thread_local uint32_t s_LogContextObjectId = 0;
+static DEKI_THREAD_LOCAL uint32_t s_LogContextObjectId = 0;
 
 void LogSystem::SetLogContext(uint32_t objectId)
 {

@@ -4,6 +4,15 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- `DEKI_THREAD_LOCAL` (`deki/ThreadLocal.h`): `thread_local`, or a plain
+  static in a build that defines `DEKI_NO_THREAD_LOCAL`. A Tactility device
+  app is loaded by elf_loader, which has no thread-local storage, and its
+  build defines it. The engine's own thread-locals (the log context, the
+  instance-expansion guard) use it. Nothing changes for other builds.
+
 ## 0.18.2 - 2026-10-11
 
 ### Added
