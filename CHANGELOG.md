@@ -12,6 +12,17 @@ and package DLLs has its own numbered history in
   app is loaded by elf_loader, which has no thread-local storage, and its
   build defines it. The engine's own thread-locals (the log context, the
   instance-expansion guard) use it. Nothing changes for other builds.
+- `Deki::kRGB565BigEndian` (`deki/Engine.h`): the byte order of RGB565 in
+  memory, low byte first unless the board's platform `"defines"` has
+  `DEKI_RGB565_BIG_ENDIAN`. Then the framebuffer and every image are high byte
+  first, the order SPI panels take, so a frame can go to the panel as it is.
+  A display whose panel takes the other order must swap. Nothing changes for
+  a build without the define.
+- `Texture2D::Load` swaps RGB565 and RGB565A8 pixels into that order.
+
+### Fixed
+- `FrameBufferBytes`' comment called RGB565A8 a 565 plane and an A8 plane; it
+  is three bytes a pixel, the 565 value then alpha.
 
 ## 0.18.2 - 2026-10-11
 

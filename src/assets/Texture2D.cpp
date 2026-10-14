@@ -7,10 +7,46 @@
 #include <fstream>
 #endif
 #include <deki/LogSystem.h>
+#include <deki/Engine.h>  // kRGB565BigEndian
 #include <cstring>
 
 namespace Deki
 {
+
+#ifndef DEKI_EDITOR
+namespace
+{
+// A .dtex keeps RGB565 low byte first; a big-endian board draws from it in its
+// own order (kRGB565BigEndian), so the pixels are swapped once on load.
+void PixelsToMemoryOrder(const Texture2D::Header& header, uint8_t* pixels)
+{
+    if constexpr (kRGB565BigEndian)
+    {
+        if (header.format != Texture2D::TextureFormat::RGB565 && header.format != Texture2D::TextureFormat::RGB565A8)
+        {
+            return;
+        }
+        const size_t bpp = header.format == Texture2D::TextureFormat::RGB565 ? 2 : 3;
+        const uint64_t count = uint64_t(header.width) * uint64_t(header.height);
+        if (count * bpp > header.dataSize)
+        {
+            return;
+        }
+        for (uint64_t i = 0; i < count; ++i, pixels += bpp)
+        {
+            const uint8_t lo = pixels[0];
+            pixels[0] = pixels[1];
+            pixels[1] = lo;
+        }
+    }
+    else
+    {
+        (void)header;
+        (void)pixels;
+    }
+}
+}  // namespace
+#endif
 
 Texture2D::Texture2D()
     : data(nullptr),
@@ -129,6 +165,7 @@ Texture2D* Texture2D::Load(const char* file_path)
 
     fs->CloseFile(file);
 
+    PixelsToMemoryOrder(header, pixelData);
     Texture2D* texture = new Texture2D();
     if (!texture->LoadFromMemory(header, pixelData))
     {

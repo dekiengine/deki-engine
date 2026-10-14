@@ -43,6 +43,19 @@ enum class ColorFormat
     RGB565A8 = 3   // 24-bit: 3 bytes per pixel - RGB565 (2 bytes) + A8 (1 byte)
 };
 
+// Byte order of an RGB565 value in memory, in the framebuffer and in every
+// image the engine draws from (RGB565 and RGB565A8's colour): low byte first,
+// unless the board defines DEKI_RGB565_BIG_ENDIAN in its platform "defines".
+// Then it is high byte first, the order SPI panels take, so a frame goes to
+// such a panel as it is, by DMA, without a byte swap. Images are swapped once
+// when they are loaded; files on disk are always low byte first. A display
+// whose panel takes the other order swaps, so Present must check this.
+#if defined(DEKI_RGB565_BIG_ENDIAN)
+inline constexpr bool kRGB565BigEndian = true;
+#else
+inline constexpr bool kRGB565BigEndian = false;
+#endif
+
 /// Bytes a `width` x `height` framebuffer of `format` occupies. Use this
 /// rather than counting bytes per pixel yourself: it decides how much of a
 /// PSRAM framebuffer is flushed from CPU cache before DMA reads it, and an
@@ -64,7 +77,7 @@ constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
         case ColorFormat::RGB565: return pixels * 2;
         case ColorFormat::RGB888: return pixels * 3;
         case ColorFormat::ARGB8888: return pixels * 4;
-        case ColorFormat::RGB565A8: return pixels * 3;  // RGB565 plane + A8 plane
+        case ColorFormat::RGB565A8: return pixels * 3;  // RGB565 then A8, per pixel
     }
     return 0;
 }
