@@ -4,6 +4,19 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- `ScreenAnchor::update` (`AnchorUpdate::Always` or `Once`). Once places the
+  object on the game's first frame and then leaves it, through screen size
+  and camera changes. Outside the game (editor, not playing) every anchor is
+  placed each frame.
+
+### Fixed
+- Building one target that links the engine (the editor alone) reruns the
+  engine's reflection codegen after a reflected header changes. Only a build
+  of ALL did, so a new field could compile against stale metadata.
+
 ## 0.18.4 - 2026-10-16
 
 No engine changes; released with the editor's 0.18.4.
