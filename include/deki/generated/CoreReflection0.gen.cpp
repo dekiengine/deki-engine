@@ -103,7 +103,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta = {
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_SetupComponent_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -251,7 +252,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta = {
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_PlatformSetupComponent_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -390,7 +392,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_ScreenAnchor_Meta = {
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_ScreenAnchor_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -512,7 +515,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta = {
     nullptr,   // displayNameOverride
     "Core",   // settingsSection (DEKI_SETTINGS_SECTION)
     &DekiGen_Deki_CoreProjectSettings_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -648,7 +652,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta = {
     nullptr,   // displayNameOverride
     "Units",   // settingsSection (DEKI_SETTINGS_SECTION)
     &DekiGen_Deki_UnitProjectSettings_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 

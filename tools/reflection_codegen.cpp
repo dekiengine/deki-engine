@@ -1475,7 +1475,7 @@ void emit_case(std::ostream& out)
 }
 
 template <m::info COMP>
-void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild)
+void emit_component(std::ostream& out, std::string_view srcdir, std::string_view package, bool pluginBuild)
 {
     constexpr const char* CLS = std::define_static_string(m::identifier_of(COMP));  // Health
     constexpr const char* QN = qualified_name(COMP);                                // Game::Health
@@ -2035,12 +2035,13 @@ void emit_component(std::ostream& out, std::string_view srcdir, bool pluginBuild
     // class, so the loader can resolve a type it no longer recognises.
     if constexpr (kFormerNames.size() > 0)
     {
-        out << "    " << G << "_FormerNames, " << kFormerNames.size() << "   // DEKI_FORMER_NAME\n";
+        out << "    " << G << "_FormerNames, " << kFormerNames.size() << ",   // DEKI_FORMER_NAME\n";
     }
     else
     {
-        out << "    nullptr, 0   // formerNames (none declared)\n";
+        out << "    nullptr, 0,   // formerNames (none declared)\n";
     }
+    out << "    \"" << package << "\"   // package\n";
     out << "};\n";
     out << "#endif // DEKI_EDITOR\n\n";
 }
@@ -2387,7 +2388,7 @@ void emit_serializable_header(std::ostream& out, std::string_view srcdir)
 static constexpr const char* kDekiNodeHeader = "deki-nodegraph/DekiNode.h";
 
 template <m::info NODE>
-void emit_node(std::ostream& out, std::string_view srcdir)
+void emit_node(std::ostream& out, std::string_view srcdir, std::string_view package)
 {
     const char* CLS = std::define_static_string(m::identifier_of(NODE));
 
@@ -2750,12 +2751,13 @@ void emit_node(std::ostream& out, std::string_view srcdir)
     }
     if constexpr (has_static_member(NODE, "kStaticNodeDescription"))
     {
-        out << "        " << CLS << "::kStaticNodeDescription\n";
+        out << "        " << CLS << "::kStaticNodeDescription,\n";
     }
     else
     {
-        out << "        nullptr   // description (add picker shows the type name instead)\n";
+        out << "        nullptr,   // description (add picker shows the type name instead)\n";
     }
+    out << "        \"" << package << "\"   // package\n";
     out << "    };\n    return meta;\n}\n\n";
 
     out << "#endif // DEKI_EDITOR\n\n";
@@ -3067,7 +3069,7 @@ int main()
                                   src_rel_include(m::source_location_of(comp).file_name(), kPackages[mi].srcdir) });
             if constexpr (in_shard(qualified_name(comp)))
             {
-                emit_component<comp>(buf, kPackages[mi].srcdir, kPluginBuild);
+                emit_component<comp>(buf, kPackages[mi].srcdir, kPackages[mi].tag, kPluginBuild);
                 mergedCpp[mi] += take();
                 ++nc;
             }
@@ -3112,7 +3114,7 @@ int main()
             constexpr int mi = package_index_of(n);
             static_assert(mi >= 0, "reflection codegen: source path matches two package tags in this work unit");
             const char* nm = std::define_static_string(m::identifier_of(n));
-            emit_node<n>(buf, kPackages[mi].srcdir);
+            emit_node<n>(buf, kPackages[mi].srcdir, kPackages[mi].tag);
             mergedCpp[mi] += take();
             emit_node_header<n>(buf, kPackages[mi].srcdir);
             write_if_changed(out_path(mi, nm, ".gen.h"), take());
