@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.19.0 - 2026-10-17
 
 ### Added
 - `ScreenAnchor::update` (`AnchorUpdate::Always` or `Once`). Once places the
