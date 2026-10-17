@@ -245,7 +245,11 @@ if(DEKI_EDITOR)
         INCLUDE_DIRS ${_RC_INCS}
         DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_DEKI_TRANSFORM_DEFINES}
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
-    add_custom_target(generate_properties)  # reflection function registered its own build-time target
+    # The codegen's own build-time target, so building any one target that
+    # links the engine regenerates after a reflected header changes, not only
+    # a build of ALL.
+    add_custom_target(generate_properties)
+    add_dependencies(generate_properties ${DEKI_RC_TARGETS_deki_engine})
 
     # Make engine depend on generated code
     add_dependencies(deki-engine-core generate_properties)
