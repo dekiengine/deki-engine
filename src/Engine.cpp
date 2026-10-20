@@ -420,6 +420,10 @@ void Engine::RunMainLoop()
     m_Running = true;
     const uint32_t targetFrameTime = (1000 / m_TargetFps);
     uint32_t lastTime = Time::GetTime();
+    // The longest the loop runs without blocking. Far inside the task
+    // watchdog's timeout (seconds), and rare enough to cost little.
+    constexpr uint32_t kMaxMsWithoutYield = 100;
+    uint32_t lastYield = lastTime;
 
     DEKI_LOG_INTERNAL("RunMainLoop starting with target FPS: %d", m_TargetFps);
 
@@ -445,18 +449,25 @@ void Engine::RunMainLoop()
 
         m_IsDirty = false;  // Clear dirty flag after rendering
 
-        // Frame rate limiting - wait until TARGET_FRAME_TIME has passed since frame start
+        // Frame rate limiting: wait until targetFrameTime has passed since the
+        // frame started.
         uint32_t targetEndTime = currentTime + targetFrameTime;
         uint32_t now = Time::GetTime();
         if (now < targetEndTime)
         {
             uint32_t delayTime = targetEndTime - now;
             Time::Delay(delayTime);
+            lastYield = now;
         }
-        else
+        else if (now - lastYield >= kMaxMsWithoutYield)
         {
-            // Always yield at least 1ms to feed the watchdog and let IDLE tasks run
+            // A frame that overran its budget starts the next one at once, but
+            // the loop still blocks for a tick now and then, so the idle task
+            // runs (it feeds the task watchdog) and so do tasks below this one.
+            // Yielding after every late frame instead cost a slow scene a
+            // millisecond a frame.
             Time::Delay(1);
+            lastYield = Time::GetTime();
         }
 
         lastTime = currentTime;
