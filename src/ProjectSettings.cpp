@@ -256,6 +256,36 @@ bool ReadPackageSettingFloat(const char* section, const char* key, float& out)
 {
     return FindPackageSetting(section, key, static_cast<uint8_t>(PropertyType::Float), sizeof(float), &out);
 }
+
+bool ReadPackageSettingEnum(const char* section, const char* key, size_t enumSize, int32_t& out)
+{
+    const uint8_t tag = static_cast<uint8_t>(PropertyType::Enum);
+    switch (enumSize)
+    {
+        case 1:
+        {
+            uint8_t v = 0;
+            if (!FindPackageSetting(section, key, tag, 1, &v))
+            {
+                return false;
+            }
+            out = v;
+            return true;
+        }
+        case 2:
+        {
+            uint16_t v = 0;
+            if (!FindPackageSetting(section, key, tag, 2, &v))
+            {
+                return false;
+            }
+            out = v;
+            return true;
+        }
+        case 4: return FindPackageSetting(section, key, tag, 4, &out);
+        default: return false;
+    }
+}
 static std::string s_RendererName = "standard2d";
 static int s_PassCount = 0;
 

@@ -98,6 +98,9 @@ bool LoadFromFile(const char* path = nullptr);
 bool ReadPackageSettingBool(const char* section, const char* key, bool& out);
 bool ReadPackageSettingInt32(const char* section, const char* key, int32_t& out);
 bool ReadPackageSettingFloat(const char* section, const char* key, float& out);
+/// An enum setting, stored at the enum's own width: pass sizeof the enum (1, 2
+/// or 4). `out` is the enumerator's value.
+bool ReadPackageSettingEnum(const char* section, const char* key, size_t enumSize, int32_t& out);
 
 #ifdef DEKI_EDITOR
 /// Builds a project_data.bin image (editor only). `targetFPS` 0 means no
