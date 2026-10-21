@@ -103,7 +103,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_SetupComponent_Meta = {
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_SetupComponent_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -251,7 +252,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_PlatformSetupComponent_Meta = {
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_PlatformSetupComponent_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -281,6 +283,7 @@ static bool DekiGen_Deki_ScreenAnchor_Deserialize(::Deki::Component* _c, ::Deki:
             case ::Deki::HashString("anchor"): { int32_t v; if (parser.ReadInt(v)) self.anchor = static_cast<decltype(self.anchor)>(v); break; }
             case ::Deki::HashString("offsetX"): { float v; if (parser.ReadFloat(v)) self.offsetX = v; break; }
             case ::Deki::HashString("offsetY"): { float v; if (parser.ReadFloat(v)) self.offsetY = v; break; }
+            case ::Deki::HashString("update"): { int32_t v; if (parser.ReadInt(v)) self.update = static_cast<decltype(self.update)>(v); break; }
             default: parser.SkipValue(); break;
         }
     }
@@ -316,6 +319,7 @@ static const ::Deki::FieldRef DekiGen_Deki_ScreenAnchor_Fields[] = {
     { ::Deki::HashString("anchor"), (uint16_t)offsetof(Deki::ScreenAnchor, anchor), (uint8_t)::Deki::PropertyType::Enum, 1 },
     { ::Deki::HashString("offsetX"), (uint16_t)offsetof(Deki::ScreenAnchor, offsetX), (uint8_t)::Deki::PropertyType::Float, 0 },
     { ::Deki::HashString("offsetY"), (uint16_t)offsetof(Deki::ScreenAnchor, offsetY), (uint8_t)::Deki::PropertyType::Float, 0 },
+    { ::Deki::HashString("update"), (uint16_t)offsetof(Deki::ScreenAnchor, update), (uint8_t)::Deki::PropertyType::Enum, 1 },
 };
 
 // =============================================================================
@@ -329,12 +333,18 @@ static const ::Deki::FieldRef DekiGen_Deki_ScreenAnchor_Fields[] = {
 static const char* const s_ScreenPoint_Values[] = { "TopLeft", "Top", "TopRight", "Left", "Center", "Right", "BottomLeft", "Bottom", "BottomRight" };
 static const int32_t s_ScreenPoint_Ints[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 #endif
+#ifndef DEKI_GEN_ENUM_AnchorUpdate
+#define DEKI_GEN_ENUM_AnchorUpdate
+static const char* const s_AnchorUpdate_Values[] = { "Always", "Once" };
+static const int32_t s_AnchorUpdate_Ints[] = { 0, 1 };
+#endif
 
 static const ::Deki::PropertyInfo DekiGen_Deki_ScreenAnchor_Props[] = {
     { "anchor", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::ScreenAnchor, anchor),
       "The point on the screen the object stays at.", 0, 0, false, nullptr, s_ScreenPoint_Values, 9, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_ScreenPoint_Ints },    { "offsetX", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::ScreenAnchor, offsetX),
       "Distance from the anchor to the right. Negative goes left.", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::Distance },    { "offsetY", nullptr, ::Deki::PropertyType::Float, offsetof(Deki::ScreenAnchor, offsetY),
-      "Distance from the anchor upwards. Negative goes down.", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::Distance }
+      "Distance from the anchor upwards. Negative goes down.", 0, 0, false, nullptr, nullptr, 0, 0, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::Distance },    { "update", nullptr, ::Deki::PropertyType::Enum, offsetof(Deki::ScreenAnchor, update),
+      "Always: every frame, so it follows the camera and the screen size. Once: when the game starts drawing, then it stays put.", 0, 0, false, nullptr, s_AnchorUpdate_Values, 2, 1, ::Deki::PropertyType::Int32, nullptr, 0, 0, nullptr, false, false, nullptr, false, nullptr, nullptr, ::Deki::PhysicalUnit::None, nullptr, nullptr, s_AnchorUpdate_Ints }
 };
 
 extern const ::Deki::ComponentMeta DekiGen_Deki_ScreenAnchor_Meta;
@@ -355,7 +365,7 @@ const ::Deki::ComponentTypeInfo DekiGen_Deki_ScreenAnchor_TypeInfo = {
     &DekiGen_Deki_ScreenAnchor_Deserialize,
     &DekiGen_Deki_ScreenAnchor_ResolveObjectRefs,
     &DekiGen_Deki_ScreenAnchor_RemapObjectRefs,
-    DekiGen_Deki_ScreenAnchor_Fields, 3,
+    DekiGen_Deki_ScreenAnchor_Fields, 4,
 #ifdef DEKI_EDITOR
     &DekiGen_Deki_ScreenAnchor_Meta
 #else
@@ -377,12 +387,13 @@ const ::Deki::ComponentMeta DekiGen_Deki_ScreenAnchor_Meta = {
     false,   // platformSceneOnly
     sizeof(Deki::ScreenAnchor),
     DekiGen_Deki_ScreenAnchor_TypeInfo.create,
-    DekiGen_Deki_ScreenAnchor_Props, 3,
+    DekiGen_Deki_ScreenAnchor_Props, 4,
     {}, false,
     nullptr,   // displayNameOverride
     nullptr,   // settingsSection
     &DekiGen_Deki_ScreenAnchor_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -504,7 +515,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_CoreProjectSettings_Meta = {
     nullptr,   // displayNameOverride
     "Core",   // settingsSection (DEKI_SETTINGS_SECTION)
     &DekiGen_Deki_CoreProjectSettings_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 
@@ -640,7 +652,8 @@ const ::Deki::ComponentMeta DekiGen_Deki_UnitProjectSettings_Meta = {
     nullptr,   // displayNameOverride
     "Units",   // settingsSection (DEKI_SETTINGS_SECTION)
     &DekiGen_Deki_UnitProjectSettings_TypeInfo,
-    nullptr, 0   // formerNames (none declared)
+    nullptr, 0,   // formerNames (none declared)
+    "deki-engine"   // package
 };
 #endif // DEKI_EDITOR
 

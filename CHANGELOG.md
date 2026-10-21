@@ -4,6 +4,30 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.19.1 - 2026-10-17
+
+No engine changes; released with the editor's 0.19.1.
+
+## 0.19.0 - 2026-10-17
+
+### Added
+- `ScreenAnchor::update` (`AnchorUpdate::Always` or `Once`). Once places the
+  object on the game's first frame and then leaves it, through screen size
+  and camera changes. Outside the game (editor, not playing) every anchor is
+  placed each frame.
+
+- `ComponentMeta::package`: the package a reflected class is in, as its
+  folder is named ("deki-2d"; "deki-engine" for the engine's own), written by
+  the reflection codegen. The editor shows a class's names with its own
+  package's translations first. `sizeof(ComponentMeta)` grows, so packages
+  built before this are refused at load and rebuilt (the reflection ABI's
+  size check); no version bump.
+
+### Fixed
+- Building one target that links the engine (the editor alone) reruns the
+  engine's reflection codegen after a reflected header changes. Only a build
+  of ALL did, so a new field could compile against stale metadata.
+
 ## 0.18.4 - 2026-10-16
 
 No engine changes; released with the editor's 0.18.4.

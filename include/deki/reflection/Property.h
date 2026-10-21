@@ -461,6 +461,12 @@ struct ComponentMeta {
     const char* const* formerNames = nullptr;
     int formerNameCount = 0;
 
+    // The package the class is in, as its folder is named ("deki-2d"), or
+    // "deki-engine" for the engine's own. The editor shows the class's names
+    // with that package's translations first, so two packages can translate
+    // the same English word differently.
+    const char* package = nullptr;
+
     // The override when set, otherwise a name derived from `name`.
     const char* GetDisplayName() const {
         if (displayNameOverride) return displayNameOverride;

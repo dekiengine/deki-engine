@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.18.4 LANGUAGES C CXX)
+project(deki-engine VERSION 0.19.1 LANGUAGES C CXX)
 
 # Transform width (include/deki/Object.h, deki-editor/COMPATIBILITY.md).
 # Whoever configures this tree says which: the editor forces both on so it can
@@ -177,7 +177,7 @@ endif()
 # compile against. Leave it alone for a release that does not.
 target_compile_definitions(deki-engine-core PUBLIC
     "DEKI_ENGINE_VERSION=\"${PROJECT_VERSION}\""
-    "DEKI_OLDEST_SUPPORTED_PACKAGE=\"0.18.0\"")
+    "DEKI_OLDEST_SUPPORTED_PACKAGE=\"0.19.0\"")
 
 # The transform width, PUBLIC so everything compiled against this target sees
 # the same Deki::Object layout the engine itself was built with.
@@ -245,7 +245,11 @@ if(DEKI_EDITOR)
         INCLUDE_DIRS ${_RC_INCS}
         DEFINES DEKI_EDITOR DEKI_ENGINE_EXPORTS DEKI_LOG_ENABLED ${_DEKI_TRANSFORM_DEFINES}
                 "DEKI_ENABLE_TRANSPARENCY=true" "DEKI_FAST_ATTR=")
-    add_custom_target(generate_properties)  # reflection function registered its own build-time target
+    # The codegen's own build-time target, so building any one target that
+    # links the engine regenerates after a reflected header changes, not only
+    # a build of ALL.
+    add_custom_target(generate_properties)
+    add_dependencies(generate_properties ${DEKI_RC_TARGETS_deki_engine})
 
     # Make engine depend on generated code
     add_dependencies(deki-engine-core generate_properties)

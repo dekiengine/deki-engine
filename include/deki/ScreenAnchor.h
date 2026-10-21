@@ -25,6 +25,13 @@ enum class ScreenPoint : uint8_t
     BottomRight
 };
 
+/// When a Screen Anchor places its object.
+enum class AnchorUpdate : uint8_t
+{
+    Always,  // every frame: follows the camera and screen size changes
+    Once     // the first frame the game draws, then the object stays put
+};
+
 /// Keeps its object at a point on the screen, such as the top-left corner, on
 /// every screen size and while the camera moves. For a HUD: hearts at Top
 /// Left, a score at Top Right.
@@ -36,7 +43,9 @@ enum class ScreenPoint : uint8_t
 ///
 /// Placement runs once per frame, before drawing, from the scene's camera and
 /// the screen size (PlaceAll). The object then has a normal world position,
-/// so input and other scripts see it where it is drawn.
+/// so input and other scripts see it where it is drawn. With `update` set to
+/// Once, the game places it on its first frame only; the editor, outside
+/// play, places it every frame so the Play view shows the picked screen.
 DEKI_CATEGORY("Core")
 DEKI_DESCRIPTION("Keeps the object at a point on the screen, such as a corner, on every screen size.")
 class ScreenAnchor : public Component
@@ -56,6 +65,11 @@ public:
     DEKI_EXPORT
     float offsetY = 0.0f;
 
+    DEKI_TOOLTIP("Always: every frame, so it follows the camera and the screen size. Once: when the game starts "
+                 "drawing, then it stays put.")
+    DEKI_EXPORT
+    AnchorUpdate update = AnchorUpdate::Always;
+
     ScreenAnchor();
     ~ScreenAnchor() override;
 
@@ -71,6 +85,7 @@ private:
     static ScreenAnchor* s_First;
     ScreenAnchor* m_Prev = nullptr;
     ScreenAnchor* m_Next = nullptr;
+    bool m_Placed = false;  // placed by the game; a Once anchor then stays
 };
 
 }  // namespace Deki

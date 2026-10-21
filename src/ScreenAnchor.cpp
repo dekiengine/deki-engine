@@ -1,5 +1,6 @@
 #include <deki/ScreenAnchor.h>
 
+#include <deki/Engine.h>
 #include <deki/ICamera.h>
 #include <deki/Object.h>
 
@@ -79,6 +80,10 @@ void ScreenAnchor::PlaceAll(const Scene* scene, const ICamera& camera, int scree
     camera.ScreenToWorld(w * 0.5f, h * 0.5f, screenWidth, screenHeight, xs[1], ys[1]);
     camera.ScreenToWorld(w, h, screenWidth, screenHeight, xs[2], ys[2]);
 
+    // A Once anchor stays where the game first put it. Outside play the editor
+    // places every anchor, for the screen the Play view shows.
+    const bool runtime = Engine::IsRuntimeMode();
+
     for (ScreenAnchor* anchor = s_First; anchor; anchor = anchor->m_Next)
     {
         Object* owner = anchor->GetOwner();
@@ -93,6 +98,12 @@ void ScreenAnchor::PlaceAll(const Scene* scene, const ICamera& camera, int scree
         {
             continue;
         }
+        if (runtime && anchor->update == AnchorUpdate::Once && anchor->m_Placed)
+        {
+            continue;
+        }
+        anchor->m_Placed = runtime;
+
         const float x = xs[point % 3] + anchor->offsetX;
         const float y = ys[point / 3] + anchor->offsetY;
         if (owner->GetWorldX() != x || owner->GetWorldY() != y)
