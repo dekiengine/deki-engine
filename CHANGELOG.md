@@ -4,6 +4,21 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- `Engine::GetScreenDiagonalInches()`, `GetScreenPixelsPerInch()`,
+  `GetScreenWidthMeters()` and `GetScreenHeightMeters()`: the screen's size on
+  the glass, 0 when unknown. A device build reads the diagonal from its
+  board's platform file through `project_data.bin`; the editor sets it with
+  `SetScreenDiagonalInches()` for the screen the Play view shows.
+  `ScreenPixelsPerInch()` and `kMetersPerInch` in `ScreenScale.h` do the
+  arithmetic.
+- `project_data.bin` keeps the diagonal in a field that was reserved and
+  always written as 0, so the format version is unchanged and older files read
+  as unknown. `ProjectSettings::Write` takes it as a new last argument with a
+  default, and `ProjectSettings::GetScreenDiagonalInches()` reads it.
+
 ## 0.19.1 - 2026-10-17
 
 No engine changes; released with the editor's 0.19.1.

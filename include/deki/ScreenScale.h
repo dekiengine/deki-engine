@@ -19,6 +19,11 @@
 // its ortho height, or, on a screen too small for 1x, crops.
 //
 // The camera, the editor and 3D passes all call this, so they agree exactly.
+//
+// A screen's size on the glass is a separate matter: a panel cannot report
+// it, so the board's platform file gives the diagonal, and
+// ScreenPixelsPerInch turns that and the resolution into a density. Layouts
+// use it to fit a physically small screen; the camera does not.
 
 namespace Deki
 {
@@ -46,6 +51,23 @@ inline float OrthoPixelsPerMeter(int screenHeight, float orthoHeight, bool pixel
         return fit;
     }
     return artPixelsPerMeter * static_cast<float>(PixelPerfectMultiple(fit / artPixelsPerMeter));
+}
+
+/// Inches are what screen makers give; everything stored is in meters.
+constexpr float kMetersPerInch = 0.0254f;
+
+/// Pixels per inch of a screen `width` x `height` pixels whose diagonal is
+/// `diagonalInches`, taking the pixels as square. Returns 0 when any of them
+/// is unknown (not positive).
+inline float ScreenPixelsPerInch(int width, int height, float diagonalInches)
+{
+    if (width <= 0 || height <= 0 || !(diagonalInches > 0.0f))
+    {
+        return 0.0f;
+    }
+    const float w = static_cast<float>(width);
+    const float h = static_cast<float>(height);
+    return std::sqrt(w * w + h * h) / diagonalInches;
 }
 
 }  // namespace Deki

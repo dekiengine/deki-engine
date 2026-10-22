@@ -135,6 +135,7 @@ bool IsSupportedSettingsType(PropertyType t)
 }  // namespace
 
 static int32_t s_TargetFPS = 0;
+static float s_ScreenDiagonalInches = 0.0f;  // 0 = unknown
 static std::string s_StartupScene;
 static Storage::Location s_AssetStorage = Storage::Internal;
 
@@ -297,6 +298,10 @@ int32_t GetTargetFPS()
 {
     return s_TargetFPS;
 }
+float GetScreenDiagonalInches()
+{
+    return s_ScreenDiagonalInches;
+}
 Storage::Location GetAssetStorage()
 {
     return s_AssetStorage;
@@ -358,6 +363,14 @@ bool Load(const uint8_t* data, size_t size)
     // Reset runtime settings
     s_TargetFPS = 0;
     s_StartupScene.clear();
+    {
+        DisplaySettings display;
+        memcpy(&display, data + sizeof(FileHeader), sizeof(DisplaySettings));
+        // Not finite or not positive reads as unknown.
+        s_ScreenDiagonalInches = display.screenDiagonalInches > 0.0f && display.screenDiagonalInches < 1.0e6f
+                                     ? display.screenDiagonalInches
+                                     : 0.0f;
+    }
     s_RendererName = "standard2d";
     s_PassCount = 0;
     s_PassNames.clear();
@@ -769,7 +782,8 @@ bool LoadFromFile(const char* path)
 
 #ifdef DEKI_EDITOR
 std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, const char* startupScene,
-                           const char* rendererName, const char* const* passNames, int passCount)
+                           const char* rendererName, const char* const* passNames, int passCount,
+                           float screenDiagonalInches)
 {
     std::vector<uint8_t> buf;
 
@@ -788,7 +802,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
     display.reserved1 = 0;
     display.reserved2 = 0;
     display.reserved3 = 0;
-    display.reserved4 = 0;
+    display.screenDiagonalInches = screenDiagonalInches > 0.0f ? screenDiagonalInches : 0.0f;
     Append(buf, &display, sizeof(DisplaySettings));
 
     // Write runtime settings

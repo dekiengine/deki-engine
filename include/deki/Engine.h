@@ -186,6 +186,8 @@ private:
 
     EngineHost m_Host;
 
+    float m_ScreenDiagonalInches = 0.0f;  // 0 = unknown
+
 public:
     static Engine& GetInstance();
 
@@ -321,6 +323,23 @@ public:
     int32_t GetScreenWidth() const;
     int32_t GetScreenHeight() const;
     ColorFormat GetFrameBufferFormat() const;
+
+    /// The screen's diagonal in inches, 0 when unknown. A panel cannot report
+    /// its size, so it comes from the board's platform file: a device build
+    /// reads it from project_data.bin, and the editor sets it for the screen
+    /// the Play view shows.
+    float GetScreenDiagonalInches() const { return m_ScreenDiagonalInches; }
+    void SetScreenDiagonalInches(float inches);
+
+    /// Pixels per inch of the screen at its current size, 0 when its diagonal
+    /// or size is unknown. See ScreenPixelsPerInch.
+    float GetScreenPixelsPerInch() const;
+
+    /// The screen's size on the glass in meters, 0 when unknown. For laying
+    /// out for a physically small screen: the 1.91" T-Display S3 AMOLED is
+    /// 0.044 x 0.020 m, the 2.8" T-Deck 0.057 x 0.043 m.
+    float GetScreenWidthMeters() const;
+    float GetScreenHeightMeters() const;
 
     EngineSettings& GetSettings() { return m_Settings; }
     const EngineSettings& GetSettings() const { return m_Settings; }

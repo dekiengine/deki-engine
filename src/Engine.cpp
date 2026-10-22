@@ -1,5 +1,6 @@
 #include <deki/Engine.h>
 #include <deki/ProjectSettings.h>
+#include <deki/ScreenScale.h>
 #include <deki/Storage.h>
 #include <deki/assets/AssetManager.h>
 #include "LifecycleManager.h"
@@ -157,6 +158,7 @@ bool Engine::Initialize(const EngineHost& host)
             {
                 engine.SetTargetFPS(fps);
             }
+            engine.SetScreenDiagonalInches(ProjectSettings::GetScreenDiagonalInches());
         }
         else
         {
@@ -630,6 +632,29 @@ int32_t Engine::GetScreenWidth() const
 int32_t Engine::GetScreenHeight() const
 {
     return m_Renderer ? m_Renderer->GetScreenHeight() : 0;
+}
+
+void Engine::SetScreenDiagonalInches(float inches)
+{
+    // Not positive, or NaN, is unknown.
+    m_ScreenDiagonalInches = inches > 0.0f ? inches : 0.0f;
+}
+
+float Engine::GetScreenPixelsPerInch() const
+{
+    return ScreenPixelsPerInch(GetScreenWidth(), GetScreenHeight(), m_ScreenDiagonalInches);
+}
+
+float Engine::GetScreenWidthMeters() const
+{
+    const float ppi = GetScreenPixelsPerInch();
+    return ppi > 0.0f ? static_cast<float>(GetScreenWidth()) / ppi * kMetersPerInch : 0.0f;
+}
+
+float Engine::GetScreenHeightMeters() const
+{
+    const float ppi = GetScreenPixelsPerInch();
+    return ppi > 0.0f ? static_cast<float>(GetScreenHeight()) / ppi * kMetersPerInch : 0.0f;
 }
 
 ColorFormat Engine::GetFrameBufferFormat() const

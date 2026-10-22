@@ -36,8 +36,8 @@ struct FileHeader
     uint16_t flags;    // kFlag*
 };
 
-// Every field is unused and kept only so the file layout stays the same. The
-// framebuffer takes the display's own size and format.
+// The reserved fields are unused and kept only so the file layout stays the
+// same. The framebuffer takes the display's own size and format.
 struct DisplaySettings
 {
     int32_t reserved0;  // formerly targetWidth
@@ -46,7 +46,9 @@ struct DisplaySettings
     uint8_t reserved1;  // formerly pixelPerfect
     uint8_t reserved2;  // formerly dirtyRectMaxCount
     uint8_t reserved3;  // formerly dirtyRectEnabled
-    float reserved4;    // formerly dirtyRectOverlapThreshold
+    // The screen's diagonal in inches, from the board's platform file; 0 when
+    // unknown. Files from before it was added wrote 0 here.
+    float screenDiagonalInches;
 };
 
 // Follows DisplaySettings.
@@ -69,6 +71,10 @@ bool Load(const uint8_t* data, size_t size);
 
 /// Target frame rate, 0 for no limit.
 int32_t GetTargetFPS();
+
+/// The screen's diagonal in inches, from the board's platform file; 0 when
+/// unknown.
+float GetScreenDiagonalInches();
 
 /// Whether this build's assets are on internal or external storage.
 Storage::Location GetAssetStorage();
@@ -104,13 +110,14 @@ bool ReadPackageSettingEnum(const char* section, const char* key, size_t enumSiz
 
 #ifdef DEKI_EDITOR
 /// Builds a project_data.bin image (editor only). `targetFPS` 0 means no
-/// limit; `startupScene` may be nullptr. Returns the bytes, rather than
+/// limit; `startupScene` may be nullptr; `screenDiagonalInches` 0 means
+/// unknown. Returns the bytes, rather than
 /// filling a caller's buffer, because the packageSettings chunk grows with the
 /// settings registry and no caller can know the size. Empty only when nothing
 /// could be written.
 std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS = 0, const char* startupScene = nullptr,
                            const char* rendererName = nullptr, const char* const* passNames = nullptr,
-                           int passCount = 0);
+                           int passCount = 0, float screenDiagonalInches = 0.0f);
 #endif
 
 }  // namespace ProjectSettings
