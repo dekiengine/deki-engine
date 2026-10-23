@@ -420,8 +420,14 @@ void Engine::RunMainLoop()
     }
 
     m_Running = true;
-    const uint32_t targetFrameTime = (1000 / m_TargetFps);
+    // A frame's budget in microseconds (16667 at 60 fps). The deadline moves
+    // on by it each frame, carrying the part of a millisecond, so frames
+    // average the target rate although the clock and Delay count whole
+    // milliseconds: 1000 / 60 as a whole number of milliseconds ran at 62.5.
+    const uint32_t frameUs = 1000000u / static_cast<uint32_t>(m_TargetFps);
     uint32_t lastTime = Time::GetTime();
+    uint32_t deadline = lastTime;  // milliseconds
+    uint32_t deadlineUs = 0;       // and the microseconds past it
     // The longest the loop runs without blocking. Far inside the task
     // watchdog's timeout (seconds), and rare enough to cost little.
     constexpr uint32_t kMaxMsWithoutYield = 100;
@@ -451,14 +457,22 @@ void Engine::RunMainLoop()
 
         m_IsDirty = false;  // Clear dirty flag after rendering
 
-        // Frame rate limiting: wait until targetFrameTime has passed since the
-        // frame started.
-        uint32_t targetEndTime = currentTime + targetFrameTime;
-        uint32_t now = Time::GetTime();
-        if (now < targetEndTime)
+        // Frame rate limiting: wait for the frame's deadline. A frame more
+        // than a budget late sets the next one from now instead of running
+        // the next frames back to back to catch up.
+        deadlineUs += frameUs;
+        deadline += deadlineUs / 1000u;
+        deadlineUs %= 1000u;
+        const uint32_t now = Time::GetTime();
+        const int32_t left = static_cast<int32_t>(deadline - now);
+        if (left < -static_cast<int32_t>(frameUs / 1000u))
         {
-            uint32_t delayTime = targetEndTime - now;
-            Time::Delay(delayTime);
+            deadline = now;
+            deadlineUs = 0;
+        }
+        if (left > 0)
+        {
+            Time::Delay(static_cast<uint32_t>(left));
             lastYield = now;
         }
         else if (now - lastYield >= kMaxMsWithoutYield)
