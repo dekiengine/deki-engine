@@ -299,6 +299,7 @@ void Engine::Update(uint32_t deltaTime)
 
     // Behaviour lifecycle (Awake, Start, Update) with scene change detection
     ProcessLifecycle();
+    Scene* started = m_SceneSystem ? m_SceneSystem->GetRootScene() : nullptr;
 
     if (m_GameUpdateCallback)
     {
@@ -313,6 +314,7 @@ void Engine::Update(uint32_t deltaTime)
             m_IsDirty = true;  // assume callbacks change something
         }
     }
+    StartRootSceneSetSince(started);
 
     const uint32_t t1 = Time::GetTime();
     uint32_t t2 = t1;
@@ -559,10 +561,24 @@ void Engine::ProcessLifecycle()
         // Scene didn't change - safe to call Update on activeScene
         m_LifecycleManager->ProcessUpdate(activeScene);
         m_LifecycleManager->ProcessRuntimeUpdate(activeScene, runtimeDeltaSeconds);
+        // A button that opens a scene does it here, in Update.
+        StartRootSceneSetSince(activeScene);
     }
 
     // Update scene system
     m_SceneSystem->Update(0);  // deltaTime not used currently
+}
+
+void Engine::StartRootSceneSetSince(Scene* started)
+{
+    Scene* scene = m_SceneSystem ? m_SceneSystem->GetRootScene() : nullptr;
+    if (!scene || scene == started)
+    {
+        return;
+    }
+    m_LifecycleManager->ProcessInternalAwake(scene);
+    m_LifecycleManager->ProcessAwake(scene);
+    m_LifecycleManager->ProcessStart(scene);
 }
 
 void Engine::SetRootScene(Scene* scene, bool takeOwnership)

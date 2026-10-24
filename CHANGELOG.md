@@ -19,6 +19,17 @@ and package DLLs has its own numbered history in
   as unknown. `ProjectSettings::Write` takes it as a new last argument with a
   default, and `ProjectSettings::GetScreenDiagonalInches()` reads it.
 
+### Fixed
+- A scene set during Update (a component's), or by an update callback (a
+  serial command, say), was drawn before its Awake and Start, so its first
+  frame showed only the camera's clear colour: a black frame between scenes,
+  which a panel without a TE line shows as a diagonal wipe. The engine now
+  starts such a scene before the frame is drawn
+  (`Engine::StartRootSceneSetSince`).
+- The device frame cap counts in microseconds, carrying the remainder from
+  frame to frame: 60 fps gives 60, not 62 to 66. A loop more than a frame late
+  starts a new deadline instead of racing to catch up.
+
 ## 0.19.1 - 2026-10-17
 
 No engine changes; released with the editor's 0.19.1.
