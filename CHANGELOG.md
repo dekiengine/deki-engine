@@ -4,6 +4,14 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.20.3 - 2026-10-24
+
+### Fixed
+- `GenerateDeterministicGuid` prints with `snprintf`, not a `std::stringstream`.
+  It runs on devices too, and a Tactility app that called it would not load:
+  Tactility does not export the iostream code. The text is the same as
+  before, so no GUID changes.
+
 ## 0.20.2 - 2026-10-24
 
 No engine changes; released with the editor's 0.20.2.
