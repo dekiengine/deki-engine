@@ -32,9 +32,9 @@ std::string GenerateDeterministicGuid(const std::string& seed)
     }
 
     // Format as UUID-like string (32 hex chars with dashes). snprintf rather
-    // than a stringstream: this runs on devices too, and Tactility does not
-    // export the iostream code, so an app that used it would not load. Every
-    // part is at most 32 bits, so plain unsigned prints it on every target.
+    // than a stringstream: this runs on devices too, where the stream library
+    // is a lot of code for one line of hex. Every part is at most 32 bits, so
+    // plain unsigned prints it on every target.
     char text[37];
     std::snprintf(text, sizeof(text), "%08x-%04x-%04x-%04x-%08x%04x", static_cast<unsigned>(hash1 >> 32),
                   static_cast<unsigned>((hash1 >> 16) & 0xFFFF), static_cast<unsigned>(hash1 & 0xFFFF),

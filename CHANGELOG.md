@@ -7,10 +7,10 @@ and package DLLs has its own numbered history in
 ## 0.20.3 - 2026-10-24
 
 ### Fixed
-- `GenerateDeterministicGuid` prints with `snprintf`, not a `std::stringstream`.
-  It runs on devices too, and a Tactility app that called it would not load:
-  Tactility does not export the iostream code. The text is the same as
-  before, so no GUID changes.
+- `GenerateDeterministicGuid` prints with `snprintf`, not a `std::stringstream`:
+  it runs on devices too, where the stream library is a lot of code for one
+  line of hex. The text is the same as before, so no GUID changes. A Tactility
+  app that calls it now loads; Tactility gives apps no stream library.
 
 ## 0.20.2 - 2026-10-24
 
