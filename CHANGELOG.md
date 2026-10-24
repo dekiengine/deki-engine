@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.20.0 - 2026-10-24
 
 ### Added
 - `Engine::GetScreenDiagonalInches()`, `GetScreenPixelsPerInch()`,
