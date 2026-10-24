@@ -4,6 +4,10 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## 0.20.1 - 2026-10-24
+
+No engine changes; released with the editor's 0.20.1.
+
 ## 0.20.0 - 2026-10-24
 
 ### Added

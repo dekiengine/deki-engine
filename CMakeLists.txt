@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.20.0 LANGUAGES C CXX)
+project(deki-engine VERSION 0.20.1 LANGUAGES C CXX)
 
 # Transform width (include/deki/Object.h, deki-editor/COMPATIBILITY.md).
 # Whoever configures this tree says which: the editor forces both on so it can
