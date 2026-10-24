@@ -352,7 +352,8 @@ private:
     // Runs Awake and Start on the root scene when it is not `started`: a
     // scene set after the lifecycle ran (during Update, or by an update
     // callback) is started before it is drawn, so its first frame is not an
-    // empty one of the camera's clear colour.
+    // empty one of the camera's clear colour. The scene it replaced is deleted
+    // first.
     void StartRootSceneSetSince(Scene* started);
 
     static bool s_RuntimeMode;

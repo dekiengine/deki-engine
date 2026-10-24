@@ -70,7 +70,8 @@ public:
 
     /// Deletes the scenes queued by SetRootScene. Called at the start of
     /// ProcessLifecycle and of the play mode tick, before any behaviour code
-    /// runs, when nothing iterates the old scene.
+    /// runs, and before a scene set later in the frame is started: when
+    /// nothing iterates the old scene.
     void FlushPendingDeletions();
 };
 

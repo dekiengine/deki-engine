@@ -576,6 +576,9 @@ void Engine::StartRootSceneSetSince(Scene* started)
     {
         return;
     }
+    // The scene it replaced goes first: nothing of it runs any more, and both
+    // at once may not fit in a small board's memory.
+    m_SceneSystem->FlushPendingDeletions();
     m_LifecycleManager->ProcessInternalAwake(scene);
     m_LifecycleManager->ProcessAwake(scene);
     m_LifecycleManager->ProcessStart(scene);
