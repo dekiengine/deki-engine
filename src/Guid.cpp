@@ -2,8 +2,7 @@
 
 #include <deki/Guid.h>
 #include <cstdint>
-#include <sstream>
-#include <iomanip>
+#include <cstdio>
 
 namespace Deki
 {
@@ -32,21 +31,16 @@ std::string GenerateDeterministicGuid(const std::string& seed)
         }
     }
 
-    // Format as UUID-like string (32 hex chars with dashes)
-    std::stringstream ss;
-    ss << std::hex << std::setfill('0');
-    ss << std::setw(8) << (hash1 >> 32);
-    ss << "-";
-    ss << std::setw(4) << ((hash1 >> 16) & 0xFFFF);
-    ss << "-";
-    ss << std::setw(4) << (hash1 & 0xFFFF);
-    ss << "-";
-    ss << std::setw(4) << ((hash2 >> 48) & 0xFFFF);
-    ss << "-";
-    ss << std::setw(8) << ((hash2 >> 16) & 0xFFFFFFFF);
-    ss << std::setw(4) << (hash2 & 0xFFFF);
-
-    return ss.str();
+    // Format as UUID-like string (32 hex chars with dashes). snprintf rather
+    // than a stringstream: this runs on devices too, and Tactility does not
+    // export the iostream code, so an app that used it would not load. Every
+    // part is at most 32 bits, so plain unsigned prints it on every target.
+    char text[37];
+    std::snprintf(text, sizeof(text), "%08x-%04x-%04x-%04x-%08x%04x", static_cast<unsigned>(hash1 >> 32),
+                  static_cast<unsigned>((hash1 >> 16) & 0xFFFF), static_cast<unsigned>(hash1 & 0xFFFF),
+                  static_cast<unsigned>((hash2 >> 48) & 0xFFFF), static_cast<unsigned>((hash2 >> 16) & 0xFFFFFFFF),
+                  static_cast<unsigned>(hash2 & 0xFFFF));
+    return text;
 }
 
 }  // namespace Deki
