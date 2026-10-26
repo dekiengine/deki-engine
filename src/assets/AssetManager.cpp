@@ -13,6 +13,7 @@
 #include <deki/Time.h>
 
 #include <algorithm>
+#include <unordered_set>
 #include <cstdio>
 
 #ifdef DEKI_EDITOR
@@ -183,6 +184,54 @@ void AssetManager::ClearCache(const char* typeName)
     ++m_Epoch;
 
     DEKI_LOG_INTERNAL("AssetManager: Cleared all %s caches", typeName);
+}
+
+size_t AssetManager::UnloadUnused(const std::vector<std::string>& usedGuids)
+{
+    // The cache is keyed by path, so the GUIDs become paths first.
+    std::unordered_set<std::string> usedPaths;
+    usedPaths.reserve(usedGuids.size());
+    for (const std::string& guid : usedGuids)
+    {
+        const std::string& path = LookupPath(guid);
+        if (!path.empty())
+        {
+            usedPaths.insert(path);
+        }
+    }
+
+    auto& registry = GetLoaderRegistry();
+    size_t freed = 0;
+    for (auto& [type, cache] : m_TypeCache)
+    {
+        auto regIt = registry.find(type);
+        const AssetUnloadFn unloader = regIt != registry.end() ? regIt->second.unloader : nullptr;
+        auto& owned = m_LoadedAssets[type];
+        // A type registered without an unloader cannot be freed; its assets
+        // stay cached rather than be lost track of.
+        for (auto it = cache.begin(); unloader && it != cache.end();)
+        {
+            if (usedPaths.count(it->first))
+            {
+                ++it;
+                continue;
+            }
+            void* asset = it->second;
+            auto ownedIt = std::find(owned.begin(), owned.end(), asset);
+            if (ownedIt != owned.end())
+            {
+                owned.erase(ownedIt);
+            }
+            unloader(asset);
+            it = cache.erase(it);
+            ++freed;
+        }
+    }
+    if (freed > 0)
+    {
+        ++m_Epoch;
+    }
+    return freed;
 }
 
 void AssetManager::DropCache()

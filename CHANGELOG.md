@@ -4,6 +4,28 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- `Engine::OpenScene(AssetRef<Scene>)`: the way to change scenes. At the end
+  of the frame the scene being left is freed, then the next one is loaded and
+  started before it is drawn, so the two are never in memory at once. Loading
+  it yourself and calling `SetRootScene` held both: on a T-Deck Plus, from the
+  demo's menu to its meadow, that left 16 bytes of internal RAM. A scene that
+  does not exist is not opened. Hosts that drive the lifecycle themselves call
+  `OpenRequestedScene()` after their updates.
+- `Engine::ReleaseUnusedAssets()` and `AssetManager::UnloadUnused(usedGuids)`:
+  free the cached assets no `AssetRef` field of a component on a live object
+  names. On a device and in the simulator `OpenScene` does it after every scene
+  change, before the new scene loads its own: on a T-Deck Plus the free PSRAM
+  with the demo's menu open comes back to the same figure after every visit,
+  where a visit to the meadow used to keep about 60 KB of it. Not in the
+  editor, whose panels hold assets of their own.
+- `Deki::FileImage` (`deki/FileImage.h`): a read-only file image, files packed
+  into one block of bytes and found by binary search over their sorted names.
+  The ESP32 package flashes a game's data as one and reads it in place. The
+  writer is editor-only.
+
 ## 0.20.3 - 2026-10-24
 
 ### Fixed

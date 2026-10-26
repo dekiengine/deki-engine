@@ -33,6 +33,7 @@ class IRenderSystem;
 class IInputSystem;
 class SceneSystem;
 class LifecycleManager;
+struct AssetRefBase;
 
 // Pixel format of a framebuffer.
 enum class ColorFormat
@@ -152,6 +153,10 @@ private:
 
     SceneSystem* m_SceneSystem;
 
+    // The scene OpenScene asked for, opened by OpenRequestedScene.
+    std::string m_RequestedSceneGuid;
+    bool m_SceneRequested = false;
+
     LifecycleManager* m_LifecycleManager;
 
     // From a rendering package; nullptr when headless.
@@ -241,6 +246,32 @@ public:
     /// Makes `scene` the root scene. With `takeOwnership`, the engine deletes
     /// it when it is replaced or on shutdown.
     void SetRootScene(Scene* scene, bool takeOwnership = true);
+
+    /// Opens the scene `scene` refers to (an AssetRef<Scene>) once this
+    /// frame's updates are done: the scene being left is freed first, then
+    /// the new one is loaded and started before it is drawn. The way for a
+    /// game to change scenes: loading the next one itself and calling
+    /// SetRootScene holds both in memory at once, more than a small board
+    /// may have. A scene that does not exist is not opened, and the game stays
+    /// where it is.
+    void OpenScene(const AssetRefBase& scene);
+
+    /// Opens the scene asset `guid`, as OpenScene above.
+    void OpenScene(const std::string& guid);
+
+    /// Frees the cached assets nothing uses any more: those no AssetRef field
+    /// of a component on a live object (the root scene and the persistent
+    /// objects) names. An AssetRef held elsewhere loads its asset again when
+    /// next asked, so keep assets in AssetRefs, not in raw pointers kept
+    /// across frames. On a device OpenScene does this after every scene
+    /// change; a game can call it after removing many objects. Returns how
+    /// many assets were freed.
+    size_t ReleaseUnusedAssets();
+
+    /// Carries out an OpenScene request, if there is one. Update() does this
+    /// itself; hosts that drive the lifecycle by hand (the editor's play
+    /// mode) call it after their updates.
+    void OpenRequestedScene();
 
     /// The root scene, or nullptr when none is set.
     Scene* GetRootScene() const;

@@ -3,6 +3,8 @@
 #include <deki/ScreenScale.h>
 #include <deki/Storage.h>
 #include <deki/assets/AssetManager.h>
+#include <deki/assets/AssetRef.h>
+#include <deki/reflection/ComponentRegistry.h>
 #include "LifecycleManager.h"
 
 #include <deki/providers/FileSystem.h>
@@ -314,6 +316,7 @@ void Engine::Update(uint32_t deltaTime)
             m_IsDirty = true;  // assume callbacks change something
         }
     }
+    OpenRequestedScene();
     StartRootSceneSetSince(started);
 
     const uint32_t t1 = Time::GetTime();
@@ -590,6 +593,110 @@ void Engine::SetRootScene(Scene* scene, bool takeOwnership)
     {
         m_SceneSystem->SetRootScene(scene, takeOwnership);
     }
+}
+
+void Engine::OpenScene(const AssetRefBase& scene)
+{
+    OpenScene(scene.guid);
+}
+
+void Engine::OpenScene(const std::string& guid)
+{
+    m_RequestedSceneGuid = guid;
+    m_SceneRequested = true;
+}
+
+void Engine::OpenRequestedScene()
+{
+    if (!m_SceneRequested || !m_SceneSystem)
+    {
+        return;
+    }
+    m_SceneRequested = false;
+    // Checked before the scene on screen is freed: a scene that cannot be
+    // found must not leave the game with none. On a device every GUID has a
+    // path, so the file itself is looked for.
+    auto* assets = AssetManager::Get();
+    const std::string path = assets ? assets->LookupPath(m_RequestedSceneGuid) : std::string();
+    IFileSystem* fs = path.empty() ? nullptr : FileSystem::GetFileSystemForPath(path.c_str());
+    if (!fs || !fs->FileExists(path.c_str()))
+    {
+        DEKI_LOG_ERROR("OpenScene: no scene '%s'; staying in this one", m_RequestedSceneGuid.c_str());
+        return;
+    }
+
+    // The scene being left goes first, so the two are never in memory at
+    // once: on a small board they may not fit together. Nothing of it runs
+    // any more at this point of the frame.
+    m_SceneSystem->SetRootScene(nullptr);
+    m_SceneSystem->FlushPendingDeletions();
+
+    auto* scene = static_cast<Scene*>(assets->LoadByGuidAndType(m_RequestedSceneGuid, Scene::kAssetTypeName));
+    if (!scene)
+    {
+        DEKI_LOG_ERROR("OpenScene: could not load the scene '%s'", m_RequestedSceneGuid.c_str());
+        return;
+    }
+    m_SceneSystem->SetRootScene(scene, true);
+
+#ifndef DEKI_EDITOR
+    // The assets only the scene left used go too, before the new scene's
+    // load in its Awake. Not in the editor, whose panels hold assets of
+    // their own while a game plays.
+    ReleaseUnusedAssets();
+#endif
+}
+
+namespace
+{
+// Every GUID an AssetRef field of a component on `obj` or below names.
+void CollectAssetGuids(const Object* obj, std::vector<std::string>& guids)
+{
+    for (const Component* component : obj->GetComponents())
+    {
+        int count = 0;
+        const FieldRef* fields = ComponentRegistry::Instance().GetFields(component->GetType(), count);
+        for (int i = 0; fields && i < count; ++i)
+        {
+            if (fields[i].type != static_cast<uint8_t>(PropertyType::AssetRef))
+            {
+                continue;
+            }
+            const auto* ref =
+                reinterpret_cast<const AssetRefBase*>(reinterpret_cast<const char*>(component) + fields[i].offset);
+            if (!ref->guid.empty())
+            {
+                guids.push_back(ref->guid);
+            }
+        }
+    }
+    for (const Object* child : obj->GetChildren())
+    {
+        CollectAssetGuids(child, guids);
+    }
+}
+}  // namespace
+
+size_t Engine::ReleaseUnusedAssets()
+{
+    auto* assets = AssetManager::Get();
+    if (!assets || !m_SceneSystem)
+    {
+        return 0;
+    }
+    std::vector<std::string> used;
+    if (const Scene* scene = m_SceneSystem->GetRootScene())
+    {
+        for (const Object* obj : scene->GetObjects())
+        {
+            CollectAssetGuids(obj, used);
+        }
+    }
+    for (const Object* obj : m_SceneSystem->GetPersistentObjects())
+    {
+        CollectAssetGuids(obj, used);
+    }
+    return assets->UnloadUnused(used);
 }
 
 Scene* Engine::GetRootScene() const

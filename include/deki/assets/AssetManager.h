@@ -100,6 +100,12 @@ public:
     /// the next loads read from disk again.
     void ClearCache(const char* typeName);
 
+    /// Frees every cached asset whose GUID is not in `usedGuids`, and moves
+    /// the epoch, so an AssetRef that pointed at one loads it again when next
+    /// asked. Returns how many were freed. Engine::ReleaseUnusedAssets works
+    /// out the list from the live objects.
+    size_t UnloadUnused(const std::vector<std::string>& usedGuids);
+
     /// Forgets the cache without freeing the assets, which may still be in
     /// use; the next load reads a fresh copy from disk. The editor calls it
     /// when play mode stops. Leaves the epoch alone, since existing

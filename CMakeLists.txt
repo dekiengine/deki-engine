@@ -84,6 +84,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/LogSystem.cpp
     src/Time.cpp
     src/Guid.cpp
+    src/FileImage.cpp
     src/reflection/ComponentRegistry.cpp
     src/reflection/ComponentFactory.cpp
     src/reflection/PropertyRef.cpp
