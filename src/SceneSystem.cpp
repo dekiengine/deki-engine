@@ -45,6 +45,7 @@ bool SceneSystem::Setup()
 {
     // Create a default scene
     m_RootScene = CreateScene();
+    ++m_RootSceneSerial;
     return m_RootScene != nullptr;
 }
 
@@ -69,6 +70,7 @@ void SceneSystem::SetRootScene(Scene* scene, bool takeOwnership)
     }
 
     m_RootScene = scene;
+    ++m_RootSceneSerial;
     m_OwnsRootScene = takeOwnership;
 
     // If taking ownership, release AssetManager's tracking to prevent double-free.

@@ -25,6 +25,14 @@ and package DLLs has its own numbered history in
   into one block of bytes and found by binary search over their sorted names.
   The ESP32 package flashes a game's data as one and reads it in place. The
   writer is editor-only.
+- `SceneSystem::GetRootSceneSerial()`: changes every time the root scene is
+  replaced. Compare it, not the scene's address, to tell whether the scene
+  changed: `OpenScene` frees the old scene before loading the next, which can
+  then be allocated at the very same address.
+
+### Fixed
+- A scene opened with `OpenScene` at the address of the one it replaced is
+  started before its first frame too: the check compared the two addresses.
 
 ## 0.20.3 - 2026-10-24
 

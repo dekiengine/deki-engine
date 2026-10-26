@@ -301,7 +301,7 @@ void Engine::Update(uint32_t deltaTime)
 
     // Behaviour lifecycle (Awake, Start, Update) with scene change detection
     ProcessLifecycle();
-    Scene* started = m_SceneSystem ? m_SceneSystem->GetRootScene() : nullptr;
+    const uint32_t started = m_SceneSystem ? m_SceneSystem->GetRootSceneSerial() : 0;
 
     if (m_GameUpdateCallback)
     {
@@ -520,6 +520,7 @@ void Engine::ProcessLifecycle()
     }
 
     Scene* activeScene = m_SceneSystem->GetRootScene();
+    const uint32_t activeSerial = m_SceneSystem->GetRootSceneSerial();
 
     // Process behaviour lifecycle
     uint32_t t0 = Time::GetTime();
@@ -565,17 +566,17 @@ void Engine::ProcessLifecycle()
         m_LifecycleManager->ProcessUpdate(activeScene);
         m_LifecycleManager->ProcessRuntimeUpdate(activeScene, runtimeDeltaSeconds);
         // A button that opens a scene does it here, in Update.
-        StartRootSceneSetSince(activeScene);
+        StartRootSceneSetSince(activeSerial);
     }
 
     // Update scene system
     m_SceneSystem->Update(0);  // deltaTime not used currently
 }
 
-void Engine::StartRootSceneSetSince(Scene* started)
+void Engine::StartRootSceneSetSince(uint32_t startedSerial)
 {
     Scene* scene = m_SceneSystem ? m_SceneSystem->GetRootScene() : nullptr;
-    if (!scene || scene == started)
+    if (!scene || m_SceneSystem->GetRootSceneSerial() == startedSerial)
     {
         return;
     }

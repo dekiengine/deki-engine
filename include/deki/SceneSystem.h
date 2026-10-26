@@ -29,6 +29,9 @@ private:
     // scene is still being iterated.
     std::vector<Scene*> m_PendingDeletion;
 
+    // Counts the root scenes installed (GetRootSceneSerial).
+    uint32_t m_RootSceneSerial = 0;
+
 public:
     SceneSystem();
 
@@ -56,6 +59,12 @@ public:
     bool LoadBootScene(const char* filename, Storage::Location storage);
 
     Scene* GetRootScene() const { return m_RootScene; }
+
+    /// Changes every time the root scene is replaced. Compare it, not the
+    /// scene's address, to tell whether the scene changed: a scene switch
+    /// frees the old scene before loading the next, which may then be
+    /// allocated at the very same address.
+    uint32_t GetRootSceneSerial() const { return m_RootSceneSerial; }
 
     bool HasRootScene() const { return m_RootScene != nullptr; }
 
