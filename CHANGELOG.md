@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.21.0 - 2026-10-28
 
 ### Added
 - `Engine::OpenScene(AssetRef<Scene>)`: the way to change scenes. At the end
