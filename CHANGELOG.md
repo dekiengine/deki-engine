@@ -30,9 +30,26 @@ and package DLLs has its own numbered history in
   changed: `OpenScene` frees the old scene before loading the next, which can
   then be allocated at the very same address.
 
+- `IDisplay::GetRefreshPeriodUs()`: a display that shows each frame on the
+  panel's refresh says how long a refresh takes, and the main loop times
+  frames to a whole number of them. `ITimeProvider::GetTicksUs()` and
+  `Time::GetTimeUs()`: a microsecond clock for timing frames. The default
+  counts whole milliseconds.
+
+### Changed
+- `Engine::Update` takes the frame's milliseconds as a float, and the main
+  loop times frames in microseconds: `Time::GetDeltaTimeF()` is no longer
+  rounded to a whole millisecond (16, 17, 16...), so things moving at a steady
+  speed move by the same amount each frame.
+- **Reflection ABI 22.** Packages built before this are rebuilt.
+
 ### Fixed
 - A scene opened with `OpenScene` at the address of the one it replaced is
   started before its first frame too: the check compared the two addresses.
+- A game on a panel that refreshes a little faster than the target frame rate
+  stuttered: at 60 frames a second on a 60.2 Hz panel (a T-Deck Plus), one
+  refresh every five seconds showed the last frame again. The panel now sets
+  the pace, and on the T-Deck Plus the repeats are gone.
 
 ## 0.20.3 - 2026-10-24
 

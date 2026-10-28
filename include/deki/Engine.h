@@ -182,6 +182,10 @@ private:
     GameUpdateCallback m_GameUpdateCallback;
 
     uint32_t m_TargetFps;
+
+    /// Microseconds a frame takes at the target frame rate, or a whole number
+    /// of the display's refreshes when it shows frames on them.
+    uint32_t FrameBudgetUs() const;
     bool m_Running;
 
     FPSCounter m_FpsCounter;
@@ -209,8 +213,8 @@ public:
     /// Shuts the engine down and frees its resources.
     void Shutdown();
 
-    /// Runs one frame. `deltaTime` is milliseconds since the last call.
-    void Update(uint32_t deltaTime);
+    /// Runs one frame. `deltaMs` is milliseconds since the last call.
+    void Update(float deltaMs);
 
     /// Runs Awake, Start and Update on the active scene, and handles a scene
     /// change made during them.

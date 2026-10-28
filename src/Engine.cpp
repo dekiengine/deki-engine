@@ -26,6 +26,7 @@ extern "C" void DekiShutdownPackageSystems(void);  // AllPackageInit.gen.cpp
 extern "C" void DekiRegisterProjectPackages(void);
 #endif
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <cstdlib>
@@ -248,7 +249,7 @@ void Engine::Shutdown()
     m_Initialized = false;
 }
 
-void Engine::Update(uint32_t deltaTime)
+void Engine::Update(float deltaMs)
 {
     if (!m_Initialized)
     {
@@ -296,7 +297,7 @@ void Engine::Update(uint32_t deltaTime)
         // still run and the display still presents.
     }
 
-    Time::Update(deltaTime);
+    Time::UpdateF(deltaMs);
     const uint32_t t0 = Time::GetTime();
 
     // Behaviour lifecycle (Awake, Start, Update) with scene change detection
@@ -312,7 +313,7 @@ void Engine::Update(uint32_t deltaTime)
     {
         if (callback)
         {
-            callback(deltaTime);
+            callback(Time::GetDeltaTime());
             m_IsDirty = true;  // assume callbacks change something
         }
     }
@@ -425,14 +426,13 @@ void Engine::RunMainLoop()
     }
 
     m_Running = true;
-    // A frame's budget in microseconds (16667 at 60 fps). The deadline moves
-    // on by it each frame, carrying the part of a millisecond, so frames
-    // average the target rate although the clock and Delay count whole
-    // milliseconds: 1000 / 60 as a whole number of milliseconds ran at 62.5.
-    const uint32_t frameUs = 1000000u / static_cast<uint32_t>(m_TargetFps);
+    // Frames are timed in microseconds and each one's deadline moves on by a
+    // frame's budget, so frames average the target rate although Delay
+    // counts whole milliseconds: 1000 / 60 as a whole number of milliseconds
+    // ran at 62.5.
+    uint64_t lastUs = Time::GetTimeUs();
+    uint64_t deadlineUs = lastUs;
     uint32_t lastTime = Time::GetTime();
-    uint32_t deadline = lastTime;  // milliseconds
-    uint32_t deadlineUs = 0;       // and the microseconds past it
     // The longest the loop runs without blocking. Far inside the task
     // watchdog's timeout (seconds), and rare enough to cost little.
     constexpr uint32_t kMaxMsWithoutYield = 100;
@@ -449,35 +449,34 @@ void Engine::RunMainLoop()
             break;
         }
 
-        uint32_t currentTime = Time::GetTime();
-        uint32_t elapsed = currentTime - lastTime;
-
-        if (elapsed == 0)
+        const uint64_t currentUs = Time::GetTimeUs();
+        // A frame never takes no time: a clock that did not move counts 1 ms.
+        uint64_t elapsedUs = currentUs - lastUs;
+        if (currentUs == lastUs)
         {
-            elapsed = 1;
+            elapsedUs = 1000u;
         }
 
         // Update (includes Render + Present; m_GameUpdateCallback runs inside)
-        Update(elapsed);
+        Update(static_cast<float>(elapsedUs) * 0.001f);
 
         m_IsDirty = false;  // Clear dirty flag after rendering
 
         // Frame rate limiting: wait for the frame's deadline. A frame more
         // than a budget late sets the next one from now instead of running
         // the next frames back to back to catch up.
+        const uint32_t frameUs = FrameBudgetUs();
         deadlineUs += frameUs;
-        deadline += deadlineUs / 1000u;
-        deadlineUs %= 1000u;
+        const uint64_t nowUs = Time::GetTimeUs();
         const uint32_t now = Time::GetTime();
-        const int32_t left = static_cast<int32_t>(deadline - now);
-        if (left < -static_cast<int32_t>(frameUs / 1000u))
+        if (nowUs > deadlineUs + frameUs)
         {
-            deadline = now;
-            deadlineUs = 0;
+            deadlineUs = nowUs;
         }
+        const uint32_t left = deadlineUs > nowUs ? static_cast<uint32_t>((deadlineUs - nowUs) / 1000u) : 0u;
         if (left > 0)
         {
-            Time::Delay(static_cast<uint32_t>(left));
+            Time::Delay(left);
             lastYield = now;
         }
         else if (now - lastYield >= kMaxMsWithoutYield)
@@ -491,7 +490,7 @@ void Engine::RunMainLoop()
             lastYield = Time::GetTime();
         }
 
-        lastTime = currentTime;
+        lastUs = currentUs;
     }
 
     m_Running = false;
@@ -801,6 +800,22 @@ float Engine::GetScreenHeightMeters() const
 ColorFormat Engine::GetFrameBufferFormat() const
 {
     return m_Renderer ? m_Renderer->GetColorFormat() : ColorFormat::RGB565;
+}
+
+uint32_t Engine::FrameBudgetUs() const
+{
+    const uint32_t targetUs = 1000000u / m_TargetFps;
+    const uint32_t refreshUs = m_Display ? m_Display->GetRefreshPeriodUs() : 0u;
+    if (refreshUs == 0)
+    {
+        return targetUs;
+    }
+    // The whole number of refreshes nearest the target, a hundredth short.
+    // The clock then never holds a frame back: the display does, until the
+    // panel takes it, so the panel sets the pace.
+    const uint32_t refreshes = std::max<uint32_t>(1u, (targetUs + refreshUs / 2) / refreshUs);
+    const uint32_t budgetUs = refreshes * refreshUs;
+    return budgetUs - budgetUs / 100u;
 }
 
 // The package owns the display's lifetime; the engine stores the pointer and

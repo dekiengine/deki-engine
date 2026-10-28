@@ -19,6 +19,9 @@ public:
 
     /// Milliseconds since Initialize().
     static uint32_t GetTime();
+    /// Microseconds on the platform's clock, for timing frames finer than a
+    /// millisecond. Only differences between two readings mean anything.
+    static uint64_t GetTimeUs();
 
     /// Milliseconds since `previousTime`, a value from GetTime().
     static uint32_t GetElapsed(uint32_t previousTime);

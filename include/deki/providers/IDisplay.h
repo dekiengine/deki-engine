@@ -86,6 +86,13 @@ public:
     /// on in OnScreenOn after waking. Displays without one (desktop windows)
     /// keep the default, which does nothing.
     virtual void SetBacklight(bool on) { (void)on; }
+
+    /// Microseconds between the panel's refreshes when each frame waits for
+    /// one, so it is shown whole; 0 when frames are shown as they come. The
+    /// main loop then times frames to a whole number of refreshes: a game
+    /// clock a little off the panel's (60.0 frames a second on a 60.2 Hz
+    /// panel) would show a frame twice every few seconds, a stutter.
+    virtual uint32_t GetRefreshPeriodUs() const { return 0; }
 };
 
 }  // namespace Deki

@@ -52,6 +52,15 @@ uint32_t Time::GetTime()
     return s_TimeProvider->GetTicksMs() - s_StartTime;
 }
 
+uint64_t Time::GetTimeUs()
+{
+    if (!s_TimeProvider)
+    {
+        return 0;
+    }
+    return s_TimeProvider->GetTicksUs();
+}
+
 uint32_t Time::GetElapsed(uint32_t previousTime)
 {
     uint32_t now = GetTime();
