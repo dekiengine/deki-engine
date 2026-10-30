@@ -4,6 +4,12 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Changed
+- `EditorDisplay`, the display play mode runs on in the editor, moved to the
+  editor, and `deki-engine-core` no longer links OpenGL.
+
 ## 0.21.0 - 2026-10-28
 
 ### Added

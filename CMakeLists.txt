@@ -124,18 +124,6 @@ list(REMOVE_DUPLICATES GENERATED_SOURCES)
 list(APPEND DEKI_CORE_SOURCES ${GENERATED_SOURCES})
 message(STATUS "Generated sources: ${GENERATED_SOURCES}")
 
-# Editor-specific sources
-if(DEKI_EDITOR)
-    # The editor preview display is the only editor-side source in this DLL.
-    # Editor application code (asset pack editor, engine editor registration)
-    # lives in the editor repo (src/engine_editors/): it uses the deki-editor
-    # DLL and ImGui, which this library must not depend on.
-    # Note: CoreComponentRegistration.cpp is replaced by auto-generated CoreRegistration.gen.cpp
-    list(APPEND DEKI_CORE_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/platforms/editor/EditorDisplay.cpp"
-    )
-endif()
-
 # Platform providers. The prefix routing only; the implementations behind each
 # mount live in the package for that target (deki-desktop-integration,
 # deki-esp32-integration), because the engine does not know what targets exist.
@@ -284,12 +272,6 @@ if(DEKI_EDITOR)
     if(DEKI_EDITOR_DLL_INCLUDE_DIR)
         target_include_directories(deki-engine-core PUBLIC ${DEKI_EDITOR_DLL_INCLUDE_DIR})
     endif()
-
-    # OpenGL, for src/platforms/editor/EditorDisplay.cpp (the only GL user in
-    # this DLL). PRIVATE:
-    # nothing downstream needs GL through us.
-    find_package(OpenGL REQUIRED)
-    target_link_libraries(deki-engine-core PRIVATE OpenGL::GL)
 
     # No SDL3 link. This used to be PUBLIC SDL3::SDL3-static "needed by
     # EditorTimeProvider in Engine.cpp" - there is no EditorTimeProvider in
