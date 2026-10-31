@@ -17,26 +17,33 @@ static constexpr size_t kCacheLineSize = 64;
 // out by Allocate(). It carries which region the block came from, so Free()
 // can hand it back to the right one without the caller remembering.
 //
-// Still 16 bytes, because the region id is paid for out of two fields that
-// barely use theirs: headerSize is only ever 16 or a cache line, and
-// trackSlot indexes at most a thousand debug records. Both fit in one word
-// between them, which frees a whole word for the id. Every allocation on the
-// device carries this header, so a 17th byte would be real memory.
+// Still 16 bytes, because the region id and the call site are paid for out of
+// fields that barely use theirs: headerSize is only ever 16 or a cache line,
+// the site table has 64 rows, and trackSlot indexes at most a thousand debug
+// records. All three fit in one word, which frees a whole word for the id.
+// Every allocation on the device carries this header, so a 17th byte would be
+// real memory.
 struct AllocHeader
 {
     uint32_t size;
-    uint32_t packed;    ///< headerSize in the low 8 bits, trackSlot in the top 24
+    uint32_t packed;    ///< headerSize in bits 0-7, the site row in 8-15, trackSlot in 16-31
     uint32_t regionId;  ///< Memory::Region::id - where Free() returns it to
     uint32_t magic;
 
     uint32_t HeaderSize() const { return packed & 0xFFu; }
-    uint32_t TrackSlot() const { return packed >> 8; }
-    void SetPacked(uint32_t headerSize, uint32_t trackSlot) { packed = (headerSize & 0xFFu) | (trackSlot << 8); }
+    uint32_t Site() const { return (packed >> 8) & 0xFFu; }
+    uint32_t TrackSlot() const { return packed >> 16; }
+    void SetPacked(uint32_t headerSize, uint32_t site, uint32_t trackSlot)
+    {
+        packed = (headerSize & 0xFFu) | ((site & 0xFFu) << 8) | (trackSlot << 16);
+    }
 };
 static_assert(sizeof(AllocHeader) == 16, "AllocHeader must be exactly 16 bytes");
 static constexpr size_t kInternalHeaderSize = sizeof(AllocHeader);
 static constexpr uint32_t kAllocMagic = 0xDEC1A11Cu;
-static constexpr uint32_t kNoTrackSlot = 0xFFFFFFu;  // 24 bits, not 32
+static constexpr uint32_t kNoTrackSlot = 0xFFFFu;  // 16 bits, not 32
+static constexpr uint32_t kNoSite = 0xFFu;         // 8 bits
+static_assert(Memory::kMaxSites < kNoSite, "a site row must fit in the header's 8 bits");
 
 // __FILE__ is whatever path the build system fed the compiler, which here is
 // absolute and long. The log wants the last component; this runs only on a
@@ -73,6 +80,18 @@ bool Memory::s_ExternalEnabled = false;
 uint32_t Memory::s_TotalAllocated = 0;
 uint32_t Memory::s_ExternalAllocated = 0;
 uint32_t Memory::s_InternalRamAllocated = 0;
+
+// Peaks, since Initialize or ResetPeaks. File statics rather than members, so
+// adding them changed no class layout a package was built against.
+static uint32_t s_PeakInternal = 0;
+static uint32_t s_PeakExternal = 0;
+
+// The site table: what each call site holds now and at most. Allocated on the
+// first allocation that has a call site, and only in builds that capture one.
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+static MemorySite* s_Sites = nullptr;
+static bool s_OverflowUsed = false;  ///< whether any site has landed in the last row
+#endif
 
 #ifdef DEBUG
 Memory::AllocationRecord* Memory::s_AllocationRecords = nullptr;
@@ -121,6 +140,8 @@ bool Memory::Initialize()
     s_TotalAllocated = 0;
     s_ExternalAllocated = 0;
     s_InternalRamAllocated = 0;
+    s_PeakInternal = 0;
+    s_PeakExternal = 0;
 #ifdef DEBUG
     activeAllocations = 0;
     peakAllocations = 0;
@@ -321,6 +342,9 @@ void Memory::Shutdown()
     }
 #endif
 
+    // The site table may have come from the backend, so it goes back first.
+    ReleaseSites();
+
     // Shutdown backend
     if (s_CurrentBackend)
     {
@@ -340,6 +364,8 @@ void Memory::Shutdown()
     s_TotalAllocated = 0;
     s_ExternalAllocated = 0;
     s_InternalRamAllocated = 0;
+    s_PeakInternal = 0;
+    s_PeakExternal = 0;
 #ifdef DEBUG
     activeAllocations = 0;
     peakAllocations = 0;
@@ -510,7 +536,8 @@ void* Memory::AllocateIn(size_t size, Memory::Region region, bool needsDma, Allo
 
         // Update tracking with user-requested size (and remember the slot so
         // Free() releases it without a search)
-        header->SetPacked(static_cast<uint32_t>(headerSize),
+        const uint32_t site = TrackSite(ctx, static_cast<uint32_t>(size), usedExternal);
+        header->SetPacked(static_cast<uint32_t>(headerSize), site,
                           UpdateTracking(static_cast<int32_t>(size), usedExternal, userPtr, ctx.Name(), ctx.Line()));
 
         return userPtr;
@@ -647,6 +674,7 @@ void Memory::Free(void* ptr, AllocContext ctx)
     header->magic = 0;  // double free shows up as the error above, not as heap corruption
     void* rawPtr = static_cast<uint8_t*>(ptr) - header->HeaderSize();
     const size_t freedSize = header->size;
+    const uint32_t site = header->Site();
 
 #ifdef DEBUG
     UntrackAllocation(ptr, header->TrackSlot());
@@ -672,6 +700,7 @@ void Memory::Free(void* ptr, AllocContext ctx)
     }
 
     // Always update tracking (both DEBUG and RELEASE builds)
+    UntrackSite(site, static_cast<uint32_t>(freedSize), wasExternal);
     UpdateTracking(-static_cast<int32_t>(freedSize), wasExternal, ptr, ctx.Name(), ctx.Line());
 }
 
@@ -695,20 +724,29 @@ uint32_t Memory::UpdateTracking(int32_t size, bool isExternal, void* ptr, const 
     if (isExternal)
     {
         s_ExternalAllocated += size;
+        if (s_ExternalAllocated > s_PeakExternal)
+        {
+            s_PeakExternal = s_ExternalAllocated;
+        }
     }
     else
     {
         s_InternalRamAllocated += size;
+        if (s_InternalRamAllocated > s_PeakInternal)
+        {
+            s_PeakInternal = s_InternalRamAllocated;
+        }
     }
 
 #ifdef DEBUG
     if (size > 0 && ptr)
     {
-        return TrackAllocation(ptr, static_cast<size_t>(size), context, isExternal);
+        return TrackAllocation(ptr, static_cast<size_t>(size), context, line, isExternal);
     }
 #else
     (void)ptr;
     (void)context;
+    (void)line;
 #endif
     return kNoTrackSlot;
 }
@@ -726,6 +764,194 @@ bool Memory::IsInitialized()
 bool Memory::IsExternalAvailable()
 {
     return s_ExternalAvailable;
+}
+
+uint32_t Memory::GetPeakInternal()
+{
+    return s_PeakInternal;
+}
+
+uint32_t Memory::GetPeakExternal()
+{
+    return s_PeakExternal;
+}
+
+void Memory::ResetPeaks()
+{
+    s_PeakInternal = s_InternalRamAllocated;
+    s_PeakExternal = s_ExternalAllocated;
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    for (uint32_t i = 0; s_Sites && i < kMaxSites; ++i)
+    {
+        s_Sites[i].peakBytes = s_Sites[i].internalBytes + s_Sites[i].externalBytes;
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Where the memory went, by call site
+// ---------------------------------------------------------------------------
+//
+// Every allocation already carries its call site for the failure log, so the
+// breakdown costs no tag at the call and no name anyone keeps in step. A site
+// is the (function, line) pair: both are literals from std::source_location,
+// so comparing pointers is enough and nothing is copied.
+//
+// The table is fixed: 63 rows and one overflow row the rest share, 1.8 KB on
+// a 32-bit board, from the heap's own malloc (internal RAM on an ESP32).
+//
+// The row goes into the allocation header (AllocHeader::Site), so a free
+// finds it without a search.
+
+uint32_t Memory::TrackSite(const AllocContext& ctx, uint32_t size, bool isExternal)
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    if (!s_Sites)
+    {
+        // malloc, like the debug records above: the table is the engine's own
+        // bookkeeping, not memory a caller placed, so the board's provider
+        // never sees it, and a backend swapped while it is live (the tests
+        // do) cannot be handed a block it did not give.
+        const size_t bytes = kMaxSites * sizeof(MemorySite);
+        void* table = malloc(bytes);
+        if (!table)
+        {
+            return kNoSite;  // no breakdown, but the allocation itself is fine
+        }
+        memset(table, 0, bytes);
+        s_Sites = static_cast<MemorySite*>(table);
+        s_OverflowUsed = false;
+    }
+
+    // Open addressing over the first 63 rows; the last is the overflow row.
+    const uint32_t rows = kMaxSites - 1;
+    const uintptr_t key = reinterpret_cast<uintptr_t>(ctx.Name());
+    uint32_t row = static_cast<uint32_t>(((key >> 3) ^ (ctx.Line() * 2654435761u)) % rows);
+    uint32_t found = kMaxSites - 1;
+    for (uint32_t probe = 0; probe < rows; ++probe, row = (row + 1) % rows)
+    {
+        MemorySite& entry = s_Sites[row];
+        if (entry.file == nullptr)
+        {
+            entry.function = ctx.Name();
+            entry.file = ctx.File();
+            entry.line = ctx.Line();
+            found = row;
+            break;
+        }
+        if (entry.function == ctx.Name() && entry.line == ctx.Line())
+        {
+            found = row;
+            break;
+        }
+    }
+    if (found == kMaxSites - 1)
+    {
+        s_OverflowUsed = true;
+    }
+
+    MemorySite& site = s_Sites[found];
+    (isExternal ? site.externalBytes : site.internalBytes) += size;
+    ++site.blocks;
+    const uint32_t held = site.internalBytes + site.externalBytes;
+    if (held > site.peakBytes)
+    {
+        site.peakBytes = held;
+    }
+    return found;
+#else
+    (void)ctx;
+    (void)size;
+    (void)isExternal;
+    return kNoSite;
+#endif
+}
+
+void Memory::UntrackSite(uint32_t site, uint32_t size, bool isExternal)
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    if (!s_Sites || site >= kMaxSites)
+    {
+        return;  // allocated before the table existed, or with none
+    }
+    // Clamped, not wrapped: a block allocated before a Shutdown and freed
+    // after it lands in a fresh table that never counted it.
+    MemorySite& entry = s_Sites[site];
+    uint32_t& bytes = isExternal ? entry.externalBytes : entry.internalBytes;
+    bytes = (size < bytes) ? (bytes - size) : 0;
+    entry.blocks = (entry.blocks > 0) ? (entry.blocks - 1) : 0;
+#else
+    (void)site;
+    (void)size;
+    (void)isExternal;
+#endif
+}
+
+void Memory::ReleaseSites()
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    if (!s_Sites)
+    {
+        return;
+    }
+    free(s_Sites);
+    s_Sites = nullptr;
+    s_OverflowUsed = false;
+#endif
+}
+
+// A row is in use once a site has claimed it; the overflow row once anything
+// has spilled into it. Kept after the memory is freed, so a site that let go
+// of everything still shows its peak.
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+static bool RowUsed(uint32_t row)
+{
+    return (row == Memory::kMaxSites - 1) ? s_OverflowUsed : (s_Sites[row].file != nullptr);
+}
+#endif
+
+uint32_t Memory::GetSiteCount()
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    uint32_t used = 0;
+    for (uint32_t row = 0; s_Sites && row < kMaxSites; ++row)
+    {
+        used += RowUsed(row) ? 1u : 0u;
+    }
+    return used;
+#else
+    return 0;
+#endif
+}
+
+bool Memory::GetSite(uint32_t index, MemorySite& out)
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    // Rows are scattered by the hash, so the index counts used rows in table
+    // order. That is a scan of 64 rows per call, which a report can afford.
+    if (!s_Sites)
+    {
+        return false;
+    }
+    uint32_t seen = 0;
+    for (uint32_t row = 0; row < kMaxSites; ++row)
+    {
+        if (!RowUsed(row))
+        {
+            continue;
+        }
+        if (seen == index)
+        {
+            out = s_Sites[row];
+            return true;
+        }
+        ++seen;
+    }
+#else
+    (void)index;
+    (void)out;
+#endif
+    return false;
 }
 
 #ifdef DEBUG
@@ -765,6 +991,7 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context, ui
     s_AllocationRecords[slot].ptr = ptr;
     s_AllocationRecords[slot].size = size;
     s_AllocationRecords[slot].context = context;
+    s_AllocationRecords[slot].line = line;
     s_AllocationRecords[slot].isExternal = isExternal;
     activeAllocations++;
     if (activeAllocations > peakAllocations)

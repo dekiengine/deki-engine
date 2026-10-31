@@ -6,6 +6,21 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Added
+- **Memory by call site.** `Memory::GetSiteCount()` and `GetSite(i, out)` give
+  what each place in the code that allocates through the engine holds now, in
+  internal and external RAM, its peak and its blocks, from the call site every
+  allocation already records. `GetPeakInternal()`, `GetPeakExternal()` and
+  `ResetPeaks()` give each region's peak. The table is 64 rows (about 1.8 KB of
+  internal RAM on a 32-bit board); the row goes in bits
+  the allocation header did not use, so it stays 16 bytes. A build with
+  `DEKI_STRIP_ALLOC_CONTEXT` has no table.
+
+### Fixed
+- A `DEBUG` build of `Memory.cpp` compiles again, and its leak report gives
+  each leak's line. The debug tracking passed the region where the line
+  belongs.
+
 ### Changed
 - `EditorDisplay`, the display play mode runs on in the editor, moved to the
   editor, and `deki-engine-core` no longer links OpenGL.

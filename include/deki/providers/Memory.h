@@ -100,6 +100,22 @@ struct MemoryStats
 #endif
 };
 
+/// One place in the code that allocates through the engine, and what it holds.
+///
+/// A site is the call site an AllocContext captured, so the breakdown names
+/// code the way a failure does, with nothing tagged by hand. Read them with
+/// Memory::GetSiteCount and Memory::GetSite.
+struct MemorySite
+{
+    const char* function;    ///< AllocContext::Name(); null for the overflow row
+    const char* file;        ///< AllocContext::File(); null for the overflow row
+    uint32_t line;           ///< 0 for the overflow row
+    uint32_t internalBytes;  ///< held now outside the External region
+    uint32_t externalBytes;  ///< held now in the External region
+    uint32_t peakBytes;      ///< the most held at once, both regions together
+    uint32_t blocks;         ///< allocations held now
+};
+
 /// The engine's memory, in named regions. Internal is the heap every target
 /// has; External is a second, larger, slower memory a target may offer (such
 /// as PSRAM on a microcontroller). What a region maps to on a target is up to
@@ -296,6 +312,34 @@ public:
     /// True when the target's provider serves the External region.
     static bool IsExternalAvailable();
 
+    /// The most ever held at once outside the External region, since
+    /// Initialize or the last ResetPeaks.
+    static uint32_t GetPeakInternal();
+
+    /// The most ever held at once in the External region.
+    static uint32_t GetPeakExternal();
+
+    /// Starts the peaks again from what is held now, the global ones and every
+    /// site's. The editor calls it when play starts.
+    static void ResetPeaks();
+
+    /// How many call sites have allocated, the overflow row included. 0 in a
+    /// build with DEKI_STRIP_ALLOC_CONTEXT, which captures no call sites.
+    ///
+    /// The first kMaxSites - 1 sites get a row each, in the order they first
+    /// allocated; the rest share the last row, whose function is null. A site
+    /// keeps its row after its memory is freed, with zero bytes.
+    static uint32_t GetSiteCount();
+
+    /// Copies site `index` (0 to GetSiteCount() - 1) to `out`. False for an
+    /// index out of range.
+    static bool GetSite(uint32_t index, MemorySite& out);
+
+    /// Rows in the site table: 63 sites and an overflow row. The table is
+    /// 1.8 KB on a 32-bit board, from the heap's malloc (internal RAM on an
+    /// ESP32), which the board's provider never sees.
+    static constexpr uint32_t kMaxSites = 64;
+
 private:
     // Both public entry points land here; needsDma tells them apart.
     static void* AllocateIn(size_t size, Memory::Region region, bool needsDma, AllocContext ctx);
@@ -304,6 +348,16 @@ private:
     /// `line` feed leak tracking in debug builds.
     static uint32_t UpdateTracking(int32_t size, bool isExternal, void* ptr = nullptr, const char* context = nullptr,
                                    uint32_t line = 0);
+
+    /// Counts `size` bytes against the call site in `ctx` and returns its row,
+    /// or kNoSite when sites are not tracked.
+    static uint32_t TrackSite(const AllocContext& ctx, uint32_t size, bool isExternal);
+
+    /// Takes `size` bytes off row `site`, where TrackSite counted them.
+    static void UntrackSite(uint32_t site, uint32_t size, bool isExternal);
+
+    /// Frees the site table. Shutdown calls it.
+    static void ReleaseSites();
 
 #ifdef DEBUG
     static uint32_t TrackAllocation(void* ptr, size_t size, const char* context, uint32_t line, bool isExternal);
