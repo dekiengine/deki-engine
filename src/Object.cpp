@@ -401,6 +401,19 @@ bool Object::IsDescendantOf(Object* ancestor) const
     return false;
 }
 
+void Object::SetActive(bool value)
+{
+    if (m_Active == value)
+    {
+        return;
+    }
+    m_Active = value;
+    if (m_OwnerScene)
+    {
+        m_OwnerScene->InvalidateComponentsCache();
+    }
+}
+
 bool Object::IsActiveInHierarchy() const
 {
     // Walk up without recursing: one frame, no call per ancestor.

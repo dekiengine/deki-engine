@@ -20,6 +20,10 @@ and package DLLs has its own numbered history in
 - A `DEBUG` build of `Memory.cpp` compiles again, and its leak report gives
   each leak's line. The debug tracking passed the region where the line
   belongs.
+- An object made active after its scene loaded runs its components' `Start`
+  and `Update`. `Object::SetActive` now tells the owner scene to rebuild its
+  list of active components; before, only editor commands did, so a tab page
+  or dialog shown at runtime stayed idle.
 
 ### Changed
 - `EditorDisplay`, the display play mode runs on in the editor, moved to the

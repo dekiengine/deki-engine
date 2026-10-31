@@ -164,7 +164,9 @@ public:
     const std::string& GetName() const { return m_Name; }
     void SetName(const std::string& newName) { m_Name = newName; }
     bool IsActive() const { return m_Active; }
-    void SetActive(bool value) { m_Active = value; }
+    /// Out of line: a change tells the owner scene to rebuild its list of
+    /// active components, so an object shown after load gets Start and Update.
+    void SetActive(bool value);
     bool IsEditorOnly() const { return m_EditorOnly; }  // not serialized
     void SetEditorOnly(bool value) { m_EditorOnly = value; }
     bool IsPersistent() const { return m_Persistent; }  // survives scene changes
