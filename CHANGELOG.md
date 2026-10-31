@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.22.0 - 2026-10-31
 
 ### Added
 - **Memory by call site.** `Memory::GetSiteCount()` and `GetSite(i, out)` give
@@ -28,6 +28,9 @@ and package DLLs has its own numbered history in
 ### Changed
 - `EditorDisplay`, the display play mode runs on in the editor, moved to the
   editor, and `deki-engine-core` no longer links OpenGL.
+- `DEKI_OLDEST_SUPPORTED_PACKAGE` is 0.22.0: the editor no longer has OpenGL,
+  which packages before 0.22 compiled against, so every package releases as
+  0.22.0 and older ones are refused with a message naming the update.
 
 ## 0.21.0 - 2026-10-28
 
