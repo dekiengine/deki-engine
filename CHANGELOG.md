@@ -24,6 +24,9 @@ and package DLLs has its own numbered history in
   and `Update`. `Object::SetActive` now tells the owner scene to rebuild its
   list of active components; before, only editor commands did, so a tab page
   or dialog shown at runtime stayed idle.
+- The reflection code generator escapes quotes, backslashes and line breaks
+  in tooltips and descriptions. A tooltip with a quote in it made the
+  generated file fail to compile.
 
 ### Changed
 - `EditorDisplay`, the display play mode runs on in the editor, moved to the

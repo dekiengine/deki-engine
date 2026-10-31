@@ -584,6 +584,24 @@ consteval std::vector<m::info> ser_members(m::info cls)
     }
     return out;
 }
+// Text from a tooltip or description, written inside a C++ string literal:
+// a quote, a backslash or a line break in it would end or break the literal.
+inline std::string c_escaped(const char* text)
+{
+    std::string out;
+    for (const char* c = text; *c; ++c)
+    {
+        switch (*c)
+        {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            default: out += *c; break;
+        }
+    }
+    return out;
+}
+
 // basename of a path (after the last / or \)
 inline std::string_view path_basename(std::string_view p)
 {
@@ -1770,7 +1788,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, std::string_view
             constexpr const char* tip = tooltip_of(mem);
             if constexpr (tip != nullptr)
             {
-                out << "\"" << tip << "\", ";
+                out << "\"" << c_escaped(tip) << "\", ";
             }
             else
             {
@@ -1982,7 +2000,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, std::string_view
     constexpr const char* description = tag_text_of(COMP, TAG_DESCRIPTION);
     if constexpr (description != nullptr)
     {
-        out << "    \"" << description << "\",  // DEKI_DESCRIPTION\n";
+        out << "    \"" << c_escaped(description) << "\",  // DEKI_DESCRIPTION\n";
     }
     else
     {
@@ -2523,7 +2541,7 @@ void emit_node(std::ostream& out, std::string_view srcdir, std::string_view pack
             constexpr const char* tip = tooltip_of(mem);
             if constexpr (tip != nullptr)
             {
-                out << "\"" << tip << "\", ";
+                out << "\"" << c_escaped(tip) << "\", ";
             }
             else
             {
