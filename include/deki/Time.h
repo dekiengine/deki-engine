@@ -57,6 +57,13 @@ public:
     /// before Initialize().
     static void SetTimeProvider(std::unique_ptr<ITimeProvider> provider);
 
+    /// Says the picture being rendered changes with time by itself (a shader
+    /// reading the time), so a view that renders only when its scene changes,
+    /// like the editor's Scene View, keeps rendering while it shows it.
+    static void NoteTimeDrivenFrame();
+    /// Whether NoteTimeDrivenFrame() was called since the last call; clears it.
+    static bool TakeTimeDrivenFrame();
+
 private:
     static std::unique_ptr<ITimeProvider> s_TimeProvider;
     static uint32_t s_CurrentTime;
@@ -67,6 +74,7 @@ private:
     static float s_Fps;
     static uint32_t s_FpsCounter;  // frames counted toward the FPS figure
     static uint32_t s_FpsTime;     // time accumulated toward the FPS figure
+    static bool s_TimeDrivenFrame;
 };
 
 }  // namespace Deki

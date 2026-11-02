@@ -17,6 +17,7 @@ uint32_t Time::s_StartTime = 0;
 float Time::s_Fps = 0.0f;
 uint32_t Time::s_FpsCounter = 0;
 uint32_t Time::s_FpsTime = 0;
+bool Time::s_TimeDrivenFrame = false;
 
 void Time::SetTimeProvider(std::unique_ptr<ITimeProvider> provider)
 {
@@ -137,6 +138,18 @@ float Time::GetDeltaTimeF()
 float Time::GetFPS()
 {
     return s_Fps;
+}
+
+void Time::NoteTimeDrivenFrame()
+{
+    s_TimeDrivenFrame = true;
+}
+
+bool Time::TakeTimeDrivenFrame()
+{
+    const bool noted = s_TimeDrivenFrame;
+    s_TimeDrivenFrame = false;
+    return noted;
 }
 
 void Time::ResetFrameTime()
