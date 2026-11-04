@@ -6,6 +6,16 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Fixed
+- A component's `AssetRef<T>` is reflected with `T::kAssetTypeName`, the name
+  `T`'s loader registers, not `T`'s class name. The two differ for a mesh
+  ("Mesh"), a shader ("Shader") and an animation ("Animation"): a scene's
+  mesh reference logged "No loader registered for asset type: MeshAsset" at
+  every load, and the shader and animation loaders were registered under
+  both names to get round it. An `AssetRef<T>` to a `T` the component's
+  header only declares stops the reflection build, saying to include `T`'s
+  header; the engine's own `Scene` is always known.
+
 ### Added
 - `TextureFilter` (`deki/assets/TextureFilter.h`): Point, Bilinear or
   Trilinear, how a GPU samples an image, kept in a compiled image's header

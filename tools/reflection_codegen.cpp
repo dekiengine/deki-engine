@@ -11,6 +11,7 @@
 #include <deki/Vector.h>               // ::Deki::Vector2 / ::Deki::Vector3
 #include <deki/Color.h>
 #include <deki/assets/AssetRef.h>
+#include <deki/Scene.h>  // the engine's own asset type: an AssetRef<Scene> needs its kAssetTypeName
 #include <deki/reflection/ObjectRef.h>
 #include <deki/reflection/NodeRef.h>
 #include <deki/reflection/PropertyRef.h>
@@ -342,13 +343,29 @@ consteval const char* elem_type_name(m::info e)
     }
     return int_name(bare(e));
 }
-consteval const char* asset_arg(m::info t)
+// The asset type an AssetRef<T> loads: T::kAssetTypeName, the name T's loader
+// registers with the AssetManager and the one AssetRef itself asks for. Not
+// T's class name, which may differ (MeshAsset is a "Mesh"). AssetRef<T> does
+// not compile without that member, so every T has one. A template on the
+// type, not a function of it: the member is named through a splice, as
+// reading its value through extract fails (a pointer to a string literal is
+// not a constant reflect_constant takes).
+template <m::info T>
+consteval const char* asset_arg()
 {
-    if (is_assetref(t))
+    if constexpr (is_assetref(T))
     {
-        return std::define_static_string(m::identifier_of(m::template_arguments_of(bare(t))[0]));
+        static_assert(m::is_complete_type(m::template_arguments_of(bare(T))[0]),
+                      "a component's AssetRef<T> needs T defined where the reflection is generated, for "
+                      "T::kAssetTypeName: include T's header in the component's header, not only a "
+                      "declaration of T");
+        using Asset = typename[:m::template_arguments_of(bare(T))[0]:];
+        return std::define_static_string(std::string_view(Asset::kAssetTypeName));
     }
-    return nullptr;
+    else
+    {
+        return nullptr;
+    }
 }
 consteval const char* component_ref(m::info t)
 {
@@ -1601,7 +1618,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, std::string_view
         if constexpr (is_assetref(t))
         {
             constexpr const char* nm = std::define_static_string(m::identifier_of(mem));
-            constexpr const char* at = asset_arg(t);
+            constexpr const char* at = asset_arg<t>();
             if constexpr (std::string_view(at) == "Scene")
             {
                 out << "    // AssetRef<Scene> \"" << nm
@@ -1819,7 +1836,7 @@ void emit_component(std::ostream& out, std::string_view srcdir, std::string_view
             }
             else
             {
-                constexpr const char* a = asset_arg(t);
+                constexpr const char* a = asset_arg<t>();
                 if constexpr (a != nullptr)
                 {
                     out << "\"" << a << "\", ";
@@ -2572,7 +2589,7 @@ void emit_node(std::ostream& out, std::string_view srcdir, std::string_view pack
             }
             else
             {
-                constexpr const char* a = asset_arg(t);
+                constexpr const char* a = asset_arg<t>();
                 if constexpr (a != nullptr)
                 {
                     out << "\"" << a << "\", ";

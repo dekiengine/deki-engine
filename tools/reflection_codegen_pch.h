@@ -20,6 +20,7 @@
 #include <deki/Vector.h>
 #include <deki/Color.h>
 #include <deki/assets/AssetRef.h>
+#include <deki/Scene.h>
 #include <deki/reflection/ObjectRef.h>
 #include <deki/reflection/PropertyRef.h>
 #include <meta>
