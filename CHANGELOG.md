@@ -6,6 +6,12 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Added
+- `TextureFilter` (`deki/assets/TextureFilter.h`): Point, Bilinear or
+  Trilinear, how a GPU samples an image, kept in a compiled image's header
+  flags (bits 4 and 5; 0 is Point, so an image from before reads as it drew).
+  `Texture2D::filter` reads it.
+
 ### Changed
 - **One JSON form of a property and of a transform.** `Scene::PropertyToJson`,
   `PropertyFromJson` and `PropertyFromJsonObject`, and `Scene::TransformToJson`

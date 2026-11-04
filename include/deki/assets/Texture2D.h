@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deki/assets/TextureFilter.h>
 #include <deki/providers/Buffer.h>
 #include <cstdint>
 
@@ -8,6 +9,7 @@
 #define DTEX_FLAG_HAS_ALPHA 0x02         // has an alpha channel
 #define DTEX_FLAG_IS_SPRITE 0x04         // the file carries sprite metadata
 #define DTEX_FLAG_ALL_OPAQUE 0x08        // every alpha is 255, so no runtime scan
+// Bits 4-5: the TextureFilter (TextureFilter.h, kTextureFilterFlagMask).
 
 // An image: width, height, format, pixels, and the .dtex header that stores
 // them. It lives in core, next to the asset system that loads it and to
@@ -52,6 +54,8 @@ public:
 
     bool hasTransparency;  // some pixels are transparent
     bool hasAlpha;         // has an alpha channel
+    // How a GPU samples it (TextureFilter.h). The software renderer draws Point.
+    TextureFilter filter = TextureFilter::Point;
 
     // Per-row opaque spans, for RGB565A8 sprites with alpha. For each row,
     // opaqueStart is the first fully opaque column and opaqueEnd one past the

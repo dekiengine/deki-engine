@@ -198,6 +198,7 @@ bool Texture2D::LoadFromMemory(const Texture2D::Header& header, const uint8_t* p
     format = header.format;
     hasTransparency = (header.flags & DTEX_FLAG_HAS_TRANSPARENCY) != 0;
     hasAlpha = (header.flags & DTEX_FLAG_HAS_ALPHA) != 0;
+    filter = TextureFilterFromFlags(header.flags);
 
     return true;
 }
