@@ -150,6 +150,48 @@ public:
     /// Null when the type is abstract or has no factory.
     static nlohmann::json ComponentDefaultsToJson(const ComponentMeta& meta);
 
+    // One property as JSON, the editor's one form of it. Everything that
+    // turns a property into JSON or back (scene files, the Inspector's edits
+    // and their undo, copy and paste, the MCP tools) goes through these two,
+    // so a value reads the same everywhere.
+
+    /// `prop`'s value as a scene file holds it: an enum by name (its number
+    /// when the enum declares none for it), a colour as "#RRGGBBAA", an asset
+    /// by GUID (with its source as {"guid", "source"}), a vector as an array.
+    /// Discarded (is_discarded()) for a type a scene file does not store.
+    static nlohmann::json PropertyToJson(const Component* comp, const PropertyInfo& prop);
+
+    /// Sets `prop` from `value`: any form PropertyToJson writes, the forms
+    /// older scene files hold, and the plain ones code builds: an enum's stored
+    /// number, a colour as [r, g, b, a]. False, leaving it as it was, when
+    /// `value` is none of them.
+    static bool PropertyFromJson(Component* comp, const PropertyInfo& prop, const nlohmann::json& value);
+
+    /// PropertyFromJson of `prop`'s entry in `props`, an object keyed by
+    /// property name as a scene's or settings file's "properties" is: under
+    /// its name, else under its DEKI_RENAMED_FROM name. False, leaving it as
+    /// it was, when neither is there or the value does not fit.
+    static bool PropertyFromJsonObject(Component* comp, const PropertyInfo& prop, const nlohmann::json& props);
+
+    /// `obj`'s local transform as a scene file holds it: x, y, rotation (in
+    /// radians), scaleX and scaleY, and the depth (z, rotationX, rotationY,
+    /// scaleZ) where it is not at its default, so a 2D project's files carry
+    /// none. The editor's one form of a transform: scene files, copy and
+    /// paste, and undo use it.
+    static nlohmann::json TransformToJson(const Object* obj);
+
+    /// Sets `obj`'s local transform from TransformToJson's form. A key that
+    /// is absent sets that part to its default.
+    static void TransformFromJson(Object* obj, const nlohmann::json& transform);
+
+    /// Every reflected property of `meta`'s type: its base classes' first,
+    /// from the root down, then its own. The one walk that saving, loading
+    /// and looking a property up share.
+    static std::vector<const PropertyInfo*> AllProperties(const ComponentMeta& meta);
+
+    /// The property named `name` among AllProperties(meta), or null.
+    static const PropertyInfo* FindProperty(const ComponentMeta& meta, const std::string& name);
+
     // Called right before DestroyDekiObject deletes an object and its
     // descendants, with them in pre-order, so subscribers (selection, panel
     // caches) can drop their pointers while the objects are still valid.

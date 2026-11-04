@@ -4,6 +4,25 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Changed
+- **One JSON form of a property and of a transform.** `Scene::PropertyToJson`,
+  `PropertyFromJson` and `PropertyFromJsonObject`, and `Scene::TransformToJson`
+  and `TransformFromJson`, are the scene file's own writer and reader, now
+  public (editor builds only; a board's firmware is unchanged). The editor's
+  Inspector edits and their undo, copy and paste, the settings files and the
+  MCP tools all go through them. `PropertyFromJson` says whether the value
+  fitted, and leaves the property alone when not; besides the scene forms it
+  takes an enum's stored number and a colour as `[r, g, b, a]`.
+- `Scene::AllProperties` and `FindProperty`: one walk over a type's properties,
+  its base classes' first, all the way up. Saving and loading went one base
+  class up, so a property declared two classes up was neither saved nor
+  loaded; every walk now goes to the root.
+- Project settings files and the plugin settings snapshot store an enum by
+  name, as scenes do; files with numbers still load.
+- An asset reference reads `null` as no asset.
+
 ## 0.22.0 - 2026-10-31
 
 ### Added

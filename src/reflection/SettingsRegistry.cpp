@@ -1,5 +1,6 @@
 #include <deki/reflection/SettingsRegistry.h>
 #include <deki/LogSystem.h>
+#include <deki/Scene.h>
 #include <cstring>
 
 #ifdef DEKI_EDITOR
@@ -255,146 +256,21 @@ void SettingsRegistry::FreezeEngineSettings()
 namespace
 {
 
-// Mini per-property JSON serializer used by snapshot/restore. Mirrors the
-// types Project.cpp's helpers handle. Settings types use a constrained
-// property set (bool/int/float/string/enum) so this stays small.
+// A snapshot holds each property as a scene or settings file does
+// (Scene::PropertyToJson), read back by Scene::PropertyFromJsonObject.
 void SaveProp(const Component* comp, const PropertyInfo& prop, nlohmann::json& out)
 {
-    switch (prop.type)
+    nlohmann::json value = Scene::PropertyToJson(comp, prop);
+    if (!value.is_discarded())
     {
-        case PropertyType::Bool: out[prop.name] = GetPropertyValue<bool>(comp, prop); break;
-        case PropertyType::Int8: out[prop.name] = (int32_t)GetPropertyValue<int8_t>(comp, prop); break;
-        case PropertyType::Int16: out[prop.name] = (int32_t)GetPropertyValue<int16_t>(comp, prop); break;
-        case PropertyType::Int32: out[prop.name] = GetPropertyValue<int32_t>(comp, prop); break;
-        case PropertyType::UInt8: out[prop.name] = (int32_t)GetPropertyValue<uint8_t>(comp, prop); break;
-        case PropertyType::UInt16: out[prop.name] = (int32_t)GetPropertyValue<uint16_t>(comp, prop); break;
-        case PropertyType::UInt32: out[prop.name] = GetPropertyValue<uint32_t>(comp, prop); break;
-        case PropertyType::Float: out[prop.name] = GetPropertyValue<float>(comp, prop); break;
-        case PropertyType::String: out[prop.name] = GetPropertyValue<std::string>(comp, prop); break;
-        case PropertyType::Enum:
-        {
-            // Settings files are authored and tracked in git like scenes, so
-            // they store the enumerator's NAME for the same reason: a bare
-            // number means whichever value sat at that position when the file
-            // was written. A value the enum does not declare keeps the number.
-            int32_t enumValue = 0;
-            switch (prop.enumSize)
-            {
-                case 1: enumValue = (int32_t)GetPropertyValue<uint8_t>(comp, prop); break;
-                case 2: enumValue = (int32_t)GetPropertyValue<uint16_t>(comp, prop); break;
-                default: enumValue = GetPropertyValue<int32_t>(comp, prop); break;
-            }
-            if (const char* enumName = EnumNameForValue(prop, enumValue))
-            {
-                out[prop.name] = enumName;
-            }
-            else
-            {
-                out[prop.name] = enumValue;
-            }
-            break;
-        }
-        default: break;
+        out[prop.name] = std::move(value);
     }
 }
 
 void LoadProp(Component* comp, const PropertyInfo& prop, const nlohmann::json& in)
 {
-    if (!in.contains(prop.name))
-    {
-        return;
-    }
-    const auto& v = in[prop.name];
-    switch (prop.type)
-    {
-        case PropertyType::Bool:
-            if (v.is_boolean())
-            {
-                SetPropertyValue<bool>(comp, prop, v.get<bool>());
-            }
-            break;
-        case PropertyType::Int8:
-            if (v.is_number_integer())
-            {
-                SetPropertyValue<int8_t>(comp, prop, (int8_t)v.get<int32_t>());
-            }
-            break;
-        case PropertyType::Int16:
-            if (v.is_number_integer())
-            {
-                SetPropertyValue<int16_t>(comp, prop, (int16_t)v.get<int32_t>());
-            }
-            break;
-        case PropertyType::Int32:
-            if (v.is_number_integer())
-            {
-                SetPropertyValue<int32_t>(comp, prop, v.get<int32_t>());
-            }
-            break;
-        case PropertyType::UInt8:
-            if (v.is_number_integer())
-            {
-                SetPropertyValue<uint8_t>(comp, prop, (uint8_t)v.get<int32_t>());
-            }
-            break;
-        case PropertyType::UInt16:
-            if (v.is_number_integer())
-            {
-                SetPropertyValue<uint16_t>(comp, prop, (uint16_t)v.get<int32_t>());
-            }
-            break;
-        case PropertyType::UInt32:
-            if (v.is_number_unsigned())
-            {
-                SetPropertyValue<uint32_t>(comp, prop, v.get<uint32_t>());
-            }
-            else if (v.is_number_integer())
-            {
-                SetPropertyValue<uint32_t>(comp, prop, (uint32_t)v.get<int32_t>());
-            }
-            break;
-        case PropertyType::Float:
-            if (v.is_number())
-            {
-                SetPropertyValue<float>(comp, prop, v.get<float>());
-            }
-            break;
-        case PropertyType::String:
-            if (v.is_string())
-            {
-                SetPropertyValue<std::string>(comp, prop, v.get<std::string>());
-            }
-            break;
-        case PropertyType::Enum:
-        {
-            // Accepts the name written now and the bare number written before,
-            // so a settings file from an older editor still loads.
-            bool haveValue = false;
-            int32_t intVal = 0;
-            if (v.is_string())
-            {
-                haveValue = EnumValueForName(prop, v.get<std::string>().c_str(), intVal);
-            }
-            else if (v.is_number_integer())
-            {
-                intVal = v.get<int32_t>();
-                haveValue = true;
-            }
-            if (haveValue)
-            {
-                switch (prop.enumSize)
-                {
-                    case 1: SetPropertyValue<uint8_t>(comp, prop, (uint8_t)intVal); break;
-                    case 2: SetPropertyValue<uint16_t>(comp, prop, (uint16_t)intVal); break;
-                    default: SetPropertyValue<int32_t>(comp, prop, intVal); break;
-                }
-            }
-            break;
-        }
-        default: break;
-    }
+    Scene::PropertyFromJsonObject(comp, prop, in);
 }
-
 }  // namespace
 
 std::string SettingsRegistry::SnapshotPluginSettingsAsJson() const
@@ -407,9 +283,9 @@ std::string SettingsRegistry::SnapshotPluginSettingsAsJson() const
             continue;
         }
         nlohmann::json sectionJson = nlohmann::json::object();
-        for (int i = 0; i < info.meta->propertyCount; ++i)
+        for (const PropertyInfo* prop : Scene::AllProperties(*info.meta))
         {
-            SaveProp(info.instance, info.meta->properties[i], sectionJson);
+            SaveProp(info.instance, *prop, sectionJson);
         }
         root[info.sectionName] = sectionJson;
     }
@@ -457,9 +333,9 @@ void SettingsRegistry::RestoreFromJson(const std::string& snapshotJson)
         {
             continue;
         }
-        for (int i = 0; i < meta->propertyCount; ++i)
+        for (const PropertyInfo* prop : Scene::AllProperties(*meta))
         {
-            LoadProp(inst, meta->properties[i], sectionJson);
+            LoadProp(inst, *prop, sectionJson);
         }
     }
 }

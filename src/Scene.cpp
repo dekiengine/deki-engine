@@ -866,6 +866,95 @@ bool Scene::LoadFromJsonString(const std::string& jsonStr)
     return LoadData(reinterpret_cast<const uint8_t*>(jsonStr.data()), jsonStr.size());
 }
 
+nlohmann::json Scene::TransformToJson(const Object* obj)
+{
+    nlohmann::json t = nlohmann::json::object();
+#ifdef DEKI_TRANSFORM_2D
+    t["x"] = obj->GetX();
+    t["y"] = obj->GetY();
+    t["rotation"] = obj->GetLocalRotation();
+    t["scaleX"] = obj->GetScaleX();
+    t["scaleY"] = obj->GetScaleY();
+#ifdef DEKI_TRANSFORM_3D
+    // Written only when set, so a 2D project's file carries no depth keys,
+    // and a 2D device skips the keys it does not know.
+    if (obj->GetZ() != 0.0f)
+    {
+        t["z"] = obj->GetZ();
+    }
+    if (obj->GetRotationX() != 0.0f)
+    {
+        t["rotationX"] = obj->GetRotationX();
+    }
+    if (obj->GetRotationY() != 0.0f)
+    {
+        t["rotationY"] = obj->GetRotationY();
+    }
+    if (obj->GetScaleZ() != 1.0f)
+    {
+        t["scaleZ"] = obj->GetScaleZ();
+    }
+#endif
+#endif
+    return t;
+}
+
+void Scene::TransformFromJson(Object* obj, const nlohmann::json& t)
+{
+#ifdef DEKI_TRANSFORM_2D
+    if (!t.is_object())
+    {
+        return;
+    }
+    obj->SetLocalPosition(t.value("x", 0.0f), t.value("y", 0.0f));
+    obj->SetRotation(t.value("rotation", 0.0f));
+    obj->SetScale(t.value("scaleX", 1.0f), t.value("scaleY", 1.0f));
+#ifdef DEKI_TRANSFORM_3D
+    obj->SetZ(t.value("z", 0.0f));
+    obj->SetRotationX(t.value("rotationX", 0.0f));
+    obj->SetRotationY(t.value("rotationY", 0.0f));
+    obj->SetScaleZ(t.value("scaleZ", 1.0f));
+#endif
+#else
+    (void)obj;
+    (void)t;
+#endif
+}
+
+std::vector<const PropertyInfo*> Scene::AllProperties(const ComponentMeta& meta)
+{
+    // The chain from this type up to its root, then walked root first. Capped
+    // well above any real hierarchy, so a corrupt base id cannot loop.
+    std::vector<const ComponentMeta*> chain;
+    auto& registry = ComponentRegistry::Instance();
+    for (const ComponentMeta* m = &meta; m && chain.size() < 16;
+         m = m->baseTypeId != 0 ? registry.GetMeta(m->baseTypeId) : nullptr)
+    {
+        chain.push_back(m);
+    }
+    std::vector<const PropertyInfo*> out;
+    for (auto it = chain.rbegin(); it != chain.rend(); ++it)
+    {
+        for (int i = 0; i < (*it)->propertyCount; ++i)
+        {
+            out.push_back(&(*it)->properties[i]);
+        }
+    }
+    return out;
+}
+
+const PropertyInfo* Scene::FindProperty(const ComponentMeta& meta, const std::string& name)
+{
+    for (const PropertyInfo* prop : AllProperties(meta))
+    {
+        if (prop->name && name == prop->name)
+        {
+            return prop;
+        }
+    }
+    return nullptr;
+}
+
 nlohmann::json Scene::ComponentPropertiesToJson(const Component* comp, const ComponentMeta& meta)
 {
     nlohmann::json props = nlohmann::json::object();
@@ -874,23 +963,13 @@ nlohmann::json Scene::ComponentPropertiesToJson(const Component* comp, const Com
         return props;
     }
 
-    // SavePropertyToJson is a member for symmetry with the loader; it reads
-    // nothing from the scene, so a scratch instance serves.
-    Scene scratch;
-    auto& registry = ComponentRegistry::Instance();
-    if (meta.baseTypeId != 0)
+    for (const PropertyInfo* prop : AllProperties(meta))
     {
-        if (const ComponentMeta* base = registry.GetMeta(meta.baseTypeId))
+        nlohmann::json value = PropertyToJson(comp, *prop);
+        if (!value.is_discarded())
         {
-            for (int i = 0; i < base->propertyCount; ++i)
-            {
-                scratch.SavePropertyToJson(comp, base->properties[i], props);
-            }
+            props[prop->name] = std::move(value);
         }
-    }
-    for (int i = 0; i < meta.propertyCount; ++i)
-    {
-        scratch.SavePropertyToJson(comp, meta.properties[i], props);
     }
     return props;
 }
@@ -920,34 +999,14 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     json["active"] = obj->IsActive();
 
 #ifdef DEKI_TRANSFORM_2D
+    json["transform"] = TransformToJson(obj);
     // A Screen Anchor sets the position from the screen size, so the file
     // keeps 0 rather than the position on whichever screen the editor showed.
-    const bool anchored = obj->HasComponent<ScreenAnchor>();
-    json["transform"] = { { "x", anchored ? 0.0f : obj->GetX() },
-                          { "y", anchored ? 0.0f : obj->GetY() },
-                          { "rotation", obj->GetLocalRotation() },
-                          { "scaleX", obj->GetScaleX() },
-                          { "scaleY", obj->GetScaleY() } };
-#ifdef DEKI_TRANSFORM_3D
-    // Written only when set, so a 2D project's file carries no depth keys,
-    // and a 2D device skips the keys it does not know.
-    if (obj->GetZ() != 0.0f)
+    if (obj->HasComponent<ScreenAnchor>())
     {
-        json["transform"]["z"] = obj->GetZ();
+        json["transform"]["x"] = 0.0f;
+        json["transform"]["y"] = 0.0f;
     }
-    if (obj->GetRotationX() != 0.0f)
-    {
-        json["transform"]["rotationX"] = obj->GetRotationX();
-    }
-    if (obj->GetRotationY() != 0.0f)
-    {
-        json["transform"]["rotationY"] = obj->GetRotationY();
-    }
-    if (obj->GetScaleZ() != 1.0f)
-    {
-        json["transform"]["scaleZ"] = obj->GetScaleZ();
-    }
-#endif
 #endif
 
     // Scene instance: save only the link + collected overrides
@@ -1005,24 +1064,11 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
             compJson["type"] = meta->serializedName;
             compJson["properties"] = nlohmann::json::object();
 
-            // Serialize base class properties first (e.g., sortingOrder from RendererComponent)
-            if (meta->baseTypeId != 0)
+            // Every base class's first (sortingOrder from RendererComponent),
+            // however deep, then its own.
+            for (const PropertyInfo* prop : AllProperties(*meta))
             {
-                const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-                if (baseMeta && baseMeta->propertyCount > 0)
-                {
-                    for (int i = 0; i < baseMeta->propertyCount; ++i)
-                    {
-                        SavePropertyToJson(comp, baseMeta->properties[i], compJson["properties"]);
-                    }
-                }
-            }
-
-            // Serialize derived class properties using reflection
-            for (int i = 0; i < meta->propertyCount; ++i)
-            {
-                const PropertyInfo& prop = meta->properties[i];
-                SavePropertyToJson(comp, prop, compJson["properties"]);
+                SavePropertyToJson(comp, *prop, compJson["properties"]);
             }
 
             // Forward-compat: re-emit any property keys captured on load that
@@ -1064,30 +1110,31 @@ nlohmann::json Scene::SaveObjectToJson(const Object* obj) const
     return json;
 }
 
-void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, nlohmann::json& propsJson) const
+nlohmann::json Scene::PropertyToJson(const Component* comp, const PropertyInfo& prop)
 {
+    nlohmann::json out(nlohmann::json::value_t::discarded);
     switch (prop.type)
     {
         case PropertyType::Int8:
-            propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<int8_t>(comp, prop));
+            out = static_cast<int32_t>(GetPropertyValue<int8_t>(comp, prop));
             break;
         case PropertyType::Int16:
-            propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<int16_t>(comp, prop));
+            out = static_cast<int32_t>(GetPropertyValue<int16_t>(comp, prop));
             break;
-        case PropertyType::Int32: propsJson[prop.name] = GetPropertyValue<int32_t>(comp, prop); break;
-        case PropertyType::Int64: propsJson[prop.name] = GetPropertyValue<int64_t>(comp, prop); break;
+        case PropertyType::Int32: out = GetPropertyValue<int32_t>(comp, prop); break;
+        case PropertyType::Int64: out = GetPropertyValue<int64_t>(comp, prop); break;
         case PropertyType::UInt8:
-            propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop));
+            out = static_cast<int32_t>(GetPropertyValue<uint8_t>(comp, prop));
             break;
         case PropertyType::UInt16:
-            propsJson[prop.name] = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop));
+            out = static_cast<int32_t>(GetPropertyValue<uint16_t>(comp, prop));
             break;
-        case PropertyType::UInt32: propsJson[prop.name] = GetPropertyValue<uint32_t>(comp, prop); break;
-        case PropertyType::UInt64: propsJson[prop.name] = GetPropertyValue<uint64_t>(comp, prop); break;
-        case PropertyType::Float: propsJson[prop.name] = GetPropertyValue<float>(comp, prop); break;
-        case PropertyType::Double: propsJson[prop.name] = GetPropertyValue<double>(comp, prop); break;
-        case PropertyType::Bool: propsJson[prop.name] = GetPropertyValue<bool>(comp, prop); break;
-        case PropertyType::String: propsJson[prop.name] = GetPropertyValue<std::string>(comp, prop); break;
+        case PropertyType::UInt32: out = GetPropertyValue<uint32_t>(comp, prop); break;
+        case PropertyType::UInt64: out = GetPropertyValue<uint64_t>(comp, prop); break;
+        case PropertyType::Float: out = GetPropertyValue<float>(comp, prop); break;
+        case PropertyType::Double: out = GetPropertyValue<double>(comp, prop); break;
+        case PropertyType::Bool: out = GetPropertyValue<bool>(comp, prop); break;
+        case PropertyType::String: out = GetPropertyValue<std::string>(comp, prop); break;
         case PropertyType::Color:
         {
             // "#RRGGBBAA". A packed number is unreadable in a diff and freezes
@@ -1095,7 +1142,7 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             // device loads keeps the packed form: that is build output.
             char hex[10];
             ColorToHex(GetPropertyRef<Deki::Color>(comp, prop), hex);
-            propsJson[prop.name] = hex;
+            out = hex;
         }
         break;
         case PropertyType::Enum:
@@ -1116,11 +1163,11 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             // lost.
             if (const char* enumName = EnumNameForValue(prop, enumValue))
             {
-                propsJson[prop.name] = enumName;
+                out = enumName;
             }
             else
             {
-                propsJson[prop.name] = enumValue;
+                out = enumValue;
             }
             break;
         }
@@ -1129,11 +1176,11 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             const ObjectRefBase& ref = GetPropertyRef<ObjectRefBase>(comp, prop);
             if (ref.componentTypeId != 0)
             {
-                propsJson[prop.name] = nlohmann::json{ { "id", ref.id }, { "typeId", ref.componentTypeId } };
+                out = nlohmann::json{ { "id", ref.id }, { "typeId", ref.componentTypeId } };
             }
             else
             {
-                propsJson[prop.name] = ref.id;
+                out = ref.id;
             }
             break;
         }
@@ -1199,7 +1246,7 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
                 }
                 default: break;
             }
-            propsJson[prop.name] = arr;
+            out = arr;
             break;
         }
         case PropertyType::AssetRef:
@@ -1209,7 +1256,7 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
             if (ref.source.empty())
             {
                 // Backward compatible: simple string if no source
-                propsJson[prop.name] = ref.guid;
+                out = ref.guid;
             }
             else
             {
@@ -1217,23 +1264,33 @@ void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, 
                 nlohmann::json obj;
                 obj["guid"] = ref.guid;
                 obj["source"] = ref.source;
-                propsJson[prop.name] = obj;
+                out = obj;
             }
             break;
         }
         case PropertyType::Vector2:
         {
             const Vector2* ptr = reinterpret_cast<const Vector2*>(reinterpret_cast<const char*>(comp) + prop.offset);
-            propsJson[prop.name] = nlohmann::json::array({ ptr->x, ptr->y });
+            out = nlohmann::json::array({ ptr->x, ptr->y });
             break;
         }
         case PropertyType::Vector3:
         {
             const Vector3* ptr = reinterpret_cast<const Vector3*>(reinterpret_cast<const char*>(comp) + prop.offset);
-            propsJson[prop.name] = nlohmann::json::array({ ptr->x, ptr->y, ptr->z });
+            out = nlohmann::json::array({ ptr->x, ptr->y, ptr->z });
             break;
         }
         default: break;
+    }
+    return out;
+}
+
+void Scene::SavePropertyToJson(const Component* comp, const PropertyInfo& prop, nlohmann::json& propsJson) const
+{
+    nlohmann::json value = PropertyToJson(comp, prop);
+    if (!value.is_discarded())
+    {
+        propsJson[prop.name] = std::move(value);
     }
 }
 
@@ -1254,16 +1311,7 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
 #ifdef DEKI_TRANSFORM_2D
     if (json.contains("transform"))
     {
-        auto& t = json["transform"];
-        obj->SetLocalPosition(t.value("x", 0.0f), t.value("y", 0.0f));
-        obj->SetRotation(t.value("rotation", 0.0f));
-        obj->SetScale(t.value("scaleX", 1.0f), t.value("scaleY", 1.0f));
-#ifdef DEKI_TRANSFORM_3D
-        obj->SetZ(t.value("z", 0.0f));
-        obj->SetRotationX(t.value("rotationX", 0.0f));
-        obj->SetRotationY(t.value("rotationY", 0.0f));
-        obj->SetScaleZ(t.value("scaleZ", 1.0f));
-#endif
+        TransformFromJson(obj, json["transform"]);
     }
 #endif
 
@@ -1304,24 +1352,10 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                     registry.GetMeta(comp->GetType());  // not typeName: a former name resolves to the current type
                 if (meta && compJson.contains("properties"))
                 {
-                    // Load base class properties first (e.g., sortingOrder from RendererComponent)
-                    if (meta->baseTypeId != 0)
+                    // Every base class's first, however deep, then its own.
+                    for (const PropertyInfo* prop : AllProperties(*meta))
                     {
-                        const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-                        if (baseMeta && baseMeta->propertyCount > 0)
-                        {
-                            for (int i = 0; i < baseMeta->propertyCount; ++i)
-                            {
-                                LoadPropertyFromJson(comp, baseMeta->properties[i], compJson["properties"]);
-                            }
-                        }
-                    }
-
-                    // Load derived class properties
-                    for (int i = 0; i < meta->propertyCount; ++i)
-                    {
-                        const PropertyInfo& prop = meta->properties[i];
-                        LoadPropertyFromJson(comp, prop, compJson["properties"]);
+                        LoadPropertyFromJson(comp, *prop, compJson["properties"]);
                     }
 
                     // Forward-compat: stash any property keys the current metadata
@@ -1333,36 +1367,24 @@ Object* Scene::LoadObjectFromJson(const nlohmann::json& json)
                     // LoadPropertyFromJson when the current name is absent - and
                     // that case is recorded as legacy so a check can ask for a
                     // re-save. A file carrying both keys is fine: the new one won.
-                    auto noteProps = [&](const ComponentMeta* m)
+                    for (const PropertyInfo* propPtr : AllProperties(*meta))
                     {
-                        for (int i = 0; i < m->propertyCount; ++i)
+                        const PropertyInfo& p = *propPtr;
+                        if (!p.name)
                         {
-                            const PropertyInfo& p = m->properties[i];
-                            if (!p.name)
-                            {
-                                continue;
-                            }
-                            known.insert(p.name);
-                            if (p.renamedFrom && *p.renamedFrom)
-                            {
-                                known.insert(p.renamedFrom);
-                                const auto& props = compJson["properties"];
-                                if (props.contains(p.renamedFrom) && !props.contains(p.name))
-                                {
-                                    LegacyPropsLog().emplace_back(meta->name ? meta->name : "<unnamed>", p.renamedFrom);
-                                }
-                            }
+                            continue;
                         }
-                    };
-                    if (meta->baseTypeId != 0)
-                    {
-                        const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-                        if (baseMeta)
+                        known.insert(p.name);
+                        if (p.renamedFrom && *p.renamedFrom)
                         {
-                            noteProps(baseMeta);
+                            known.insert(p.renamedFrom);
+                            const auto& props = compJson["properties"];
+                            if (props.contains(p.renamedFrom) && !props.contains(p.name))
+                            {
+                                LegacyPropsLog().emplace_back(meta->name ? meta->name : "<unnamed>", p.renamedFrom);
+                            }
                         }
                     }
-                    noteProps(meta);
 
                     UnknownProps unknownsForComp;
                     for (auto it = compJson["properties"].begin(); it != compJson["properties"].end(); ++it)
@@ -1466,9 +1488,14 @@ Object* Scene::DuplicateObject(const Object* source)
 
 void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, const nlohmann::json& propsJson)
 {
-    if (!prop.name)
+    PropertyFromJsonObject(comp, prop, propsJson);
+}
+
+bool Scene::PropertyFromJsonObject(Component* comp, const PropertyInfo& prop, const nlohmann::json& propsJson)
+{
+    if (!prop.name || !propsJson.is_object())
     {
-        return;
+        return false;
     }
 
     // The current name wins; a file from before a rename is read through the
@@ -1478,85 +1505,101 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
     {
         if (!prop.renamedFrom || !*prop.renamedFrom || !propsJson.contains(prop.renamedFrom))
         {
-            return;
+            return false;
         }
         key = prop.renamedFrom;
     }
 
-    const auto& value = propsJson[key];
+    return PropertyFromJson(comp, prop, propsJson[key]);
+}
 
+bool Scene::PropertyFromJson(Component* comp, const PropertyInfo& prop, const nlohmann::json& value)
+{
+    bool ok = false;
     switch (prop.type)
     {
         case PropertyType::Int8:
             if (value.is_number_integer())
             {
                 SetPropertyValue<int8_t>(comp, prop, static_cast<int8_t>(value.get<int32_t>()));
+                ok = true;
             }
             break;
         case PropertyType::Int16:
             if (value.is_number_integer())
             {
                 SetPropertyValue<int16_t>(comp, prop, static_cast<int16_t>(value.get<int32_t>()));
+                ok = true;
             }
             break;
         case PropertyType::Int32:
             if (value.is_number_integer())
             {
                 SetPropertyValue<int32_t>(comp, prop, value.get<int32_t>());
+                ok = true;
             }
             break;
         case PropertyType::Int64:
             if (value.is_number_integer())
             {
                 SetPropertyValue<int64_t>(comp, prop, value.get<int64_t>());
+                ok = true;
             }
             break;
         case PropertyType::UInt8:
             if (value.is_number_integer())
             {
                 SetPropertyValue<uint8_t>(comp, prop, static_cast<uint8_t>(value.get<int32_t>()));
+                ok = true;
             }
             break;
         case PropertyType::UInt16:
             if (value.is_number_integer())
             {
                 SetPropertyValue<uint16_t>(comp, prop, static_cast<uint16_t>(value.get<int32_t>()));
+                ok = true;
             }
             break;
         case PropertyType::UInt32:
             if (value.is_number_unsigned())
             {
                 SetPropertyValue<uint32_t>(comp, prop, value.get<uint32_t>());
+                ok = true;
             }
             break;
         case PropertyType::UInt64:
             if (value.is_number_unsigned())
             {
                 SetPropertyValue<uint64_t>(comp, prop, value.get<uint64_t>());
+                ok = true;
             }
             break;
         case PropertyType::Float:
             if (value.is_number())
             {
                 SetPropertyValue<float>(comp, prop, value.get<float>());
+                ok = true;
             }
             break;
         case PropertyType::Double:
             if (value.is_number())
             {
                 SetPropertyValue<double>(comp, prop, value.get<double>());
+                ok = true;
             }
             break;
         case PropertyType::Bool:
             if (value.is_boolean())
             {
                 SetPropertyValue<bool>(comp, prop, value.get<bool>());
+                ok = true;
             }
             break;
         case PropertyType::String:
             if (value.is_string())
             {
                 SetPropertyValue<std::string>(comp, prop, value.get<std::string>());
+                ok = true;
             }
             break;
         case PropertyType::Color:
@@ -1568,11 +1611,28 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 if (ColorFromHex(value.get<std::string>().c_str(), parsed))
                 {
                     GetPropertyRef<Deki::Color>(comp, prop) = parsed;
+                    ok = true;
                 }
                 else
                 {
                     DEKI_LOG_WARNING("Scene: '%s' is not a colour like #RRGGBBAA on property '%s'",
                                      value.get<std::string>().c_str(), prop.name);
+                }
+            }
+            else if (value.is_array() && value.size() == 4)
+            {
+                Deki::Color& c = GetPropertyRef<Deki::Color>(comp, prop);
+                uint8_t channel[4];
+                bool bytes = true;
+                for (int i = 0; i < 4; ++i)
+                {
+                    bytes = bytes && value[i].is_number_integer() && value[i].get<int>() >= 0 && value[i].get<int>() <= 255;
+                    channel[i] = bytes ? static_cast<uint8_t>(value[i].get<int>()) : 0;
+                }
+                if (bytes)
+                {
+                    c = Deki::Color(channel[0], channel[1], channel[2], channel[3]);
+                    ok = true;
                 }
             }
             break;
@@ -1598,6 +1658,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 intVal = value.get<int32_t>();
                 haveValue = true;
             }
+            ok = haveValue;
             if (haveValue)
             {
                 // Use enumSize to write the correct number of bytes
@@ -1617,13 +1678,18 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             {
                 ref.id = value.value("id", 0u);
                 ref.componentTypeId = LegacyComponentTypeId(value.value("typeId", 0u));
+                ok = true;
             }
             else if (value.is_number_unsigned() || value.is_number_integer())
             {
                 ref.id = value.get<uint32_t>();
                 ref.componentTypeId = 0;
+                ok = true;
             }
-            ref.resolved = nullptr;
+            if (ok)
+            {
+                ref.resolved = nullptr;
+            }
             break;
         }
         case PropertyType::Array:
@@ -1631,6 +1697,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
             if (value.is_array())
             {
                 void* ptr = reinterpret_cast<char*>(comp) + prop.offset;
+                ok = true;
 
                 switch (prop.elementType)
                 {
@@ -1721,15 +1788,27 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 // Backward compatible: simple string (no source)
                 ref.guid = value.get<std::string>();
                 ref.source.clear();
+                ok = true;
             }
             else if (value.is_object())
             {
                 // Object with guid and source
                 ref.guid = value.value("guid", "");
                 ref.source = value.value("source", "");
+                ok = true;
             }
-            ref.ptr = nullptr;  // Will be loaded on play
-            ref.loadAttempted = false;
+            else if (value.is_null())
+            {
+                // No asset.
+                ref.guid.clear();
+                ref.source.clear();
+                ok = true;
+            }
+            if (ok)
+            {
+                ref.ptr = nullptr;  // Will be loaded on play
+                ref.loadAttempted = false;
+            }
             break;
         }
         case PropertyType::Vector2:
@@ -1738,6 +1817,7 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 Vector2* ptr = reinterpret_cast<Vector2*>(reinterpret_cast<char*>(comp) + prop.offset);
                 ptr->x = value[0].get<float>();
                 ptr->y = value[1].get<float>();
+                ok = true;
             }
             break;
         case PropertyType::Vector3:
@@ -1747,10 +1827,12 @@ void Scene::LoadPropertyFromJson(Component* comp, const PropertyInfo& prop, cons
                 ptr->x = value[0].get<float>();
                 ptr->y = value[1].get<float>();
                 ptr->z = value[2].get<float>();
+                ok = true;
             }
             break;
         default: break;
     }
+    return ok;
 }
 
 // =============================================================================
@@ -1831,20 +1913,9 @@ bool Scene::ExpandInstance(Object* instanceObj)
                         registry.GetMeta(comp->GetType());  // not typeName: a former name resolves to the current type
                     if (meta && compJson.contains("properties"))
                     {
-                        if (meta->baseTypeId != 0)
+                        for (const PropertyInfo* prop : AllProperties(*meta))
                         {
-                            const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-                            if (baseMeta && baseMeta->propertyCount > 0)
-                            {
-                                for (int i = 0; i < baseMeta->propertyCount; ++i)
-                                {
-                                    LoadPropertyFromJson(comp, baseMeta->properties[i], compJson["properties"]);
-                                }
-                            }
-                        }
-                        for (int i = 0; i < meta->propertyCount; ++i)
-                        {
-                            LoadPropertyFromJson(comp, meta->properties[i], compJson["properties"]);
+                            LoadPropertyFromJson(comp, *prop, compJson["properties"]);
                         }
                     }
                 }
@@ -2081,37 +2152,12 @@ void Scene::ApplyOverrides(Object* instanceObj, const nlohmann::json& overrides)
             continue;
         }
 
-        // Find property and apply value
-        auto findAndApply = [&](const PropertyInfo* props, int count)
+        // The property, on this class or any base, and its value.
+        const PropertyInfo* prop = FindProperty(*meta, propertyName);
+        if (prop && override.contains("value"))
         {
-            for (int i = 0; i < count; ++i)
-            {
-                if (std::string(props[i].name) == propertyName && override.contains("value"))
-                {
-                    nlohmann::json tempProps;
-                    tempProps[propertyName] = override["value"];
-                    LoadPropertyFromJson(comp, props[i], tempProps);
-                    return true;
-                }
-            }
-            return false;
-        };
-
-        // Check base class properties first
-        if (meta->baseTypeId != 0)
-        {
-            const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-            if (baseMeta && baseMeta->propertyCount > 0)
-            {
-                if (findAndApply(baseMeta->properties, baseMeta->propertyCount))
-                {
-                    continue;
-                }
-            }
+            PropertyFromJson(comp, *prop, override["value"]);
         }
-
-        // Check derived class properties
-        findAndApply(meta->properties, meta->propertyCount);
     }
 }
 
@@ -2211,55 +2257,39 @@ bool Scene::TryCollectOverrides(const Object* instanceRoot, const Object* obj, n
                 continue;
             }
 
-            // Compare each property
-            auto compareProps = [&](const PropertyInfo* props, int count)
+            // Compare each property, the base classes' too
+            for (const PropertyInfo* propPtr : AllProperties(*meta))
             {
-                for (int i = 0; i < count; ++i)
+                const PropertyInfo& prop = *propPtr;
+
+                // Skip ObjectRef properties - IDs are remapped per-instance
+                // and cannot be meaningfully compared or stored as overrides
+                if (prop.type == PropertyType::ObjectRef)
                 {
-                    const PropertyInfo& prop = props[i];
-
-                    // Skip ObjectRef properties - IDs are remapped per-instance
-                    // and cannot be meaningfully compared or stored as overrides
-                    if (prop.type == PropertyType::ObjectRef)
-                    {
-                        continue;
-                    }
-                    if (prop.type == PropertyType::Array && prop.elementType == PropertyType::ObjectRef)
-                    {
-                        continue;
-                    }
-
-                    // Serialize both values to JSON for comparison
-                    nlohmann::json currentJson, sourceJson;
-                    SavePropertyToJson(comp, prop, currentJson);
-                    sourceScene.SavePropertyToJson(sourceComp, prop, sourceJson);
-
-                    if (currentJson.contains(prop.name) && sourceJson.contains(prop.name) &&
-                        currentJson[prop.name] != sourceJson[prop.name])
-                    {
-                        nlohmann::json override;
-                        override["objectPath"] = objectPath;
-                        override["component"] = meta->serializedName;
-                        override["property"] = prop.name;
-                        override["value"] = currentJson[prop.name];
-                        override["sourceValue"] = sourceJson[prop.name];
-                        overrides.push_back(override);
-                    }
+                    continue;
                 }
-            };
-
-            // Check base properties
-            if (meta->baseTypeId != 0)
-            {
-                const ComponentMeta* baseMeta = registry.GetMeta(meta->baseTypeId);
-                if (baseMeta && baseMeta->propertyCount > 0)
+                if (prop.type == PropertyType::Array && prop.elementType == PropertyType::ObjectRef)
                 {
-                    compareProps(baseMeta->properties, baseMeta->propertyCount);
+                    continue;
+                }
+
+                // Serialize both values to JSON for comparison
+                nlohmann::json currentJson, sourceJson;
+                SavePropertyToJson(comp, prop, currentJson);
+                sourceScene.SavePropertyToJson(sourceComp, prop, sourceJson);
+
+                if (currentJson.contains(prop.name) && sourceJson.contains(prop.name) &&
+                    currentJson[prop.name] != sourceJson[prop.name])
+                {
+                    nlohmann::json override;
+                    override["objectPath"] = objectPath;
+                    override["component"] = meta->serializedName;
+                    override["property"] = prop.name;
+                    override["value"] = currentJson[prop.name];
+                    override["sourceValue"] = sourceJson[prop.name];
+                    overrides.push_back(override);
                 }
             }
-
-            // Check derived properties
-            compareProps(meta->properties, meta->propertyCount);
         }
 
         // Compare object-level active state
