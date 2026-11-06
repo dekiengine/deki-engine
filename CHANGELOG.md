@@ -7,6 +7,12 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Fixed
+- A game's loaded assets (meshes, textures, fonts) are freed when it shuts
+  down: `Engine::Shutdown` calls `AssetManager::Shutdown`, after the packages'
+  shutdown and before the display's, where the engine set up the memory (not
+  in the editor, which owns its assets). Nothing called it, so a game quitting
+  reported its assets as a leak (2.4 MB for a 13k-triangle scene on a Miyoo
+  Mini).
 - A component's `AssetRef<T>` is reflected with `T::kAssetTypeName`, the name
   `T`'s loader registers, not `T`'s class name. The two differ for a mesh
   ("Mesh"), a shader ("Shader") and an animation ("Animation"): a scene's

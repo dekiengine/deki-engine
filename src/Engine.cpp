@@ -233,6 +233,15 @@ void Engine::Shutdown()
     }
 
     DekiShutdownPackageSystems();
+    // The loaded assets (meshes, textures, fonts) live in the memory this
+    // engine set up, so they go before it does, or Memory::Shutdown counts
+    // them as a leak. After the packages, whose passes may still hold them;
+    // before the display, which a texture on the GPU is freed through. The
+    // editor sets up the memory and owns the assets itself.
+    if (m_Host.initializeProviders)
+    {
+        AssetManager::Shutdown();
+    }
     if (m_InputSystem)
     {
         m_InputSystem->Shutdown();
