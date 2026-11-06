@@ -29,6 +29,18 @@ and package DLLs has its own numbered history in
   the latest went up, for a frame-rate counter that reports what the player
   sees rather than how fast the game's loop turns. A display that does not see
   its frames go up returns false.
+- **The entry of a game run as a program is the engine's**:
+  `deki-engine-hosted`, an object library of `src/hosted/HostedMain.cpp`
+  (`main()`: the log file `dekigame.log`, the C heap, then `Deki::Main()`) and
+  `Deki::HostFileSystem` (`deki/providers/HostFileSystem.h`, `F:/` as
+  `./flash/`, `S:/` as `./storage/`). They were deki-desktop-integration's
+  (`DesktopFileSystem`), which every target that runs as a program, the
+  Miyoo Mini among them, had to require for a `main()`. A build that makes an
+  executable links it (`CMakeGen::GenerateExecutableCMakeLists`); the engine
+  library leaves it out, so the editor and the test programs keep their own
+  `main()`, and a board's build leaves `src/hosted/` out of the engine sources
+  it compiles. Release it with deki-desktop-integration's version without a
+  `main()`: an older one and this engine make a game with two.
 - `deki/Neon.h`: `DEKI_NEON` and `<arm_neon.h>` where the core has NEON
   (ARMv7 with a NEON FPU, AArch64), for code that keeps a plain C++ path
   beside it and a test that both match.

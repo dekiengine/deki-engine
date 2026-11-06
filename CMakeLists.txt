@@ -195,6 +195,19 @@ add_library(deki-engine-internal INTERFACE)
 target_include_directories(deki-engine-internal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(deki-engine-internal INTERFACE deki-engine-core)
 
+# For a game built as a program on an operating system (the desktop
+# simulator, a Linux handheld): its main() and the file system over the C
+# standard library (src/hosted/). Objects rather than an archive, so main()
+# is always linked: an archive member is only pulled in for a symbol still
+# missing when the linker reaches it, and the C runtime that calls main()
+# comes after. Not built unless an executable links it; a board's build
+# leaves src/hosted/ out of its engine sources (CMakeGenUtils).
+add_library(deki-engine-hosted OBJECT EXCLUDE_FROM_ALL
+    src/hosted/HostedMain.cpp
+    src/hosted/HostFileSystem.cpp
+)
+target_link_libraries(deki-engine-hosted PUBLIC deki-engine-core)
+
 # =============================================================================
 # Code Generator (C++26 static-reflection metadata + package registration)
 # =============================================================================
