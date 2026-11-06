@@ -30,6 +30,9 @@ and package DLLs has its own numbered history in
   `Memory::Initialize` starts its counts at zero, the settings block was
   freed at shutdown without having been counted: the check read below zero
   and printed it as a 4 GB leak. A count below zero is now reported as such.
+- A clean shutdown says so: "Memory: shut down with everything returned". It
+  used to print nothing, so the log of a game that quit cleanly looked the
+  same as one that was killed or crashed.
 - A leak at shutdown is reported with where it was allocated: the eight
   largest call sites still holding memory, from the site table every
   allocation keeps, in release builds as well. It said only the total.

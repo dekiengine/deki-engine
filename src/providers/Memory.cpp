@@ -380,6 +380,12 @@ void Memory::Shutdown()
 #endif
     }
 #endif
+    if (s_TotalAllocated == 0)
+    {
+        // Said when nothing is left too, so the log of a game that quit
+        // cleanly ends differently from one that was killed or crashed.
+        DEKI_LOG_INFO("Memory: shut down with everything returned");
+    }
 
     // The site table may have come from the backend, so it goes back first.
     ReleaseSites();
