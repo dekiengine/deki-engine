@@ -336,7 +336,15 @@ void Memory::Shutdown()
 #ifdef DEBUG
     CheckForLeaks();
 #else
-    if (s_TotalAllocated > 0)
+    if (s_TotalAllocated > 0x80000000u)
+    {
+        // Below zero: a block was freed that was allocated before Initialize()
+        // started the counts, not a leak.
+        DEKI_LOG_WARNING("Memory: %u more bytes were freed than counted; something allocated them before "
+                         "Memory::Initialize()",
+                         0u - s_TotalAllocated);
+    }
+    else if (s_TotalAllocated > 0)
     {
         DEKI_LOG_WARNING("Memory leak detected: %u bytes still allocated at shutdown", s_TotalAllocated);
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)

@@ -25,6 +25,11 @@ and package DLLs has its own numbered history in
   `ProjectSettings::Unload`), where the engine set up the memory. Both are
   static, and their own destructors ran after the leak check, which counted
   them (1,940 bytes on the Miyoo Mini).
+- `Engine::Initialize` sets up memory first, before components, packages and
+  project settings. It used to come after the settings were read, and since
+  `Memory::Initialize` starts its counts at zero, the settings block was
+  freed at shutdown without having been counted: the check read below zero
+  and printed it as a 4 GB leak. A count below zero is now reported as such.
 - A leak at shutdown is reported with where it was allocated: the eight
   largest call sites still holding memory, from the site table every
   allocation keeps, in release builds as well. It said only the total.
