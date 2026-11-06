@@ -215,7 +215,7 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 // Measured at 120 in both.
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
 static_assert(sizeof(Scene) == 120, "sizeof(Scene) changed. Verify the editor and a runtime config "
-                                    "(-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree, and bump "
+                                    "(a game build, DEKI_EDITOR off) still agree, and bump "
                                     "kDekiReflectionAbiVersion in interop/ReflectionAbi.h.");
 #endif
 

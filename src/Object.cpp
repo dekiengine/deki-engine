@@ -71,7 +71,7 @@ static_assert(sizeof(Object) == kExpectedObjectSize,
               "update this number: bump kDekiReflectionAbiVersion in "
               "interop/ReflectionAbi.h in the same commit so the loader refuses "
               "DLLs built against the old layout. Then verify the editor and a runtime "
-              "config (-DDEKI_EDITOR=OFF -DSIMULATOR=ON) still agree.");
+              "config (a game build, DEKI_EDITOR off) still agree.");
 #endif
 
 uint32_t Object::s_NextId = 1;

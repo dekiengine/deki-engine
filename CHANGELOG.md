@@ -41,6 +41,11 @@ and package DLLs has its own numbered history in
   `main()`, and a board's build leaves `src/hosted/` out of the engine sources
   it compiles. Release it with deki-desktop-integration's version without a
   `main()`: an older one and this engine make a game with two.
+  "Hosted" is the C standard's word: an operating system starts the game as
+  a program and gets control back when it quits. A board's firmware is the
+  game, RTOS included, and is not hosted. Such a build is compiled with
+  `DEKI_HOSTED` (it was `SIMULATOR`, which nothing reads any more), and its
+  platform provides the capability `hosted` (it was `desktop-os`).
 - `deki/Neon.h`: `DEKI_NEON` and `<arm_neon.h>` where the core has NEON
   (ARMv7 with a NEON FPU, AArch64), for code that keeps a plain C++ path
   beside it and a test that both match.

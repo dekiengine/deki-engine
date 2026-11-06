@@ -195,9 +195,11 @@ add_library(deki-engine-internal INTERFACE)
 target_include_directories(deki-engine-internal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(deki-engine-internal INTERFACE deki-engine-core)
 
-# For a game built as a program on an operating system (the desktop
-# simulator, a Linux handheld): its main() and the file system over the C
-# standard library (src/hosted/). Objects rather than an archive, so main()
+# For a hosted game, one an operating system starts as a program and gets
+# control back from when it quits (the desktop simulator, a Linux handheld;
+# platforms that provide "hosted", built with DEKI_HOSTED): its main() and the
+# file system over the C standard library (src/hosted/). A board's firmware is
+# the game, RTOS included, and is not hosted. Objects rather than an archive, so main()
 # is always linked: an archive member is only pulled in for a symbol still
 # missing when the linker reaches it, and the C runtime that calls main()
 # comes after. Not built unless an executable links it; a board's build
