@@ -241,6 +241,9 @@ void Engine::Shutdown()
     if (m_Host.initializeProviders)
     {
         AssetManager::Shutdown();
+        // And what the settings kept from project_data.bin; both live in
+        // static storage, which is freed only after Memory::Shutdown counted.
+        ProjectSettings::Unload();
     }
     if (m_InputSystem)
     {

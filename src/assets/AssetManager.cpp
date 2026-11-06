@@ -35,6 +35,11 @@ struct LoaderEntry
     bool cacheable = true;
 };
 
+// The lookup table's bytes (LoadAssetRoot): the table points into them, so
+// they live as long as it does, and go with it in Shutdown(), before the
+// engine counts what memory is still held.
+static Buffer<uint8_t> s_LookupTableBytes;
+
 static std::unordered_map<std::string, LoaderEntry>& GetLoaderRegistry()
 {
     static std::unordered_map<std::string, LoaderEntry> s_Reg;
@@ -80,6 +85,7 @@ void AssetManager::Shutdown()
         delete s_Instance;
         s_Instance = nullptr;
     }
+    s_LookupTableBytes.Reset();
 }
 
 AssetManager::~AssetManager()
@@ -421,7 +427,7 @@ bool AssetManager::LoadAssetRoot(const char* root)
 
     // The lookup table points into this block, so it lives as long as the
     // table does. External: it is read on a lookup by key, not per frame.
-    static Buffer<uint8_t> s_Table;
+    Buffer<uint8_t>& s_Table = s_LookupTableBytes;
     if (!s_Table.Allocate(static_cast<size_t>(size), Memory::External))
     {
         fs->CloseFile(handle);

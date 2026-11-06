@@ -20,6 +20,11 @@ and package DLLs has its own numbered history in
   `DEKI_GAME_DEFINES_PACKAGE_SYSTEMS`, which the editor's program generator
   sets, the engine leaves `AllPackageInit.gen.cpp` out and the game's init
   file defines both functions.
+- The asset lookup table's bytes and the packages' retained settings are
+  freed in `Engine::Shutdown` (`AssetManager::Shutdown`,
+  `ProjectSettings::Unload`), where the engine set up the memory. Both are
+  static, and their own destructors ran after the leak check, which counted
+  them (1,940 bytes on the Miyoo Mini).
 - A leak at shutdown is reported with where it was allocated: the eight
   largest call sites still holding memory, from the site table every
   allocation keeps, in release builds as well. It said only the total.

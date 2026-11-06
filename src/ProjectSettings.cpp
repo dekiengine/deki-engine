@@ -327,6 +327,12 @@ const char* GetPassName(int index)
     return s_PassNames[index].c_str();
 }
 
+void Unload()
+{
+    s_PackageChunk.Reset();
+    s_PackageChunkSize = 0;
+}
+
 bool Load(const uint8_t* data, size_t size)
 {
     // Each rejection names its reason: the caller reports every `false` as

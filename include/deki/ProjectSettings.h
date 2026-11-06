@@ -69,6 +69,11 @@ struct RuntimeSettings
 /// on failure.
 bool Load(const uint8_t* data, size_t size);
 
+/// Frees what the last Load() kept (the packages' settings), so the engine's
+/// shutdown does not count it as a leak. Package settings read after it are
+/// absent, and packages take their defaults.
+void Unload();
+
 /// Target frame rate, 0 for no limit.
 int32_t GetTargetFPS();
 
