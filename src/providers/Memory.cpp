@@ -339,6 +339,37 @@ void Memory::Shutdown()
     if (s_TotalAllocated > 0)
     {
         DEKI_LOG_WARNING("Memory leak detected: %u bytes still allocated at shutdown", s_TotalAllocated);
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+        // Where it was allocated, the largest first, from the site table every
+        // allocation already keeps: the total alone says something is wrong
+        // but not what. At most eight lines, so a leak of many small blocks
+        // does not flood the log.
+        for (int shown = 0; s_Sites && shown < 8; ++shown)
+        {
+            uint32_t best = kMaxSites;
+            uint32_t bestBytes = 0;
+            for (uint32_t i = 0; i < kMaxSites; ++i)
+            {
+                const uint32_t bytes = s_Sites[i].internalBytes + s_Sites[i].externalBytes;
+                if (bytes > bestBytes)
+                {
+                    best = i;
+                    bestBytes = bytes;
+                }
+            }
+            if (best == kMaxSites)
+            {
+                break;
+            }
+            const MemorySite& site = s_Sites[best];
+            DEKI_LOG_WARNING("  %u bytes in %u blocks from %s (%s:%u)", bestBytes, site.blocks,
+                             site.function ? site.function : "other sites", BaseName(site.file), site.line);
+            // Taken off so the next pass finds the next largest; the table is
+            // released just below.
+            s_Sites[best].internalBytes = 0;
+            s_Sites[best].externalBytes = 0;
+        }
+#endif
     }
 #endif
 

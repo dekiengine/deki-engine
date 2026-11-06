@@ -121,6 +121,14 @@ set_source_files_properties("${_CORE_REFLECTION_TU}" PROPERTIES GENERATED TRUE)
 list(APPEND GENERATED_SOURCES "${_CORE_REFLECTION_TU}")
 list(REMOVE_DUPLICATES GENERATED_SOURCES)
 
+# A game built as a program defines the package systems' start and shutdown
+# in its own generated init file (the editor's GenerateExecutableCMakeLists
+# sets this), so the empty stub of them here is left out; otherwise the game
+# links the stub and its packages are never shut down.
+if(DEKI_GAME_DEFINES_PACKAGE_SYSTEMS)
+    list(FILTER GENERATED_SOURCES EXCLUDE REGEX ".*/AllPackageInit\\.gen\\.cpp$")
+endif()
+
 list(APPEND DEKI_CORE_SOURCES ${GENERATED_SOURCES})
 message(STATUS "Generated sources: ${GENERATED_SOURCES}")
 

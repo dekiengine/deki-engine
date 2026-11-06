@@ -13,6 +13,16 @@ and package DLLs has its own numbered history in
   in the editor, which owns its assets). Nothing called it, so a game quitting
   reported its assets as a leak (2.4 MB for a 13k-triangle scene on a Miyoo
   Mini).
+- A game built as a program shuts its packages down when it quits. It linked
+  the engine's empty `DekiShutdownPackageSystems()` stub, so the render
+  system, its passes and the 3D rasteriser's working memory were never freed
+  (the remaining 1.6 MB on the Miyoo Mini). With
+  `DEKI_GAME_DEFINES_PACKAGE_SYSTEMS`, which the editor's program generator
+  sets, the engine leaves `AllPackageInit.gen.cpp` out and the game's init
+  file defines both functions.
+- A leak at shutdown is reported with where it was allocated: the eight
+  largest call sites still holding memory, from the site table every
+  allocation keeps, in release builds as well. It said only the total.
 - A component's `AssetRef<T>` is reflected with `T::kAssetTypeName`, the name
   `T`'s loader registers, not `T`'s class name. The two differ for a mesh
   ("Mesh"), a shader ("Shader") and an animation ("Animation"): a scene's
