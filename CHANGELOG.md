@@ -99,6 +99,12 @@ and package DLLs has its own numbered history in
 - Project settings files and the plugin settings snapshot store an enum by
   name, as scenes do; files with numbers still load.
 - An asset reference reads `null` as no asset.
+- `kDekiReflectionAbiVersion` is 23: `IDisplay` gained `SetRefreshesPerFrame`
+  and `GetFramesShown` at the end of its virtual table, which moves no slot
+  but makes the table longer than a display built before expects. A package
+  build from before is refused and rebuilt from its source. Both have
+  default bodies, so a display package written before compiles unchanged,
+  and `DEKI_OLDEST_SUPPORTED_PACKAGE` stays 0.22.0.
 
 ## 0.22.0 - 2026-10-31
 
