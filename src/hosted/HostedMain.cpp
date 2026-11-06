@@ -1,5 +1,5 @@
 // The program's entry for a hosted game, one an operating system starts as a
-// program and gets control back from when it quits: the desktop simulator, a
+// program and gets control back from when it quits: the desktop build, a
 // Linux handheld. It sets up the memory and
 // file system the engine expects, then starts it. A board has its own entry
 // instead (deki-esp32-integration's app_main).

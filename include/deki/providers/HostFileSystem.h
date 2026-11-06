@@ -4,7 +4,7 @@
 #include <string>
 
 /// The file system of a game that runs as a program on an operating system
-/// (the desktop simulator, a Linux handheld), on the C standard library. Maps
+/// (the desktop build, a Linux handheld), on the C standard library. Maps
 /// the device's virtual mounts to folders beside the program, on Windows,
 /// Linux and macOS alike. The hosted entry (src/hosted/HostedMain.cpp) sets it
 /// before the engine starts.
