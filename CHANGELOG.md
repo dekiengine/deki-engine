@@ -17,6 +17,21 @@ and package DLLs has its own numbered history in
   header; the engine's own `Scene` is always known.
 
 ### Added
+- **Frames paced to the panel.** `IDisplay::GetRefreshPeriodUs()` now also
+  sets each frame's delta: the main loop rounds the time it measured to whole
+  refreshes, so motion steps exactly with the panel instead of jittering by
+  the loop's wake-ups. `IDisplay::SetRefreshesPerFrame()` tells a display how
+  many refreshes each frame stays up (2 at 30 frames a second on a 60 Hz
+  panel), from `Engine::RefreshesPerFrame()`; a display that presents on its
+  own thread holds a frame that finished early, so 30 frames a second is 30
+  even ones, not judder at an even average.
+- `IDisplay::GetFramesShown()`: how many frames the panel has shown and when
+  the latest went up, for a frame-rate counter that reports what the player
+  sees rather than how fast the game's loop turns. A display that does not see
+  its frames go up returns false.
+- `deki/Neon.h`: `DEKI_NEON` and `<arm_neon.h>` where the core has NEON
+  (ARMv7 with a NEON FPU, AArch64), for code that keeps a plain C++ path
+  beside it and a test that both match.
 - `TextureFilter` (`deki/assets/TextureFilter.h`): Point, Bilinear or
   Trilinear, how a GPU samples an image, kept in a compiled image's header
   flags (bits 4 and 5; 0 is Point, so an image from before reads as it drew).

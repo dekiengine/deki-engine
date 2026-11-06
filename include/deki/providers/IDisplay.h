@@ -91,8 +91,32 @@ public:
     /// one, so it is shown whole; 0 when frames are shown as they come. The
     /// main loop then times frames to a whole number of refreshes: a game
     /// clock a little off the panel's (60.0 frames a second on a 60.2 Hz
-    /// panel) would show a frame twice every few seconds, a stutter.
+    /// panel) would show a frame twice every few seconds, a stutter. Each
+    /// frame also moves the game on by its whole number of refreshes, not the
+    /// time the loop measured, so motion steps exactly with the panel.
     virtual uint32_t GetRefreshPeriodUs() const { return 0; }
+
+    /// How many refreshes each frame stays on screen: 1 at the panel's rate,
+    /// 2 at half of it. The main loop sets it from the target frame rate, for
+    /// a display that reports its refresh period. A display that shows frames
+    /// on its own thread holds each one that long, so a frame finished a
+    /// little early is not shown early and then followed by a long one, which
+    /// is judder at a steady average. The default ignores it.
+    virtual void SetRefreshesPerFrame(uint32_t refreshes) { (void)refreshes; }
+
+    /// How many frames the panel has shown so far, and when the latest one
+    /// went up (microseconds on the display's own monotonic clock), for a
+    /// frame-rate counter: frames shown over the time between two readings is
+    /// the rate the player sees, which timing the game's loop is not (the loop
+    /// may run a frame ahead and its frames take uneven times). False from a
+    /// display that does not see its frames go up; a counter then has only the
+    /// loop to time, and should say so.
+    virtual bool GetFramesShown(uint64_t* frames, uint64_t* lastShownUs) const
+    {
+        (void)frames;
+        (void)lastShownUs;
+        return false;
+    }
 };
 
 }  // namespace Deki

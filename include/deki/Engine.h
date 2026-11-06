@@ -186,6 +186,8 @@ private:
     /// Microseconds a frame takes at the target frame rate, or a whole number
     /// of the display's refreshes when it shows frames on them.
     uint32_t FrameBudgetUs() const;
+    // The whole number of a display's refreshes nearest the target frame time.
+    uint32_t RefreshesPerFrame(uint32_t refreshUs) const;
     bool m_Running;
 
     FPSCounter m_FpsCounter;

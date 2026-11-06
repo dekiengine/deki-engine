@@ -456,6 +456,15 @@ void Engine::RunMainLoop()
         {
             elapsedUs = 1000u;
         }
+        // A display that paces frames to its refresh shows each one for a
+        // whole number of refreshes, so the game moves on by exactly that:
+        // the time measured here wobbles by a millisecond or so around it,
+        // and moving by the wobbly time makes steady motion look uneven.
+        const uint32_t refreshUs = m_Display ? m_Display->GetRefreshPeriodUs() : 0u;
+        if (refreshUs > 0)
+        {
+            elapsedUs = std::max<uint64_t>(1u, (elapsedUs + refreshUs / 2) / refreshUs) * refreshUs;
+        }
 
         // Update (includes Render + Present; m_GameUpdateCallback runs inside)
         Update(static_cast<float>(elapsedUs) * 0.001f);
@@ -466,6 +475,10 @@ void Engine::RunMainLoop()
         // than a budget late sets the next one from now instead of running
         // the next frames back to back to catch up.
         const uint32_t frameUs = FrameBudgetUs();
+        if (refreshUs > 0)
+        {
+            m_Display->SetRefreshesPerFrame(RefreshesPerFrame(refreshUs));
+        }
         deadlineUs += frameUs;
         const uint64_t nowUs = Time::GetTimeUs();
         const uint32_t now = Time::GetTime();
@@ -813,9 +826,14 @@ uint32_t Engine::FrameBudgetUs() const
     // The whole number of refreshes nearest the target, a hundredth short.
     // The clock then never holds a frame back: the display does, until the
     // panel takes it, so the panel sets the pace.
-    const uint32_t refreshes = std::max<uint32_t>(1u, (targetUs + refreshUs / 2) / refreshUs);
-    const uint32_t budgetUs = refreshes * refreshUs;
+    const uint32_t budgetUs = RefreshesPerFrame(refreshUs) * refreshUs;
     return budgetUs - budgetUs / 100u;
+}
+
+uint32_t Engine::RefreshesPerFrame(uint32_t refreshUs) const
+{
+    const uint32_t targetUs = 1000000u / m_TargetFps;
+    return std::max<uint32_t>(1u, (targetUs + refreshUs / 2) / refreshUs);
 }
 
 // The package owns the display's lifetime; the engine stores the pointer and
