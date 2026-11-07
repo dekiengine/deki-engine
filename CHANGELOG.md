@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.30.0 - 2026-11-07
 
 ### Fixed
 - A game's loaded assets (meshes, textures, fonts) are freed when it shuts
