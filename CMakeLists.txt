@@ -172,9 +172,14 @@ endif()
 # Bump it to the release version whenever a release breaks packages, which is
 # any release that bumps kDekiReflectionAbiVersion or changes what packages
 # compile against. Leave it alone for a release that does not.
-target_compile_definitions(deki-engine-core PUBLIC
-    "DEKI_ENGINE_VERSION=\"${PROJECT_VERSION}\""
-    "DEKI_OLDEST_SUPPORTED_PACKAGE=\"0.22.0\"")
+#
+# Both are in <deki/EngineVersion.h>, written here, rather than compile
+# definitions: a definition is on the compile line of everything built against
+# deki-engine-core, so a new version rebuilt all of it. configure_file
+# rewrites the header only when its text changes.
+set(DEKI_OLDEST_SUPPORTED_PACKAGE "0.22.0")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EngineVersion.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/generated/include/deki/EngineVersion.h @ONLY)
 
 # The transform width, PUBLIC so everything compiled against this target sees
 # the same Deki::Object layout the engine itself was built with.
@@ -193,6 +198,7 @@ target_include_directories(deki-engine-core
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/include  # deki/EngineVersion.h
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
