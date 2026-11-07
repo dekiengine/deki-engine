@@ -4,6 +4,15 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Fixed
+- Opening a project on a fresh cache no longer warns "AssetRef 'font'
+  failed to load" for each text. The editor bakes a text's font size after
+  its scene opens, so the first look misses, and the scene loader warned for
+  it although the asset manager keeps a file that is not there yet quiet as a
+  normal state. It still warns when a file is there and does not load.
+
 ## 0.30.2 - 2026-11-07
 
 No engine changes; released with the editor's 0.30.2.

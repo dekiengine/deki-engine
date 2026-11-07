@@ -398,10 +398,14 @@ void LifecycleManager::ResolveAssetRefs(Component* component)
         }
         else
         {
-            // Allow AssetRef::Get() to retry later (e.g., editor fonts compiled on-demand)
+            // AssetRef::Get() tries again later. A file that is not there yet
+            // is a normal state, as in LoadByGuidAndType, which warns itself
+            // when a file is there and does not load: the editor bakes a text's
+            // font size after its scene opens, so on a fresh cache every text
+            // misses once here.
             ref->loadAttempted = false;
-            DEKI_LOG_WARNING("AssetRef '%s' failed to load: GUID=%s, type=%s", prop.name, ref->guid.c_str(),
-                             prop.assetType);
+            DEKI_LOG_INTERNAL("AssetRef '%s' not loaded yet: GUID=%s, type=%s", prop.name, ref->guid.c_str(),
+                              prop.assetType);
         }
     }
 }
