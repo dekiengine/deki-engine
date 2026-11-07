@@ -285,6 +285,11 @@ function(deki_reflection_codegen)
     set(_pch_hdr "${_pchdir}/reflection_codegen_pch.h")
     set(_pch_gch "${_pch_hdr}.gch")
     set(_pch_dep "${_pch_gch}.d")
+    # A copy of the depfile for the check below. Ninja reads a custom command's
+    # depfile into its own log and deletes it, so after the build-time rule
+    # (further down) has run, ${_pch_dep} is gone and every configure took the
+    # PCH for stale and rebuilt it.
+    set(_pch_dep_kept "${_pch_gch}.deps")
     # Copy next to where the .gch lives so `-include <name>` + `-I${_pchdir}` resolves the
     # header AND finds its sibling .gch (GCC looks for <resolved-header>.gch).
     configure_file("${_pch_src}" "${_pch_hdr}" COPYONLY)
@@ -296,14 +301,21 @@ function(deki_reflection_codegen)
     # Configure-time staleness: missing artifacts, a newer pch source/generator, or
     # ANY file recorded in the previous compile's depfile being newer than the .gch.
     set(_pch_stale FALSE)
-    if(NOT EXISTS "${_pch_gch}" OR NOT EXISTS "${_pch_dep}")
+    if(NOT EXISTS "${_pch_gch}" OR NOT EXISTS "${_pch_dep_kept}")
       set(_pch_stale TRUE)
     elseif("${_pch_src}" IS_NEWER_THAN "${_pch_gch}" OR "${ARG_GENERATOR_SRC}" IS_NEWER_THAN "${_pch_gch}")
       set(_pch_stale TRUE)
     else()
-      file(READ "${_pch_dep}" _pch_dtxt)
+      file(READ "${_pch_dep_kept}" _pch_dtxt)
       string(REPLACE "\r" "" _pch_dtxt "${_pch_dtxt}")
-      string(REPLACE "\\\n" " " _pch_dtxt "${_pch_dtxt}")
+      # The depfile's line joins (a backslash before the newline), written with
+      # the backslash made by string(ASCII): CMake reads "\\\n" as a backslash
+      # and an "n", which matched nothing. Each join then reached
+      # separate_arguments as an escaped newline, a "file" that does not exist,
+      # so every PCH was stale and every configure rebuilt all of them (32 here,
+      # two minutes) and then reran every package's codegen.
+      string(ASCII 92 _bs)
+      string(REPLACE "${_bs}\n" " " _pch_dtxt "${_pch_dtxt}")
       # Strip the "<path>.gch:" make-target (greedy: dep paths never contain ".gch:").
       string(REGEX REPLACE "^.*\\.gch:" "" _pch_dtxt "${_pch_dtxt}")
       separate_arguments(_pch_dlist UNIX_COMMAND "${_pch_dtxt}")
@@ -322,7 +334,9 @@ function(deki_reflection_codegen)
                       RESULT_VARIABLE _pch_rc)
       if(NOT _pch_rc EQUAL 0)
         message(WARNING "deki_reflection_codegen: shared PCH build failed; generator will compile without it")
-        file(REMOVE "${_pch_gch}" "${_pch_dep}")
+        file(REMOVE "${_pch_gch}" "${_pch_dep}" "${_pch_dep_kept}")
+      else()
+        file(COPY_FILE "${_pch_dep}" "${_pch_dep_kept}")
       endif()
     endif()
 
@@ -353,6 +367,7 @@ function(deki_reflection_codegen)
             OUTPUT "${_pch_gch}"
             COMMAND ${_host_env} "${ARG_GXX}" ${_pch_flags} -MD -MF "${_pch_dep}"
                     -x c++-header "${_pch_hdr}" -o "${_pch_gch}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${_pch_dep}" "${_pch_dep_kept}"
             DEPENDS "${_pch_hdr}" "${_pch_src}" "${ARG_GENERATOR_SRC}"
             DEPFILE "${_pch_dep}"
             COMMENT "Reflection codegen shared PCH"
