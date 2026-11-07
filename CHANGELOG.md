@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.30.3 - 2026-11-07
 
 ### Fixed
 - Opening a project on a fresh cache no longer warns "AssetRef 'font'
