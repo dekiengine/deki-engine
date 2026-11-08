@@ -231,7 +231,7 @@ bool AssetPackReader::LoadPack(const char* packPath)
 
     m_LoadedPacks[packPath] = pack;
 
-    uint32_t elapsed = Time::GetElapsed(t0);
+    [[maybe_unused]] uint32_t elapsed = Time::GetElapsed(t0);
     DEKI_LOG_INTERNAL("[PERF] Pack loaded: %s (%u assets, %ld bytes, %ums)", packPath, header->entryCount, fileSize,
                       elapsed);
 
