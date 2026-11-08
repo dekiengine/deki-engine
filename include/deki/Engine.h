@@ -189,6 +189,9 @@ private:
     // The whole number of a display's refreshes nearest the target frame time.
     uint32_t RefreshesPerFrame(uint32_t refreshUs) const;
     bool m_Running;
+    uint64_t m_LoopLastUs = 0;      // RunMainLoop: when the last frame started
+    uint64_t m_LoopDeadlineUs = 0;  // RunMainLoop: when the next frame is due
+    uint32_t m_LoopLastYield = 0;   // RunMainLoop: when it last blocked
 
     FPSCounter m_FpsCounter;
     FrameTimings m_LastFrameTimings;
@@ -341,6 +344,10 @@ public:
     /// Runs the main loop (timing, platform updates, rendering, callbacks)
     /// until StopMainLoop().
     void RunMainLoop();
+
+    /// One frame of RunMainLoop: false once the loop should end. A browser
+    /// build calls it once per frame instead of looping.
+    bool StepMainLoop();
 
     void StopMainLoop();
 

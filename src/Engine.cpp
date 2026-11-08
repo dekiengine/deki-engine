@@ -1,4 +1,9 @@
 #include <deki/Engine.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <deki/ProjectSettings.h>
 #include <deki/ScreenScale.h>
 #include <deki/Storage.h>
@@ -447,84 +452,109 @@ void Engine::RunMainLoop()
     // frame's budget, so frames average the target rate although Delay
     // counts whole milliseconds: 1000 / 60 as a whole number of milliseconds
     // ran at 62.5.
-    uint64_t lastUs = Time::GetTimeUs();
-    uint64_t deadlineUs = lastUs;
-    uint32_t lastTime = Time::GetTime();
-    // The longest the loop runs without blocking. Far inside the task
-    // watchdog's timeout (seconds), and rare enough to cost little.
-    constexpr uint32_t kMaxMsWithoutYield = 100;
-    uint32_t lastYield = lastTime;
+    m_LoopLastUs = Time::GetTimeUs();
+    m_LoopDeadlineUs = m_LoopLastUs;
+    m_LoopLastYield = Time::GetTime();
 
     DEKI_LOG_INTERNAL("RunMainLoop starting with target FPS: %d", m_TargetFps);
 
-    while (m_Running)
+#ifdef __EMSCRIPTEN__
+    // A browser draws nothing until the page's code returns, so it calls each
+    // frame instead of the loop running them. It does not return from here:
+    // the program stays alive between frames.
+    emscripten_set_main_loop_arg(
+        [](void* engine)
+        {
+            if (!static_cast<Engine*>(engine)->StepMainLoop())
+            {
+                emscripten_cancel_main_loop();
+            }
+        },
+        this, 0, true);
+#else
+    while (StepMainLoop())
     {
-        // Check if application should exit (e.g., window close)
-        if (m_InputSystem && m_InputSystem->ShouldExit())
-        {
-            m_Running = false;
-            break;
-        }
+    }
+    DEKI_LOG_INTERNAL("RunMainLoop ended");
+#endif
+}
 
-        const uint64_t currentUs = Time::GetTimeUs();
-        // A frame never takes no time: a clock that did not move counts 1 ms.
-        uint64_t elapsedUs = currentUs - lastUs;
-        if (currentUs == lastUs)
-        {
-            elapsedUs = 1000u;
-        }
-        // A display that paces frames to its refresh shows each one for a
-        // whole number of refreshes, so the game moves on by exactly that:
-        // the time measured here wobbles by a millisecond or so around it,
-        // and moving by the wobbly time makes steady motion look uneven.
-        const uint32_t refreshUs = m_Display ? m_Display->GetRefreshPeriodUs() : 0u;
-        if (refreshUs > 0)
-        {
-            elapsedUs = std::max<uint64_t>(1u, (elapsedUs + refreshUs / 2) / refreshUs) * refreshUs;
-        }
-
-        // Update (includes Render + Present; m_GameUpdateCallback runs inside)
-        Update(static_cast<float>(elapsedUs) * 0.001f);
-
-        m_IsDirty = false;  // Clear dirty flag after rendering
-
-        // Frame rate limiting: wait for the frame's deadline. A frame more
-        // than a budget late sets the next one from now instead of running
-        // the next frames back to back to catch up.
-        const uint32_t frameUs = FrameBudgetUs();
-        if (refreshUs > 0)
-        {
-            m_Display->SetRefreshesPerFrame(RefreshesPerFrame(refreshUs));
-        }
-        deadlineUs += frameUs;
-        const uint64_t nowUs = Time::GetTimeUs();
-        const uint32_t now = Time::GetTime();
-        if (nowUs > deadlineUs + frameUs)
-        {
-            deadlineUs = nowUs;
-        }
-        const uint32_t left = deadlineUs > nowUs ? static_cast<uint32_t>((deadlineUs - nowUs) / 1000u) : 0u;
-        if (left > 0)
-        {
-            Time::Delay(left);
-            lastYield = now;
-        }
-        else if (now - lastYield >= kMaxMsWithoutYield)
-        {
-            // A frame that overran its budget starts the next one at once, but
-            // the loop still blocks for a tick now and then, so the idle task
-            // runs (it feeds the task watchdog) and so do tasks below this one.
-            // Yielding after every late frame instead cost a slow scene a
-            // millisecond a frame.
-            Time::Delay(1);
-            lastYield = Time::GetTime();
-        }
-
-        lastUs = currentUs;
+bool Engine::StepMainLoop()
+{
+    if (!m_Running)
+    {
+        return false;
     }
 
-    m_Running = false;
-    DEKI_LOG_INTERNAL("RunMainLoop ended");
+    // Check if application should exit (e.g., window close)
+    if (m_InputSystem && m_InputSystem->ShouldExit())
+    {
+        m_Running = false;
+        return false;
+    }
+
+    const uint64_t currentUs = Time::GetTimeUs();
+    // A frame never takes no time: a clock that did not move counts 1 ms.
+    uint64_t elapsedUs = currentUs - m_LoopLastUs;
+    if (currentUs == m_LoopLastUs)
+    {
+        elapsedUs = 1000u;
+    }
+    // A display that paces frames to its refresh shows each one for a
+    // whole number of refreshes, so the game moves on by exactly that:
+    // the time measured here wobbles by a millisecond or so around it,
+    // and moving by the wobbly time makes steady motion look uneven.
+    const uint32_t refreshUs = m_Display ? m_Display->GetRefreshPeriodUs() : 0u;
+    if (refreshUs > 0)
+    {
+        elapsedUs = std::max<uint64_t>(1u, (elapsedUs + refreshUs / 2) / refreshUs) * refreshUs;
+    }
+
+    // Update (includes Render + Present; m_GameUpdateCallback runs inside)
+    Update(static_cast<float>(elapsedUs) * 0.001f);
+
+    m_IsDirty = false;  // Clear dirty flag after rendering
+
+    const uint32_t frameUs = FrameBudgetUs();
+    if (refreshUs > 0)
+    {
+        m_Display->SetRefreshesPerFrame(RefreshesPerFrame(refreshUs));
+    }
+
+#ifndef __EMSCRIPTEN__  // the browser paces the frames it asks for
+    // Frame rate limiting: wait for the frame's deadline. A frame more
+    // than a budget late sets the next one from now instead of running
+    // the next frames back to back to catch up.
+    // The longest the loop runs without blocking. Far inside the task
+    // watchdog's timeout (seconds), and rare enough to cost little.
+    constexpr uint32_t kMaxMsWithoutYield = 100;
+    m_LoopDeadlineUs += frameUs;
+    const uint64_t nowUs = Time::GetTimeUs();
+    const uint32_t now = Time::GetTime();
+    if (nowUs > m_LoopDeadlineUs + frameUs)
+    {
+        m_LoopDeadlineUs = nowUs;
+    }
+    const uint32_t left = m_LoopDeadlineUs > nowUs ? static_cast<uint32_t>((m_LoopDeadlineUs - nowUs) / 1000u) : 0u;
+    if (left > 0)
+    {
+        Time::Delay(left);
+        m_LoopLastYield = now;
+    }
+    else if (now - m_LoopLastYield >= kMaxMsWithoutYield)
+    {
+        // A frame that overran its budget starts the next one at once, but
+        // the loop still blocks for a tick now and then, so the idle task
+        // runs (it feeds the task watchdog) and so do tasks below this one.
+        // Yielding after every late frame instead cost a slow scene a
+        // millisecond a frame.
+        Time::Delay(1);
+        m_LoopLastYield = Time::GetTime();
+    }
+#endif
+
+    m_LoopLastUs = currentUs;
+    return m_Running;
 }
 
 void Engine::StopMainLoop()
