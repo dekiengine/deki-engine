@@ -7,6 +7,9 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Fixed
+- The reflection codegen compiles a configure's stale work units at the same
+  time, as many as the host has cores, instead of one after another. A fresh
+  configure of the demo went from 131 to 67 seconds, with the same output.
 - **A configure with nothing changed takes seconds, not two minutes.** The
   reflection codegen's check of its precompiled headers took every one for
   stale: it read the depfile's line joins as files that do not exist, and

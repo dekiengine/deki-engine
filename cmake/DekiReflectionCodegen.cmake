@@ -168,6 +168,7 @@ function(deki_reflection_codegen)
     set(ARG_SHARD_MIN_HEADERS 0)
   endif()
   set(_units "")
+  set(_stale_units "")
   set(_pack_pkgs "")
   set(_pack_count 0)
   foreach(_i RANGE ${_lastmod})
@@ -533,35 +534,12 @@ function(deki_reflection_codegen)
       endforeach()
     endif()
 
+    # Compiled and run after the loop, all stale units together (see below).
     if(_stale)
-      message(STATUS "Reflection codegen: regenerating ${_unitid}")
-      # Capture what the compiler said. Without this a failure here reports only
-      # "generator compile failed", and the diagnostics that would explain it -
-      # a missing define, a header that needs the target's SDK - are lost, which
-      # leaves the reader guessing at the one thing the compiler already knew.
-      execute_process(COMMAND ${_host_env} "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_tool}"
-                      RESULT_VARIABLE _rc
-                      OUTPUT_VARIABLE _compile_out
-                      ERROR_VARIABLE _compile_err)
-      if(_rc EQUAL 0)
-        execute_process(COMMAND ${_host_env} "${_tool}" RESULT_VARIABLE _rc2)
-        if(NOT _rc2 EQUAL 0)
-          message(FATAL_ERROR "deki_reflection_codegen: generator run failed for ${_unitid}. "
-                              "Reflection metadata would be stale or missing and the build would fail later with unrelated-looking link errors; the generator's output is above.")
-        else()
-          # Stamp now so this configure's work isn't repeated by the build-time step
-          # below (its DEPENDS are already satisfied), and so later configures skip.
-          file(TOUCH "${_stamp}")
-        endif()
-      else()
-        string(REPLACE ";" " " _flags_shown "${_flags}")
-        message(FATAL_ERROR "deki_reflection_codegen: generator compile failed for ${_unitid}.\n"
-                            "The C++26 reflection generator needs GCC 16 with -freflection (${ARG_GXX} was used); "
-                            "install it (MSYS2: pacman -S mingw-w64-x86_64-gcc; Ubuntu: ppa:ubuntu-toolchain-r/test g++-16) "
-                            "and pass -DDEKI_GXX16=<path to g++>.\n\n"
-                            "Command:\n  ${ARG_GXX} ${_flags_shown} ${ARG_GENERATOR_SRC} -o ${_tool}\n\n"
-                            "Compiler said:\n${_compile_err}${_compile_out}")
-      endif()
+      list(APPEND _stale_units "${_unitid}")
+      set(_STALE_FLAGS_${_unitid} "${_flags}")
+      set(_STALE_TOOL_${_unitid} "${_tool}")
+      set(_STALE_STAMP_${_unitid} "${_stamp}")
     endif()
 
     # ---- build-time: regenerate when the generator or any unit header changes ----
@@ -592,6 +570,88 @@ function(deki_reflection_codegen)
       set(DEKI_RC_TARGETS_${_tagid} "${_RC_TARGETS_${_tagid}}" PARENT_SCOPE)
     endforeach()
   endforeach()
+
+  # ---- configure-time generation of the stale units ----
+  # A unit's cost is the generator's compile (the reflection runs at compile time); the
+  # run that writes the files is short. One unit after another made a fresh configure
+  # pay every compile in turn: 20 units at ~3.5s each were over a minute of every board
+  # build. The compiles now go out together, as many at a time as the host has cores,
+  # and the generators then run in order, so each one's summary line is kept. The units
+  # do not depend on each other: the build-time step below already runs them in
+  # parallel under Ninja.
+  #
+  # execute_process runs its COMMANDs at the same time, as a pipeline. Each compile's
+  # standard output goes to the next one's input, which g++ never reads and never
+  # writes to. Their diagnostics share one stream, so a failed unit is compiled again
+  # on its own to report what the compiler said about it.
+  list(LENGTH _stale_units _nstale)
+  if(_nstale GREATER 0)
+    cmake_host_system_information(RESULT _ncores QUERY NUMBER_OF_LOGICAL_CORES)
+    if(NOT _ncores OR _ncores LESS 1)
+      set(_ncores 1)
+    endif()
+    set(_pending ${_stale_units})
+    list(LENGTH _pending _npending)
+    while(_npending GREATER 0)
+      set(_take ${_ncores})
+      if(_take GREATER _npending)
+        set(_take ${_npending})
+      endif()
+      list(SUBLIST _pending 0 ${_take} _batch)
+      # Not SUBLIST at the end of the list: a start index equal to its length is
+      # an error, which left the last batch pending for ever.
+      if(_take LESS _npending)
+        list(SUBLIST _pending ${_take} -1 _pending)
+      else()
+        set(_pending "")
+      endif()
+      list(LENGTH _pending _npending)
+      set(_cmds "")
+      foreach(_u ${_batch})
+        message(STATUS "Reflection codegen: regenerating ${_u}")
+        list(APPEND _cmds COMMAND ${_host_env} "${ARG_GXX}" ${_STALE_FLAGS_${_u}} "${ARG_GENERATOR_SRC}"
+                          -o "${_STALE_TOOL_${_u}}")
+      endforeach()
+      execute_process(${_cmds} RESULTS_VARIABLE _rcs OUTPUT_QUIET ERROR_QUIET)
+
+      set(_k 0)
+      foreach(_u ${_batch})
+        list(GET _rcs ${_k} _rc)
+        math(EXPR _k "${_k} + 1")
+        if(NOT _rc EQUAL 0)
+          # Capture what the compiler said. Without this a failure here reports only
+          # "generator compile failed", and the diagnostics that would explain it -
+          # a missing define, a header that needs the target's SDK - are lost, which
+          # leaves the reader guessing at the one thing the compiler already knew.
+          set(_flags ${_STALE_FLAGS_${_u}})
+          execute_process(COMMAND ${_host_env} "${ARG_GXX}" ${_flags} "${ARG_GENERATOR_SRC}" -o "${_STALE_TOOL_${_u}}"
+                          RESULT_VARIABLE _rc
+                          OUTPUT_VARIABLE _compile_out
+                          ERROR_VARIABLE _compile_err)
+          if(NOT _rc EQUAL 0)
+            string(REPLACE ";" " " _flags_shown "${_flags}")
+            message(FATAL_ERROR "deki_reflection_codegen: generator compile failed for ${_u}.\n"
+                                "The C++26 reflection generator needs GCC 16 with -freflection (${ARG_GXX} was used); "
+                                "install it (MSYS2: pacman -S mingw-w64-x86_64-gcc; Ubuntu: ppa:ubuntu-toolchain-r/test g++-16) "
+                                "and pass -DDEKI_GXX16=<path to g++>.\n\n"
+                                "Command:\n  ${ARG_GXX} ${_flags_shown} ${ARG_GENERATOR_SRC} -o ${_STALE_TOOL_${_u}}\n\n"
+                                "Compiler said:\n${_compile_err}${_compile_out}")
+          endif()
+        endif()
+      endforeach()
+    endwhile()
+
+    foreach(_u ${_stale_units})
+      execute_process(COMMAND ${_host_env} "${_STALE_TOOL_${_u}}" RESULT_VARIABLE _rc2)
+      if(NOT _rc2 EQUAL 0)
+        message(FATAL_ERROR "deki_reflection_codegen: generator run failed for ${_u}. "
+                            "Reflection metadata would be stale or missing and the build would fail later with unrelated-looking link errors; the generator's output is above.")
+      endif()
+      # Stamp now so this configure's work isn't repeated by the build-time step
+      # (its DEPENDS are already satisfied), and so later configures skip.
+      file(TOUCH "${_STALE_STAMP_${_u}}")
+    endforeach()
+  endif()
 
   list(LENGTH _units _nunits)
   message(STATUS "Reflection codegen: ${_npkgs} package(s) in ${_nunits} work unit(s)")
