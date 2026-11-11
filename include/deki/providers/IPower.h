@@ -38,6 +38,7 @@ public:
         Deep
     };
 
+    /// The sleep mode a driver is in, with its platform name for diagnostics.
     struct SleepInfo
     {
         SleepMode mode;

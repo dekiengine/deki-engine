@@ -90,6 +90,9 @@ static uint32_t s_PeakExternal = 0;
 // first allocation that has a call site, and only in builds that capture one.
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
 static MemorySite* s_Sites = nullptr;
+// After KeepSiteNames: each row's call site (the literal its name came from),
+// since the row's own names are then copies. Null until then.
+static uintptr_t* s_SiteKeys = nullptr;
 static bool s_OverflowUsed = false;  ///< whether any site has landed in the last row
 #endif
 
@@ -881,10 +884,15 @@ uint32_t Memory::TrackSite(const AllocContext& ctx, uint32_t size, bool isExtern
             entry.function = ctx.Name();
             entry.file = ctx.File();
             entry.line = ctx.Line();
+            if (s_SiteKeys)
+            {
+                s_SiteKeys[row] = key;
+            }
             found = row;
             break;
         }
-        if (entry.function == ctx.Name() && entry.line == ctx.Line())
+        const uintptr_t rowKey = s_SiteKeys ? s_SiteKeys[row] : reinterpret_cast<uintptr_t>(entry.function);
+        if (rowKey == key && entry.line == ctx.Line())
         {
             found = row;
             break;
@@ -932,6 +940,76 @@ void Memory::UntrackSite(uint32_t site, uint32_t size, bool isExternal)
 #endif
 }
 
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+namespace
+{
+// Names KeepSiteNames copied, so they can be freed with the table.
+struct KeptName
+{
+    KeptName* next;
+    // the characters follow
+};
+KeptName* s_KeptNames = nullptr;
+
+const char* KeepName(const char* name)
+{
+    if (!name)
+    {
+        return nullptr;
+    }
+    for (KeptName* kept = s_KeptNames; kept; kept = kept->next)
+    {
+        if (reinterpret_cast<const char*>(kept + 1) == name)
+        {
+            return name;  // already a copy
+        }
+    }
+    const size_t length = strlen(name);
+    auto* kept = static_cast<KeptName*>(malloc(sizeof(KeptName) + length + 1));
+    if (!kept)
+    {
+        return "";
+    }
+    memcpy(kept + 1, name, length + 1);
+    kept->next = s_KeptNames;
+    s_KeptNames = kept;
+    return reinterpret_cast<const char*>(kept + 1);
+}
+}  // namespace
+#endif
+
+void Memory::KeepSiteNames()
+{
+#if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
+    if (!s_Sites)
+    {
+        return;
+    }
+    if (!s_SiteKeys)
+    {
+        // The rows' call sites, before their names become copies.
+        s_SiteKeys = static_cast<uintptr_t*>(calloc(kMaxSites, sizeof(uintptr_t)));
+        if (!s_SiteKeys)
+        {
+            return;
+        }
+        for (uint32_t row = 0; row < kMaxSites; ++row)
+        {
+            s_SiteKeys[row] = reinterpret_cast<uintptr_t>(s_Sites[row].function);
+        }
+    }
+    for (uint32_t row = 0; row < kMaxSites; ++row)
+    {
+        MemorySite& site = s_Sites[row];
+        if (site.file)
+        {
+            site.function = KeepName(site.function);
+            site.file = KeepName(site.file);
+        }
+    }
+#endif
+}
+
 void Memory::ReleaseSites()
 {
 #if defined(DEKI_ALLOC_CONTEXT_CAPTURE)
@@ -942,6 +1020,14 @@ void Memory::ReleaseSites()
     free(s_Sites);
     s_Sites = nullptr;
     s_OverflowUsed = false;
+    free(s_SiteKeys);
+    s_SiteKeys = nullptr;
+    while (s_KeptNames)
+    {
+        KeptName* next = s_KeptNames->next;
+        free(s_KeptNames);
+        s_KeptNames = next;
+    }
 #endif
 }
 
@@ -1028,7 +1114,7 @@ uint32_t Memory::TrackAllocation(void* ptr, size_t size, const char* context, ui
             s_TrackingFullReported = true;
             DEKI_LOG_WARNING("Allocation tracking full (%u records) - later allocations are not tracked; the leak "
                              "report is now partial",
-                             (unsigned)s_MaxAllocations);
+                             static_cast<unsigned>(s_MaxAllocations));
         }
         return kNoTrackSlot;
     }

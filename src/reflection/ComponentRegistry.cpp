@@ -63,8 +63,9 @@ void ComponentRegistry::Register(const ComponentMeta* meta)
                            "one is %u bytes with %d propertie(s), the other %u with %d. The one registered "
                            "second wins and the other's instances will be read with the wrong field "
                            "offsets. Rename one of them, or put them in different namespaces.",
-                           meta->serializedName ? meta->serializedName : "?", (unsigned)existing->instanceSize,
-                           existing->propertyCount, (unsigned)meta->instanceSize, meta->propertyCount);
+                           meta->serializedName ? meta->serializedName : "?",
+                           static_cast<unsigned>(existing->instanceSize), existing->propertyCount,
+                           static_cast<unsigned>(meta->instanceSize), meta->propertyCount);
         }
         for (size_t i = 0; i < m_Components.size(); ++i)
         {

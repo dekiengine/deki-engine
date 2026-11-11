@@ -268,5 +268,7 @@ inline uint8_t Color::GetLuminance() const
 // for colours passed to editor drawing functions:
 //   uint32_t color = DEKI_COL32(255, 128, 64, 200);
 #ifndef DEKI_COL32
-#define DEKI_COL32(R, G, B, A) (((uint32_t)(A) << 24) | ((uint32_t)(B) << 16) | ((uint32_t)(G) << 8) | ((uint32_t)(R)))
+#define DEKI_COL32(R, G, B, A)                                                                                         \
+    ((static_cast<uint32_t>(A) << 24) | (static_cast<uint32_t>(B) << 16) | (static_cast<uint32_t>(G) << 8) |           \
+     (static_cast<uint32_t>(R)))
 #endif

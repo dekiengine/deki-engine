@@ -13,6 +13,7 @@
 namespace Deki
 {
 
+/// Holds the active power driver; GetCurrent() is nullptr when none is registered.
 class Power
 {
 public:

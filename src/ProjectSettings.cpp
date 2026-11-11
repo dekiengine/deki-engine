@@ -353,7 +353,7 @@ bool Load(const uint8_t* data, size_t size)
     if (header.magic != kMagic)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: bad magic 0x%08X (expected 0x%08X) - not a settings file",
-                       (unsigned)header.magic, (unsigned)kMagic);
+                       static_cast<unsigned>(header.magic), static_cast<unsigned>(kMagic));
         return false;
     }
 
@@ -362,7 +362,7 @@ bool Load(const uint8_t* data, size_t size)
     if (header.version != kVersion)
     {
         DEKI_LOG_ERROR("ProjectSettings::Load: file version %u, this engine reads %u; export the project again",
-                       (unsigned)header.version, (unsigned)kVersion);
+                       static_cast<unsigned>(header.version), static_cast<unsigned>(kVersion));
         return false;
     }
 
@@ -472,8 +472,8 @@ bool Load(const uint8_t* data, size_t size)
                 // leaving the remaining sections at their defaults.
                 if (offset + sizeof(uint16_t) > size)
                 {
-                    DEKI_LOG_WARNING("ProjectSettings::Load: truncated before package section %u of %u", (unsigned)mi,
-                                     (unsigned)packageCount);
+                    DEKI_LOG_WARNING("ProjectSettings::Load: truncated before package section %u of %u",
+                                     static_cast<unsigned>(mi), static_cast<unsigned>(packageCount));
                     break;
                 }
                 uint16_t sectionNameLen = 0;
@@ -483,7 +483,7 @@ bool Load(const uint8_t* data, size_t size)
                 if (offset + sectionNameLen + sizeof(uint32_t) > size)
                 {
                     DEKI_LOG_WARNING("ProjectSettings::Load: truncated in the name of package section %u of %u",
-                                     (unsigned)mi, (unsigned)packageCount);
+                                     static_cast<unsigned>(mi), static_cast<unsigned>(packageCount));
                     break;
                 }
                 std::string sectionName(reinterpret_cast<const char*>(data + offset), sectionNameLen);
@@ -497,7 +497,7 @@ bool Load(const uint8_t* data, size_t size)
                 if (sectionStart + payloadSize > size)
                 {
                     DEKI_LOG_WARNING("ProjectSettings::Load: package section '%s' is truncated (%u bytes declared)",
-                                     sectionName.c_str(), (unsigned)payloadSize);
+                                     sectionName.c_str(), static_cast<unsigned>(payloadSize));
                     break;  // truncated; bail
                 }
                 size_t sectionEnd = sectionStart + payloadSize;
@@ -519,7 +519,8 @@ bool Load(const uint8_t* data, size_t size)
                         ppm > 0.0f)
                     {
                         EngineSettings::Global().pixelsPerMeter = ppm;
-                        DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache", (double)ppm);
+                        DEKI_LOG_INTERNAL("ProjectSettings: applied pixelsPerMeter=%.3f to global cache",
+                                          static_cast<double>(ppm));
                     }
                 }
 #endif
@@ -574,7 +575,7 @@ bool Load(const uint8_t* data, size_t size)
                     for (int q = 0; q < meta->propertyCount; ++q)
                     {
                         const PropertyInfo& p = meta->properties[q];
-                        if (p.name && HashStringLen(p.name, (uint16_t)strlen(p.name)) == keyHash)
+                        if (p.name && HashStringLen(p.name, static_cast<uint16_t>(strlen(p.name))) == keyHash)
                         {
                             matched = &p;
                             break;
@@ -583,7 +584,7 @@ bool Load(const uint8_t* data, size_t size)
 
                     // Read the value bytes regardless of whether we matched
                     // (so we keep parsing the rest of the payload).
-                    PropertyType propType = (PropertyType)typeTag;
+                    PropertyType propType = static_cast<PropertyType>(typeTag);
                     switch (propType)
                     {
                         case PropertyType::Bool:
@@ -613,7 +614,7 @@ bool Load(const uint8_t* data, size_t size)
                             {
                                 if (propType == PropertyType::Int8)
                                 {
-                                    SetPropertyValue<int8_t>(inst, *matched, (int8_t)v);
+                                    SetPropertyValue<int8_t>(inst, *matched, static_cast<int8_t>(v));
                                 }
                                 else
                                 {
@@ -637,7 +638,7 @@ bool Load(const uint8_t* data, size_t size)
                             {
                                 if (propType == PropertyType::Int16)
                                 {
-                                    SetPropertyValue<int16_t>(inst, *matched, (int16_t)v);
+                                    SetPropertyValue<int16_t>(inst, *matched, static_cast<int16_t>(v));
                                 }
                                 else
                                 {
@@ -662,7 +663,7 @@ bool Load(const uint8_t* data, size_t size)
                             {
                                 if (propType == PropertyType::Int32)
                                 {
-                                    SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw);
+                                    SetPropertyValue<int32_t>(inst, *matched, static_cast<int32_t>(raw));
                                 }
                                 else if (propType == PropertyType::UInt32)
                                 {
@@ -695,9 +696,13 @@ bool Load(const uint8_t* data, size_t size)
                             {
                                 switch (matched->enumSize)
                                 {
-                                    case 1: SetPropertyValue<uint8_t>(inst, *matched, (uint8_t)raw); break;
-                                    case 2: SetPropertyValue<uint16_t>(inst, *matched, (uint16_t)raw); break;
-                                    default: SetPropertyValue<int32_t>(inst, *matched, (int32_t)raw); break;
+                                    case 1: SetPropertyValue<uint8_t>(inst, *matched, static_cast<uint8_t>(raw)); break;
+                                    case 2:
+                                        SetPropertyValue<uint16_t>(inst, *matched, static_cast<uint16_t>(raw));
+                                        break;
+                                    default:
+                                        SetPropertyValue<int32_t>(inst, *matched, static_cast<int32_t>(raw));
+                                        break;
                                 }
                             }
                             break;
@@ -719,7 +724,7 @@ bool Load(const uint8_t* data, size_t size)
                             }
                             if (matched && matched->type == propType)
                             {
-                                std::string s((const char*)(data + offset), slen);
+                                std::string s(reinterpret_cast<const char*>(data + offset), slen);
                                 SetPropertyValue<std::string>(inst, *matched, s);
                             }
                             offset += slen;
@@ -870,7 +875,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
     // The packageSettings chunk. Walk the registry; emit each section
     // with a payloadSize prefix so the runtime can skip unknown sections.
     const auto& sections = SettingsRegistry::Instance().GetAll();
-    uint16_t packageCount = (uint16_t)sections.size();
+    uint16_t packageCount = static_cast<uint16_t>(sections.size());
     Append(buf, &packageCount, sizeof(uint16_t));
 
     for (const auto& info : sections)
@@ -881,7 +886,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         }
 
         // sectionNameLen + sectionName
-        uint16_t snameLen = (uint16_t)strlen(info.sectionName);
+        uint16_t snameLen = static_cast<uint16_t>(strlen(info.sectionName));
         Append(buf, &snameLen, sizeof(uint16_t));
         Append(buf, info.sectionName, snameLen);
 
@@ -911,9 +916,9 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
                 continue;
             }
 
-            uint32_t keyHash = HashStringLen(prop.name, (uint16_t)strlen(prop.name));
+            uint32_t keyHash = HashStringLen(prop.name, static_cast<uint16_t>(strlen(prop.name)));
             Append(buf, &keyHash, sizeof(uint32_t));
-            buf.push_back((uint8_t)prop.type);
+            buf.push_back(static_cast<uint8_t>(prop.type));
 
             switch (prop.type)
             {
@@ -922,7 +927,9 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
                     buf.push_back(GetPropertyValue<bool>(info.instance, prop) ? 1 : 0);
                     break;
                 }
-                case PropertyType::Int8: buf.push_back((uint8_t)GetPropertyValue<int8_t>(info.instance, prop)); break;
+                case PropertyType::Int8:
+                    buf.push_back(static_cast<uint8_t>(GetPropertyValue<int8_t>(info.instance, prop)));
+                    break;
                 case PropertyType::UInt8: buf.push_back(GetPropertyValue<uint8_t>(info.instance, prop)); break;
                 case PropertyType::Int16:
                 {
@@ -982,7 +989,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
                 case PropertyType::String:
                 {
                     const std::string& s = GetPropertyValue<std::string>(info.instance, prop);
-                    uint16_t slen = (uint16_t)s.size();
+                    uint16_t slen = static_cast<uint16_t>(s.size());
                     Append(buf, &slen, 2);
                     if (slen > 0)
                     {
@@ -995,7 +1002,7 @@ std::vector<uint8_t> Write(Storage::Location assetStorage, int32_t targetFPS, co
         }
 
         // Patch in the payload size now that we know it.
-        uint32_t payloadSize = (uint32_t)(buf.size() - payloadStart);
+        uint32_t payloadSize = static_cast<uint32_t>(buf.size() - payloadStart);
         memcpy(buf.data() + payloadSizeOffset, &payloadSize, sizeof(uint32_t));
     }
 

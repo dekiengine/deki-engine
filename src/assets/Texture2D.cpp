@@ -9,6 +9,7 @@
 #include <deki/LogSystem.h>
 #include <deki/Engine.h>  // kRGB565BigEndian
 #include <cstring>
+#include <memory>
 
 namespace Deki
 {
@@ -139,13 +140,14 @@ Texture2D* Texture2D::Load(const char* file_path)
         uint64_t(sizeof(Texture2D::Header)) + uint64_t(header.dataSize) + uint64_t(header.metadataSize);
     if (file_size < 0 || uint64_t(file_size) < expected_size)
     {
-        DEKI_LOG_ERROR("File size mismatch. Expected: %llu, Got: %ld", (unsigned long long)expected_size, file_size);
+        DEKI_LOG_ERROR("File size mismatch. Expected: %llu, Got: %ld", static_cast<unsigned long long>(expected_size),
+                       file_size);
         fs->CloseFile(file);
         return nullptr;
     }
 
     // Read pixel data
-    uint8_t* pixelData = (uint8_t*)Deki::Memory::Allocate(header.dataSize, Deki::Memory::External);
+    uint8_t* pixelData = static_cast<uint8_t*>(Deki::Memory::Allocate(header.dataSize, Deki::Memory::External));
 
     if (!pixelData)
     {
@@ -166,12 +168,11 @@ Texture2D* Texture2D::Load(const char* file_path)
     fs->CloseFile(file);
 
     PixelsToMemoryOrder(header, pixelData);
-    Texture2D* texture = new Texture2D();
+    std::unique_ptr<Texture2D> texture(new Texture2D());
     if (!texture->LoadFromMemory(header, pixelData))
     {
         DEKI_LOG_ERROR("Failed to load texture from memory");
         Deki::Memory::Free(pixelData);
-        delete texture;
         return nullptr;
     }
 
@@ -181,7 +182,7 @@ Texture2D* Texture2D::Load(const char* file_path)
     DEKI_LOG_INTERNAL("Loaded texture: %s (%dx%d, %s)", file_path, texture->width, texture->height,
                       GetFormatName(texture->format));
 
-    return texture;
+    return texture.release();
 }
 #endif  // !DEKI_EDITOR
 
@@ -265,7 +266,7 @@ bool Texture2D::ValidateHeader(const Texture2D::Header& header)
     const uint64_t expectedDataSize = uint64_t(header.width) * uint64_t(header.height) * bytesPerPixel;
     if (uint64_t(header.dataSize) != expectedDataSize)
     {
-        DEKI_LOG_ERROR("Data size mismatch. Expected: %llu, Got: %u", (unsigned long long)expectedDataSize,
+        DEKI_LOG_ERROR("Data size mismatch. Expected: %llu, Got: %u", static_cast<unsigned long long>(expectedDataSize),
                        header.dataSize);
         return false;
     }

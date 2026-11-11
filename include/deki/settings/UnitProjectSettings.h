@@ -18,6 +18,7 @@
 namespace Deki
 {
 
+/// The Units section of the project settings: inspector units and world scale.
 DEKI_CATEGORY("Settings")
 DEKI_SETTINGS_SECTION("Units")
 class UnitProjectSettings : public Component

@@ -14,6 +14,7 @@
 namespace Deki
 {
 
+/// The Core section of the project settings: FPS cap and target frame rate.
 DEKI_CATEGORY("Settings")
 DEKI_SETTINGS_SECTION("Core")
 class CoreProjectSettings : public Component

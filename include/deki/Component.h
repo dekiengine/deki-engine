@@ -74,7 +74,8 @@ public:
           m_TypeInfo(nullptr),
           m_RefsResolved(false),
           m_HasAwoken(false),
-          m_HasStarted(false)
+          m_HasStarted(false),
+          m_Removed(false)
     {
     }
     virtual ~Component() = default;
@@ -121,6 +122,12 @@ public:
     bool HasAwoken() const { return m_HasAwoken; }
     bool HasStarted() const { return m_HasStarted; }
     void MarkAwoken() { m_HasAwoken = true; }
+
+    /// True once RemoveComponent() has been called and the component is waiting
+    /// for the end of the lifecycle phase to be deleted. It gets no more calls.
+    bool IsRemoved() const { return m_Removed; }
+    void MarkRemoved() { m_Removed = true; }
+
     void MarkStarted() { m_HasStarted = true; }
 
     // ========== Lifecycle methods for Play Mode ==========
@@ -199,6 +206,7 @@ protected:
     bool m_RefsResolved;
     bool m_HasAwoken;
     bool m_HasStarted;
+    bool m_Removed;
 };
 
 }  // namespace Deki

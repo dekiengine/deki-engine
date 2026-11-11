@@ -64,7 +64,7 @@ struct DekiReflectionAbi
 /// Debug and release builds may differ in layout (AllocContext carries file,
 /// function and line only with DEKI_ALLOC_CONTEXT_CAPTURE), so a debug engine
 /// with release packages is not supported.
-inline constexpr uint32_t kDekiReflectionAbiVersion = 23;
+inline constexpr uint32_t kDekiReflectionAbiVersion = 24;
 
 /// The values as compiled into whoever calls this.
 inline DekiReflectionAbi DekiCurrentReflectionAbi()
@@ -134,5 +134,5 @@ inline bool DekiReflectionAbiMatches(const DekiReflectionAbi& other, char* what,
 
 extern "C"
 {
-    typedef const DekiReflectionAbi* (*DekiGetReflectionAbiFunc)();
+    using DekiGetReflectionAbiFunc = const DekiReflectionAbi* (*)();
 }

@@ -61,7 +61,7 @@ void FPSCounter::EndFrame()
 
     m_TotalFrames++;
 
-    float avgFrameTime = (float)m_FrameTimeSum / (float)m_SamplesCollected;
+    float avgFrameTime = static_cast<float>(m_FrameTimeSum) / static_cast<float>(m_SamplesCollected);
     m_CurrentFps = 1000.0f / avgFrameTime;
 
     // Track min/max FPS (after we have enough samples for stability)
@@ -84,7 +84,7 @@ float FPSCounter::GetAverageFrameTime() const
     {
         return 0.0f;
     }
-    return (float)m_FrameTimeSum / (float)m_SamplesCollected;
+    return static_cast<float>(m_FrameTimeSum) / static_cast<float>(m_SamplesCollected);
 }
 
 void FPSCounter::Reset()

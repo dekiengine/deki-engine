@@ -16,6 +16,7 @@
 namespace Deki
 {
 
+/// Maps "path:type" keys to asset GUIDs with a binary search and no heap allocation.
 class AssetLookupTable
 {
 public:

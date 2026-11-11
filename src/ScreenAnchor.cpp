@@ -8,6 +8,44 @@ namespace Deki
 {
 
 ScreenAnchor* ScreenAnchor::s_First = nullptr;
+ScreenAnchor::Placer ScreenAnchor::s_Placers[ScreenAnchor::kMaxPlacers] = {};
+
+bool ScreenAnchor::AddPlacer(Placer placer)
+{
+    if (!placer)
+    {
+        return false;
+    }
+    Placer* free = nullptr;
+    for (Placer& slot : s_Placers)
+    {
+        if (slot == placer)
+        {
+            return true;
+        }
+        if (!slot && !free)
+        {
+            free = &slot;
+        }
+    }
+    if (!free)
+    {
+        return false;
+    }
+    *free = placer;
+    return true;
+}
+
+void ScreenAnchor::RemovePlacer(Placer placer)
+{
+    for (Placer& slot : s_Placers)
+    {
+        if (slot == placer)
+        {
+            slot = nullptr;
+        }
+    }
+}
 
 ScreenAnchor::ScreenAnchor()
 {
@@ -109,6 +147,14 @@ void ScreenAnchor::PlaceAll(const Scene* scene, const ICamera& camera, int scree
         if (owner->GetWorldX() != x || owner->GetWorldY() != y)
         {
             owner->SetWorldPosition(x, y);
+        }
+    }
+
+    for (Placer placer : s_Placers)
+    {
+        if (placer)
+        {
+            placer(scene, camera, screenWidth, screenHeight);
         }
     }
 #else

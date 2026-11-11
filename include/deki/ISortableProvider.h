@@ -23,6 +23,7 @@
 namespace Deki
 {
 
+/// Interface of a component whose object the 2D renderer sorts by GetSortingOrder().
 class ISortableProvider
 {
 public:

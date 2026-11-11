@@ -43,21 +43,30 @@ namespace
 {
 const FieldRef kTransformFields[] = {
 #ifdef DEKI_TRANSFORM_2D
-    { HashString("position"), (uint16_t)TransformField::Position, (uint8_t)PropertyType::Vector2, 0 },
-    { HashString("x"), (uint16_t)TransformField::X, (uint8_t)PropertyType::Float, 0 },
-    { HashString("y"), (uint16_t)TransformField::Y, (uint8_t)PropertyType::Float, 0 },
-    { HashString("rotation"), (uint16_t)TransformField::Rotation, (uint8_t)PropertyType::Float, 0 },
-    { HashString("scale"), (uint16_t)TransformField::Scale, (uint8_t)PropertyType::Vector2, 0 },
-    { HashString("scaleX"), (uint16_t)TransformField::ScaleX, (uint8_t)PropertyType::Float, 0 },
-    { HashString("scaleY"), (uint16_t)TransformField::ScaleY, (uint8_t)PropertyType::Float, 0 },
+    { HashString("position"), static_cast<uint16_t>(TransformField::Position),
+      static_cast<uint8_t>(PropertyType::Vector2), 0 },
+    { HashString("x"), static_cast<uint16_t>(TransformField::X), static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("y"), static_cast<uint16_t>(TransformField::Y), static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("rotation"), static_cast<uint16_t>(TransformField::Rotation),
+      static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("scale"), static_cast<uint16_t>(TransformField::Scale), static_cast<uint8_t>(PropertyType::Vector2),
+      0 },
+    { HashString("scaleX"), static_cast<uint16_t>(TransformField::ScaleX), static_cast<uint8_t>(PropertyType::Float),
+      0 },
+    { HashString("scaleY"), static_cast<uint16_t>(TransformField::ScaleY), static_cast<uint8_t>(PropertyType::Float),
+      0 },
 #ifdef DEKI_TRANSFORM_3D
-    { HashString("z"), (uint16_t)TransformField::Z, (uint8_t)PropertyType::Float, 0 },
-    { HashString("rotationX"), (uint16_t)TransformField::RotationX, (uint8_t)PropertyType::Float, 0 },
-    { HashString("rotationY"), (uint16_t)TransformField::RotationY, (uint8_t)PropertyType::Float, 0 },
-    { HashString("scaleZ"), (uint16_t)TransformField::ScaleZ, (uint8_t)PropertyType::Float, 0 },
+    { HashString("z"), static_cast<uint16_t>(TransformField::Z), static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("rotationX"), static_cast<uint16_t>(TransformField::RotationX),
+      static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("rotationY"), static_cast<uint16_t>(TransformField::RotationY),
+      static_cast<uint8_t>(PropertyType::Float), 0 },
+    { HashString("scaleZ"), static_cast<uint16_t>(TransformField::ScaleZ), static_cast<uint8_t>(PropertyType::Float),
+      0 },
 #endif
 #endif
-    { HashString("active"), (uint16_t)TransformField::Active, (uint8_t)PropertyType::Bool, 0 },
+    { HashString("active"), static_cast<uint16_t>(TransformField::Active), static_cast<uint8_t>(PropertyType::Bool),
+      0 },
 };
 
 const char* const kTransformFieldNames[] = {
@@ -90,11 +99,11 @@ const char* const* TransformFieldNames(int& outCount)
 const FieldRef* DekiVariableFieldRef(PropertyType type)
 {
     // Standalone values: offset 0, the caller's pointer IS the value.
-    static const FieldRef kFloat{ 0, 0, (uint8_t)PropertyType::Float, 0 };
-    static const FieldRef kBool{ 0, 0, (uint8_t)PropertyType::Bool, 0 };
-    static const FieldRef kString{ 0, 0, (uint8_t)PropertyType::String, 0 };
-    static const FieldRef kInt32{ 0, 0, (uint8_t)PropertyType::Int32, 0 };
-    static const FieldRef kVector2{ 0, 0, (uint8_t)PropertyType::Vector2, 0 };
+    static const FieldRef kFloat{ 0, 0, static_cast<uint8_t>(PropertyType::Float), 0 };
+    static const FieldRef kBool{ 0, 0, static_cast<uint8_t>(PropertyType::Bool), 0 };
+    static const FieldRef kString{ 0, 0, static_cast<uint8_t>(PropertyType::String), 0 };
+    static const FieldRef kInt32{ 0, 0, static_cast<uint8_t>(PropertyType::Int32), 0 };
+    static const FieldRef kVector2{ 0, 0, static_cast<uint8_t>(PropertyType::Vector2), 0 };
 
     switch (type)
     {

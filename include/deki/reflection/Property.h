@@ -651,13 +651,13 @@ namespace DekiRefl {
     public: \
         static constexpr const char* StaticInputPins[] = { __VA_ARGS__ }; \
         static constexpr int StaticInputPinCount = \
-            (int)(sizeof(StaticInputPins) / sizeof(StaticInputPins[0]));
+            static_cast<int>(sizeof(StaticInputPins) / sizeof(StaticInputPins[0]));
 
 #define DEKI_NODE_OUTPUTS(...) \
     public: \
         static constexpr const char* StaticOutputPins[] = { __VA_ARGS__ }; \
         static constexpr int StaticOutputPinCount = \
-            (int)(sizeof(StaticOutputPins) / sizeof(StaticOutputPins[0]));
+            static_cast<int>(sizeof(StaticOutputPins) / sizeof(StaticOutputPins[0]));
 
 // Output pin count set at edit time by a DEKI_EXPORT property of this node:
 // an Int32 gives its value, an Array its element count. Use instead of

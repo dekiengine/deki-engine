@@ -3,8 +3,12 @@
 #include <deki/providers/IFileSystem.h>
 #include <string>
 
-/// The file system of a game that runs as a program on an operating system
-/// (the desktop build, a Linux handheld), on the C standard library. Maps
+namespace Deki
+{
+
+/// The file system of a game that runs as a program on an operating system.
+///
+/// For the desktop build and Linux handhelds, on the C standard library. Maps
 /// the device's virtual mounts to folders beside the program, on Windows,
 /// Linux and macOS alike. The hosted entry (src/hosted/HostedMain.cpp) sets it
 /// before the engine starts.
@@ -13,10 +17,6 @@
 /// export, in ./flash/) is read and never written, and the files the game
 /// writes go to ./userdata/, read from there when the game's data has no file
 /// of that name.
-
-namespace Deki
-{
-
 class HostFileSystem : public IFileSystem
 {
 private:

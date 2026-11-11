@@ -32,6 +32,7 @@
 namespace Deki
 {
 
+/// Component metadata and field tables, by type id and, in the editor, by name.
 class COMPONENT_REGISTRY_API ComponentRegistry
 {
 public:

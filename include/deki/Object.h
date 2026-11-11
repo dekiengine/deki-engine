@@ -24,6 +24,7 @@ namespace Deki
 {
 
 class Object;
+class LifecycleManager;
 
 // Engine-internal entry points (src/ObjectInternal.h): the scene loaders and
 // the editor create components from a file's type name or a pre-built
@@ -60,6 +61,7 @@ struct WorldTransform
 };
 #endif
 
+/// A node in the scene: a name, components, children and, in most builds, a transform.
 class Object
 {
 private:
@@ -110,7 +112,8 @@ private:
     bool m_EditorOnly = false;  // not serialized
     bool m_Persistent = false;  // survives scene changes
 
-    // Editor-only scene-instance flags, present in every build so the class
+    // Scene-instance flags for the editor and the pending-destroy flag, present
+    // in every build so the class
     // layout does not depend on DEKI_EDITOR. This must hold: package DLLs read
     // m_Parent and m_Children below through inline GetParent()/GetChildren()/
     // GetComponent<T>(), and an editor-only member here would shift their
@@ -123,7 +126,8 @@ private:
     // carries none of it, not even a pointer.
     static constexpr uint8_t kEditorFlagSceneInstance = 1u << 0;
     static constexpr uint8_t kEditorFlagPartOfInstance = 1u << 1;
-    uint8_t m_EditorFlags = 0;
+    static constexpr uint8_t kFlagPendingDestroy = 1u << 2;
+    uint8_t m_Flags = 0;
 
     Scene* m_OwnerScene = nullptr;
 
@@ -174,6 +178,10 @@ public:
     void SetOwnerScene(Scene* scene) { m_OwnerScene = scene; }
     Scene* GetOwnerScene() const { return m_OwnerScene; }
 
+    /// True from Scene::DestroyDekiObject() until the object is deleted at the
+    /// end of the lifecycle phase. It reads as inactive in the meantime.
+    bool IsPendingDestroy() const { return (m_Flags & kFlagPendingDestroy) != 0; }
+
 #ifdef DEKI_EDITOR
     // Scene instance support. Editor-only declarations leave the layout alone:
     // Object has no virtual functions (asserted in Object.cpp), so non-virtual
@@ -182,17 +190,17 @@ public:
     // The flag reads stay inline because HierarchyPanel calls IsSceneInstance()
     // per object per frame. The string accessors are out of line because their
     // storage is the side table.
-    bool IsSceneInstance() const { return (m_EditorFlags & kEditorFlagSceneInstance) != 0; }
-    bool IsPartOfInstance() const { return (m_EditorFlags & kEditorFlagPartOfInstance) != 0; }
+    bool IsSceneInstance() const { return (m_Flags & kEditorFlagSceneInstance) != 0; }
+    bool IsPartOfInstance() const { return (m_Flags & kEditorFlagPartOfInstance) != 0; }
     void SetPartOfInstance(bool value)
     {
         if (value)
         {
-            m_EditorFlags |= kEditorFlagPartOfInstance;
+            m_Flags |= kEditorFlagPartOfInstance;
         }
         else
         {
-            m_EditorFlags &= static_cast<uint8_t>(~kEditorFlagPartOfInstance);
+            m_Flags &= static_cast<uint8_t>(~kEditorFlagPartOfInstance);
         }
     }
     /// Empty when this object is not a scene instance. The reference is valid
@@ -335,10 +343,18 @@ public:
         }
         component->SetOwner(this);
         m_Components.push_back(component);
+        ComponentsChanged();
         return component;
     }
 
 private:
+    friend class Scene;
+    friend class LifecycleManager;
+    void MarkPendingDestroy() { m_Flags |= kFlagPendingDestroy; }
+    // Tells the scene its list of active components is out of date.
+    void ComponentsChanged();
+    void RemoveComponentNow(Component* comp);
+
     // Not part of the script API: reached through Deki::Internal (see the top
     // of this file). A script that needs a component names its type.
     friend void Internal::AttachComponent(Object& object, Component* component);
@@ -346,6 +362,7 @@ private:
     {
         component->SetOwner(this);
         m_Components.push_back(component);
+        ComponentsChanged();
     }
 #ifdef DEKI_EDITOR
     friend Component* Internal::AddComponentByName(Object& object, const std::string& typeName);
@@ -441,30 +458,19 @@ public:
     template <typename T>
     void RemoveComponent()
     {
-        for (auto it = m_Components.begin(); it != m_Components.end(); ++it)
+        for (Component* comp : m_Components)
         {
-            if ((*it)->GetType() == TypeId<T>())
+            if (comp->GetType() == TypeId<T>() && !comp->IsRemoved())
             {
-                delete *it;
-                m_Components.erase(it);
+                RemoveComponent(comp);
                 break;
             }
         }
     }
 
-    /// Removes and deletes `comp`.
-    void RemoveComponent(Component* comp)
-    {
-        for (auto it = m_Components.begin(); it != m_Components.end(); ++it)
-        {
-            if (*it == comp)
-            {
-                delete *it;
-                m_Components.erase(it);
-                break;
-            }
-        }
-    }
+    /// Removes and deletes `comp`. From a component's Awake, Start or Update
+    /// it gets no more calls and is deleted when that phase ends.
+    void RemoveComponent(Component* comp);
 
     const std::vector<Component*>& GetComponents() const { return m_Components; }
 

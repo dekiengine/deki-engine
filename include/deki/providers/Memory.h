@@ -89,6 +89,7 @@ constexpr uint32_t HashName(const char* s)
     return h;
 }
 
+/// Bytes allocated through the engine right now, in total and by memory region.
 struct MemoryStats
 {
     uint32_t totalAllocated;
@@ -334,6 +335,14 @@ public:
     /// Copies site `index` (0 to GetSiteCount() - 1) to `out`. False for an
     /// index out of range.
     static bool GetSite(uint32_t index, MemorySite& out);
+
+    /// Copies every site's function and file names into memory of the
+    /// table's own. A site's names are string literals in the code that
+    /// allocated; call this before unloading a library that may have
+    /// allocated through the engine (an editor reloading a package), or the
+    /// next report reads freed code. Costs nothing until it is called; a
+    /// board, which never unloads code, never needs it.
+    static void KeepSiteNames();
 
     /// Rows in the site table: 63 sites and an overflow row. The table is
     /// 1.8 KB on a 32-bit board, from the heap's malloc (internal RAM on an

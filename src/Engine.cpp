@@ -287,6 +287,8 @@ void Engine::Update(float deltaMs)
     // Poll and dispatch input first, so this frame's logic sees it.
     if (m_Host.pollInput && m_InputSystem)
     {
+        // Dispatch walks the scene and a click may destroy what it walks.
+        LifecycleManager::DeferredDestroys deferred(*m_LifecycleManager);
         m_InputSystem->Update();
     }
 
@@ -364,16 +366,16 @@ void Engine::Update(float deltaMs)
         uint32_t totalFrames = m_FpsCounter.GetTotalFrames();
         if (totalFrames % 120 == 0)
         {
-            int fpsInt = (int)m_FpsCounter.GetFPS();
-            int fpsFrac = (int)((m_FpsCounter.GetFPS() - fpsInt) * 100);
-            int minFpsInt = (int)m_FpsCounter.GetMinFPS();
-            int maxFpsInt = (int)m_FpsCounter.GetMaxFPS();
-            int frameTimeInt = (int)m_FpsCounter.GetAverageFrameTime();
+            int fpsInt = static_cast<int>(m_FpsCounter.GetFPS());
+            int fpsFrac = static_cast<int>((m_FpsCounter.GetFPS() - fpsInt) * 100);
+            int minFpsInt = static_cast<int>(m_FpsCounter.GetMinFPS());
+            int maxFpsInt = static_cast<int>(m_FpsCounter.GetMaxFPS());
+            int frameTimeInt = static_cast<int>(m_FpsCounter.GetAverageFrameTime());
 
             DEKI_LOG_INTERNAL(
                 "Frame %u - FPS: %d.%02d (min: %d, max: %d, time: %d ms) | update: %u render: %u present: %u",
-                totalFrames, fpsInt, fpsFrac, minFpsInt, maxFpsInt, frameTimeInt, (unsigned)(t1 - t0),
-                (unsigned)(t2 - t1), (unsigned)(t3 - t2));
+                totalFrames, fpsInt, fpsFrac, minFpsInt, maxFpsInt, frameTimeInt, static_cast<unsigned>(t1 - t0),
+                static_cast<unsigned>(t2 - t1), static_cast<unsigned>(t3 - t2));
         }
     }
 }
@@ -610,7 +612,7 @@ void Engine::ProcessLifecycle()
         if (currentScene != nullptr)
         {
             DEKI_LOG_INTERNAL("ProcessLifecycle: Scene changed during Start! newScene=%p, objects=%zu",
-                              (void*)currentScene, currentScene->GetObjects().size());
+                              static_cast<void*>(currentScene), currentScene->GetObjects().size());
             m_LifecycleManager->ProcessInternalAwake(currentScene);
             m_LifecycleManager->ProcessAwake(currentScene);
             m_LifecycleManager->ProcessStart(currentScene);
@@ -926,7 +928,7 @@ bool Engine::SizeFramebufferToDisplay()
     if (width <= 0 || height <= 0)
     {
         DEKI_LOG_ERROR("Display '%s' reports no size (%dx%d); nothing can be rendered", m_DisplayName.c_str(),
-                       (int)width, (int)height);
+                       static_cast<int>(width), static_cast<int>(height));
         return false;
     }
     const ColorFormat format = m_Display->GetColorFormat();
@@ -934,14 +936,14 @@ bool Engine::SizeFramebufferToDisplay()
     {
         DEKI_LOG_ERROR("The %dx%d framebuffer (format %d) for display '%s' needs %u bytes, which could "
                        "not be allocated; nothing will be rendered",
-                       (int)width, (int)height, (int)format, m_DisplayName.c_str(),
-                       (unsigned)FrameBufferBytes(format, width, height));
+                       static_cast<int>(width), static_cast<int>(height), static_cast<int>(format),
+                       m_DisplayName.c_str(), static_cast<unsigned>(FrameBufferBytes(format, width, height)));
         return false;
     }
     m_NoFramebufferLogged = false;
     m_FramesWithoutFramebuffer = 0;
-    DEKI_LOG_INTERNAL("DekiEngine: framebuffer %dx%d, format %d, from display '%s'", (int)width, (int)height,
-                      (int)format, m_DisplayName.c_str());
+    DEKI_LOG_INTERNAL("DekiEngine: framebuffer %dx%d, format %d, from display '%s'", static_cast<int>(width),
+                      static_cast<int>(height), static_cast<int>(format), m_DisplayName.c_str());
     return true;
 }
 

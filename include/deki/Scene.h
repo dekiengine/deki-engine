@@ -8,6 +8,7 @@
 
 #include <deki/Object.h>
 #include <deki/Component.h>
+#include <deki/providers/Buffer.h>
 #include <deki/Export.h>  // DEKI_ENGINE_API - NOT Engine.h, which includes us back
 
 #ifdef DEKI_EDITOR
@@ -83,7 +84,16 @@ public:
     void InvalidateComponentsCache() { m_ComponentsCacheDirty = true; }
 
     Object* CreateDekiObject(const std::string& name = "DekiObject");
+
+    /// Deletes `dekiObject` and its children. ObjectRefs to them read as empty
+    /// from this call on. From a component's Awake, Start or Update the object
+    /// stops running at once and its memory stays valid until that phase
+    /// ends, so it is safe to destroy any object, the caller's own included.
+    /// A raw pointer you kept to it is yours to drop.
     void DestroyDekiObject(Object* dekiObject);
+
+    /// The first object with this name, or this id, anywhere in the scene.
+    /// An object being destroyed, and everything under it, is not found.
     Object* FindDekiObject(const std::string& name);
     Object* FindDekiObject(uint32_t id);
 
@@ -219,12 +229,18 @@ private:
     uint32_t m_NextDekiObjectId;
     bool m_IsLoaded = false;
 
-    // The loaded bytes, kept for Instantiate.
-    std::vector<uint8_t> m_SceneData;
+    // The loaded bytes, kept for Instantiate. Only Instantiate reads them
+    // again, so they live in external RAM where the board has it.
+    Deki::Buffer<uint8_t> m_SceneData;
+    bool KeepSceneData(size_t size);
 
     void RebuildComponentsCache();
 
     void ClearScene();
+
+    // Unlinks and deletes `obj`. `scene` is null for a persistent object.
+    friend class LifecycleManager;
+    static void FinishDestroy(Scene* scene, Object* obj);
 
 #ifdef DEKI_EDITOR
     // Helpers for instance expand/collapse and overrides.

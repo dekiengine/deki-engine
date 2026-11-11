@@ -79,7 +79,21 @@ public:
     /// editor calls it for the screen the Play view shows.
     static void PlaceAll(const Scene* scene, const ICamera& camera, int screenWidth, int screenHeight);
 
+    /// Something else that places objects from the camera before each frame,
+    /// such as a Tiled object layer with parallax. PlaceAll calls it after
+    /// the anchors, with the same arguments, wherever a frame is drawn: the
+    /// game, the Play view and the editor's previews.
+    using Placer = void (*)(const Scene* scene, const ICamera& camera, int screenWidth, int screenHeight);
+
+    /// Adds a placer; one already added is not added twice. False when the
+    /// list is full (kMaxPlacers). Remove it before the code it points at
+    /// is unloaded.
+    static bool AddPlacer(Placer placer);
+    static void RemovePlacer(Placer placer);
+    static constexpr int kMaxPlacers = 8;
+
 private:
+    static Placer s_Placers[kMaxPlacers];
     // Every live ScreenAnchor, linked through the instances themselves so
     // registering one allocates nothing.
     static ScreenAnchor* s_First;

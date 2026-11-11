@@ -27,6 +27,7 @@ static constexpr char kDpackMagic[4] = { 'D', 'P', 'A', 'K' };
 static constexpr uint32_t kDpackVersion = 1;
 
 #pragma pack(push, 1)
+/// Header at the start of a pack file.
 struct DPackHeader
 {
     char magic[4];
@@ -35,6 +36,7 @@ struct DPackHeader
     uint32_t reserved;
 };
 
+/// One asset in a pack file's table: GUID, type name, offset and size.
 struct DPackEntry
 {
     char guid[37];
@@ -48,13 +50,14 @@ struct DPackEntry
 static_assert(sizeof(DPackHeader) == 16, "DPackHeader must be 16 bytes");
 static_assert(sizeof(DPackEntry) == 68, "DPackEntry must be 68 bytes");
 
-// A pack file loaded into memory.
+/// A pack file loaded into memory.
 struct LoadedPack
 {
     uint8_t* data;  // the whole file
     size_t dataSize;
     uint32_t entryCount;
 
+    /// One asset in a loaded pack: its bytes and type name.
     struct AssetInfo
     {
         const uint8_t* ptr;  // into data
@@ -66,8 +69,8 @@ struct LoadedPack
     std::unordered_map<std::string, AssetInfo> assets;
 };
 
-// One pack_index.bin entry: which pack file holds an asset.
 #pragma pack(push, 1)
+/// One pack_index.bin entry: which pack file holds an asset.
 struct PackIndexEntry
 {
     char guid[37];
@@ -77,6 +80,7 @@ struct PackIndexEntry
 #pragma pack(pop)
 static_assert(sizeof(PackIndexEntry) == 88, "PackIndexEntry must be 88 bytes");
 
+/// Finds which pack file holds an asset and loads pack files into memory.
 class DEKI_PACK_API AssetPackReader
 {
 public:

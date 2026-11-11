@@ -8,6 +8,7 @@
 namespace Deki
 {
 
+/// The type-erased part of ObjectRef, which the engine uses.
 struct ObjectRefBase
 {
     uint32_t id = 0;

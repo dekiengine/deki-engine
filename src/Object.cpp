@@ -1,5 +1,6 @@
 #include <deki/Object.h>
 #include <deki/Engine.h>
+#include "LifecycleManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -121,7 +122,7 @@ void Object::SetSourceSceneGuid(const std::string& guid)
     // The flag mirrors "guid is non-empty"; IsSceneInstance() reads the flag.
     if (guid.empty())
     {
-        m_EditorFlags &= static_cast<uint8_t>(~kEditorFlagSceneInstance);
+        m_Flags &= static_cast<uint8_t>(~kEditorFlagSceneInstance);
         auto& table = EditorInstanceTable();
         auto it = table.find(this);
         if (it != table.end())
@@ -136,7 +137,7 @@ void Object::SetSourceSceneGuid(const std::string& guid)
         return;
     }
 
-    m_EditorFlags |= kEditorFlagSceneInstance;
+    m_Flags |= kEditorFlagSceneInstance;
     EditorInstanceTable()[this].sourceSceneGuid = guid;
 }
 
@@ -204,6 +205,13 @@ Object::~Object()
     EditorInstanceTable().erase(this);
 #endif
 
+    // Freed by something else first (its parent, its scene): the queue must
+    // not delete it again.
+    if (IsPendingDestroy())
+    {
+        Engine::GetInstance().GetLifecycleManager()->ForgetDeferred(this);
+    }
+
     if (m_Parent)
     {
         m_Parent->RemoveChild(this);
@@ -220,12 +228,46 @@ Object::~Object()
     // Delete all components
     for (auto* comp : m_Components)
     {
+        if (comp->IsRemoved())
+        {
+            Engine::GetInstance().GetLifecycleManager()->ForgetDeferred(comp);
+        }
 #ifdef DEKI_EDITOR
         Internal::ForgetComponentData(comp);
 #endif
         delete comp;
     }
     m_Components.clear();
+}
+
+void Object::ComponentsChanged()
+{
+    if (m_OwnerScene)
+    {
+        m_OwnerScene->InvalidateComponentsCache();
+    }
+}
+
+void Object::RemoveComponent(Component* comp)
+{
+    if (!comp || comp->IsRemoved() || std::find(m_Components.begin(), m_Components.end(), comp) == m_Components.end())
+    {
+        return;
+    }
+    if (!Engine::GetInstance().GetLifecycleManager()->DeferRemoval(comp))
+    {
+        RemoveComponentNow(comp);
+    }
+}
+
+void Object::RemoveComponentNow(Component* comp)
+{
+    m_Components.erase(std::remove(m_Components.begin(), m_Components.end(), comp), m_Components.end());
+#ifdef DEKI_EDITOR
+    Internal::ForgetComponentData(comp);
+#endif
+    delete comp;
+    ComponentsChanged();
 }
 
 // Hierarchy management implementations
@@ -419,7 +461,7 @@ bool Object::IsActiveInHierarchy() const
     // Walk up without recursing: one frame, no call per ancestor.
     for (const Object* o = this; o; o = o->m_Parent)
     {
-        if (!o->m_Active)
+        if (!o->m_Active || o->IsPendingDestroy())
         {
             return false;
         }

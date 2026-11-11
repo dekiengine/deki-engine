@@ -33,8 +33,8 @@ void PlatformSetupComponent::Start()
     for (size_t i = 0; i < setupComponents.size(); i++)
     {
         SetupComponent* sc = setupComponents[i].Get();
-        DEKI_LOG_INTERNAL("  [%zu] id=%u ptr=%p name=%s", i, (unsigned)setupComponents[i].id, (void*)sc,
-                          sc ? sc->GetSetupName() : "NULL");
+        DEKI_LOG_INTERNAL("  [%zu] id=%u ptr=%p name=%s", i, static_cast<unsigned>(setupComponents[i].id),
+                          static_cast<void*>(sc), sc ? sc->GetSetupName() : "NULL");
     }
 
     DEKI_LOG_INTERNAL("  startup_scene='%s'", ProjectSettings::GetStartupScene());
@@ -74,7 +74,7 @@ void PlatformSetupComponent::StartNextSetup()
     }
 
     DEKI_LOG_INTERNAL("Running '%s' (%d/%zu)", setupComp->GetSetupName(), m_CurrentIndex + 1,
-                      (int)setupComponents.size());
+                      static_cast<int>(setupComponents.size()));
 
     setupComp->Setup([this](bool success) { OnSetupComplete(success); });
 }

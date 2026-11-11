@@ -83,8 +83,8 @@ constexpr size_t FrameBufferBytes(ColorFormat format, int width, int height)
     return 0;
 }
 
-// Engine settings, loaded from the project config. Global() reads them
-// without an initialised Engine.
+/// Engine settings, loaded from the project config. Global() reads them
+/// without an initialised Engine.
 struct DEKI_ENGINE_API EngineSettings
 {
     // Units the inspector shows. Display only: storage, serialization,
@@ -103,9 +103,9 @@ struct DEKI_ENGINE_API EngineSettings
     static EngineSettings& Global();
 };
 
-// How the engine is hosted. A device runs everything itself; the editor owns
-// the providers, input, presenting and the frame loop and only asks the
-// engine for lifecycle + render. Both run the same loop with different flags.
+/// How the engine is hosted. A device runs everything itself; the editor owns
+/// the providers, input, presenting and the frame loop and only asks the
+/// engine for lifecycle + render. Both run the same loop with different flags.
 struct DEKI_ENGINE_API EngineHost
 {
     bool initializeProviders = true;  // FileSystem, ProjectSettings, Memory in Initialize()

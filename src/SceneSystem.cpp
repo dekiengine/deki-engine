@@ -11,6 +11,8 @@
 #include <deki/providers/IDisplay.h>
 #include <deki/providers/Memory.h>
 
+#include <algorithm>
+
 namespace Deki
 {
 
@@ -57,7 +59,7 @@ void SceneSystem::Update(uint32_t deltaTime)
 
 void SceneSystem::SetRootScene(Scene* scene, bool takeOwnership)
 {
-    DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: scene=%p, objects=%zu, takeOwnership=%d", (void*)scene,
+    DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: scene=%p, objects=%zu, takeOwnership=%d", static_cast<void*>(scene),
                       scene ? scene->GetObjects().size() : 0, takeOwnership);
 
     // Queue old scene for deferred deletion (instead of immediate delete).
@@ -65,7 +67,8 @@ void SceneSystem::SetRootScene(Scene* scene, bool takeOwnership)
     // Start()/Update() while code is still executing on the old scene.
     if (m_RootScene && m_RootScene != scene && m_OwnsRootScene)
     {
-        DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: Queuing old scene %p for deferred deletion", (void*)m_RootScene);
+        DEKI_LOG_INTERNAL("SceneSystem::SetRootScene: Queuing old scene %p for deferred deletion",
+                          static_cast<void*>(m_RootScene));
         m_PendingDeletion.push_back(m_RootScene);
     }
 
@@ -181,6 +184,12 @@ void SceneSystem::MarkPersistent(Object* obj)
 
     // Add to persistent storage
     m_PersistentObjects.push_back(obj);
+}
+
+void SceneSystem::ForgetPersistent(Object* obj)
+{
+    m_PersistentObjects.erase(std::remove(m_PersistentObjects.begin(), m_PersistentObjects.end(), obj),
+                              m_PersistentObjects.end());
 }
 
 void SceneSystem::ClearPersistentObjects(bool deleteObjects)

@@ -16,6 +16,7 @@
 namespace Deki
 {
 
+/// Reference from one node-graph node to another in the same graph, by its id.
 struct NodeRef
 {
     uint32_t targetId = 0;

@@ -12,6 +12,7 @@
 #include <deki/LogSystem.h>
 #include <deki/profiling/Profiler.h>
 
+#include <algorithm>
 #include <unordered_set>
 #include <cstdio>
 #include <vector>
@@ -98,6 +99,65 @@ static void GetProfileName(char* buffer, size_t size, Component* component, cons
     }
 }
 
+bool LifecycleManager::DeferDestroy(Object* object)
+{
+    if (m_DeferDepth == 0)
+    {
+        return false;
+    }
+    m_DestroyedObjects.push_back(object);
+    return true;
+}
+
+bool LifecycleManager::DeferRemoval(Component* component)
+{
+    if (m_DeferDepth == 0)
+    {
+        return false;
+    }
+    component->MarkRemoved();
+    m_RemovedComponents.push_back(component);
+    return true;
+}
+
+void LifecycleManager::ForgetDeferred(const Object* object)
+{
+    m_DestroyedObjects.erase(std::remove(m_DestroyedObjects.begin(), m_DestroyedObjects.end(), object),
+                             m_DestroyedObjects.end());
+}
+
+void LifecycleManager::ForgetDeferred(const Component* component)
+{
+    m_RemovedComponents.erase(std::remove(m_RemovedComponents.begin(), m_RemovedComponents.end(), component),
+                              m_RemovedComponents.end());
+}
+
+void LifecycleManager::EndDeferring()
+{
+    // Still deferring while these run: a destructor that destroys something
+    // adds to the lists instead of freeing under this loop.
+    if (m_DeferDepth == 1)
+    {
+        while (!m_RemovedComponents.empty() || !m_DestroyedObjects.empty())
+        {
+            if (!m_RemovedComponents.empty())
+            {
+                Component* component = m_RemovedComponents.back();
+                m_RemovedComponents.pop_back();
+                component->GetOwner()->RemoveComponentNow(component);
+            }
+            else
+            {
+                Object* object = m_DestroyedObjects.back();
+                m_DestroyedObjects.pop_back();
+                object->m_Flags &= static_cast<uint8_t>(~Object::kFlagPendingDestroy);
+                Scene::FinishDestroy(object->GetOwnerScene(), object);
+            }
+        }
+    }
+    --m_DeferDepth;
+}
+
 void LifecycleManager::ProcessInternalAwake(Scene* scene)
 {
     DEKI_PROFILE_SCOPE_N("ProcessInternalAwake");
@@ -105,6 +165,7 @@ void LifecycleManager::ProcessInternalAwake(Scene* scene)
     {
         return;
     }
+    DeferredDestroys deferred(*this);
 
     char profileName[128];
 
@@ -120,7 +181,8 @@ void LifecycleManager::ProcessInternalAwake(Scene* scene)
     for (auto* component : snapshot)
     {
         Object* owner = component->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !component->HasAwoken() && !component->HasRefsResolved())
+        if (owner && !component->IsRemoved() && owner->IsActiveInHierarchy() && !component->HasAwoken() &&
+            !component->HasRefsResolved())
         {
             // Profile with component name: "TestComponent.InternalAwake"
             if (s_ProfileBegin)
@@ -150,6 +212,7 @@ void LifecycleManager::ProcessAwake(Scene* scene)
     {
         return;
     }
+    DeferredDestroys deferred(*this);
 
     char profileName[128];
 
@@ -161,7 +224,7 @@ void LifecycleManager::ProcessAwake(Scene* scene)
     for (auto* component : snapshot)
     {
         Object* owner = component->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !component->HasAwoken())
+        if (owner && !component->IsRemoved() && owner->IsActiveInHierarchy() && !component->HasAwoken())
         {
             // Profile with component name: "TestComponent.Awake"
             if (s_ProfileBegin)
@@ -190,6 +253,7 @@ void LifecycleManager::ProcessStart(Scene* scene)
     {
         return;
     }
+    DeferredDestroys deferred(*this);
 
     char profileName[128];
 
@@ -201,7 +265,7 @@ void LifecycleManager::ProcessStart(Scene* scene)
     for (auto* component : snapshot)
     {
         Object* owner = component->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && !component->HasStarted())
+        if (owner && !component->IsRemoved() && owner->IsActiveInHierarchy() && !component->HasStarted())
         {
             // Profile with component name: "TestComponent.Start"
             if (s_ProfileBegin)
@@ -230,6 +294,7 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
     {
         return;
     }
+    DeferredDestroys deferred(*this);
 
     char profileName[128];
 
@@ -251,7 +316,7 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
             continue;
         }
         Object* owner = component->GetOwner();
-        if (owner && owner->IsActiveInHierarchy() && component->HasStarted())
+        if (owner && !component->IsRemoved() && owner->IsActiveInHierarchy() && component->HasStarted())
         {
             // Profile with component name: "TestComponent.Update"
             if (s_ProfileBegin)
@@ -277,14 +342,14 @@ void LifecycleManager::ProcessUpdate(Scene* scene)
 // runtime ticks component physics identically to play-in-editor.
 static void RuntimeUpdateRecursive(Object* obj, float deltaTime)
 {
-    if (!obj)
+    if (!obj || obj->IsPendingDestroy())
     {
         return;
     }
 
     for (Component* comp : obj->GetComponents())
     {
-        if (comp->NeedsRuntimeUpdate())
+        if (comp->NeedsRuntimeUpdate() && !comp->IsRemoved())
         {
             if (LifecycleManager::s_ProfileBegin)
             {
@@ -314,6 +379,7 @@ void LifecycleManager::ProcessRuntimeUpdate(Scene* scene, float deltaTime)
     {
         return;
     }
+    DeferredDestroys deferred(*this);
 
     for (Object* obj : scene->GetObjects())
     {

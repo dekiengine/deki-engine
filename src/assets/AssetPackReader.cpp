@@ -76,8 +76,8 @@ bool AssetPackReader::LoadPackIndex(const char* path)
         {
             // A short read is an error: reporting success with the declared
             // count would make a truncated index look healthy.
-            DEKI_LOG_ERROR("[PACK] Pack index '%s' is truncated: %u of %u entries readable", path, (unsigned)i,
-                           (unsigned)entryCount);
+            DEKI_LOG_ERROR("[PACK] Pack index '%s' is truncated: %u of %u entries readable", path,
+                           static_cast<unsigned>(i), static_cast<unsigned>(entryCount));
             fs->CloseFile(file);
             m_GuidToPackPath.clear();
             return false;

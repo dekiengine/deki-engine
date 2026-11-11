@@ -73,6 +73,9 @@ public:
 
     const std::vector<Object*>& GetPersistentObjects() const { return m_PersistentObjects; }
 
+    /// Takes `obj` off the persistent list, because it is being deleted.
+    void ForgetPersistent(Object* obj);
+
     /// Empties the persistent list, deleting the objects when `deleteObjects`.
     /// The editor calls it when play mode ends.
     void ClearPersistentObjects(bool deleteObjects = true);

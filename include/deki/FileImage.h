@@ -27,6 +27,7 @@
 namespace Deki
 {
 
+/// Read-only pack of a game's files in one block of bytes, used where it lies.
 class DEKI_ENGINE_API FileImage
 {
 public:

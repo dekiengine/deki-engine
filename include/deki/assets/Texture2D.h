@@ -23,6 +23,7 @@
 namespace Deki
 {
 
+/// An image: width, height, format, pixels and its .dtex file header.
 class Texture2D
 {
 public:

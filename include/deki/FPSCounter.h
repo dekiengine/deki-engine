@@ -8,6 +8,7 @@
 namespace Deki
 {
 
+/// Measures the frame rate the engine reaches, averaged over recent frames.
 class FPSCounter
 {
 private:

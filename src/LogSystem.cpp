@@ -40,7 +40,7 @@ void LogSystem::Initialize()
     // the cost of unbuffered I/O, which is high over serial on ESP32.
     // The size MUST be > 0 for _IOLBF/_IOFBF: MSVC's CRT fast-fails
     // (0xC0000409) on size 0. BUFSIZ is valid everywhere.
-    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+    setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
 #endif
 }
 

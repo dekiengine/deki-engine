@@ -23,6 +23,7 @@
 namespace Deki
 {
 
+/// Interface of a component whose clip rectangle the 2D renderer applies while drawing it.
 class IClipProvider
 {
 public:

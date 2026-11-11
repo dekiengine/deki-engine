@@ -151,7 +151,7 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
     // Negative fixint (0xe0-0xff)
     if ((b & 0xe0) == 0xe0)
     {
-        value = (int8_t)b;
+        value = static_cast<int8_t>(b);
         return true;
     }
     // uint8
@@ -195,7 +195,7 @@ bool SceneMsgPackParser::ReadInt(int32_t& value)
         {
             return false;
         }
-        value = (int8_t)v;
+        value = static_cast<int8_t>(v);
         return true;
     }
     // int16
@@ -238,7 +238,7 @@ bool SceneMsgPackParser::ReadFloat(float& value)
         int32_t intVal;
         if (ReadInt(intVal))
         {
-            value = (float)intVal;
+            value = static_cast<float>(intVal);
             return true;
         }
         return false;
@@ -276,7 +276,7 @@ bool SceneMsgPackParser::ReadFloat(float& value)
         }
         double dval;
         memcpy(&dval, &bits, sizeof(double));
-        value = (float)dval;
+        value = static_cast<float>(dval);
         return true;
     }
 
@@ -317,7 +317,7 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
     if ((b & 0xe0) == 0xa0)
     {
         length = b & 0x1f;
-        str = (const char*)(m_Data + m_Pos);
+        str = reinterpret_cast<const char*>(m_Data + m_Pos);
         m_Pos += length;
         return m_Pos <= m_Size;
     }
@@ -330,7 +330,7 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
             return false;
         }
         length = len;
-        str = (const char*)(m_Data + m_Pos);
+        str = reinterpret_cast<const char*>(m_Data + m_Pos);
         m_Pos += length;
         return m_Pos <= m_Size;
     }
@@ -343,7 +343,7 @@ bool SceneMsgPackParser::ReadString(const char*& str, uint16_t& length)
             return false;
         }
         length = (hi << 8) | lo;
-        str = (const char*)(m_Data + m_Pos);
+        str = reinterpret_cast<const char*>(m_Data + m_Pos);
         m_Pos += length;
         return m_Pos <= m_Size;
     }
@@ -589,7 +589,7 @@ bool SceneMsgPackParser::ParseObjects(Scene* scene)
         return false;
     }
 
-    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: arrSize=%u, scene=%p", arrSize, (void*)scene);
+    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: arrSize=%u, scene=%p", arrSize, static_cast<void*>(scene));
 
     for (uint32_t i = 0; i < arrSize; i++)
     {
@@ -601,12 +601,12 @@ bool SceneMsgPackParser::ParseObjects(Scene* scene)
         if (obj)
         {
             DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: AddObject[%u]='%s' to scene=%p", i,
-                              obj->GetName().c_str(), (void*)scene);
+                              obj->GetName().c_str(), static_cast<void*>(scene));
             scene->AddObject(obj);
         }
     }
 
-    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: Done, scene=%p has %zu objects", (void*)scene,
+    DEKI_LOG_INTERNAL("SceneMsgPackParser::ParseObjects: Done, scene=%p has %zu objects", static_cast<void*>(scene),
                       scene->GetObjects().size());
     return true;
 }
@@ -966,8 +966,8 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             {
                 DEKI_LOG_WARNING("SceneMsgPackParser: Failed to deserialize component '%.*s' (typeId: 0x%08x, mapSize: "
                                  "%u) on object '%s'",
-                                 (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, deferred.dataMapSize,
-                                 name.c_str());
+                                 static_cast<int>(deferred.typeNameLen), deferred.typeNamePtr, deferred.typeId,
+                                 deferred.dataMapSize, name.c_str());
             }
             m_Pos = savedPos;  // Restore position (already skipped past data)
 
@@ -990,7 +990,7 @@ bool SceneMsgPackParser::ParseObjectInternal(Object*& obj)
             Internal::AttachComponent(*obj, missing);
             DEKI_LOG_WARNING(
                 "SceneMsgPackParser: Missing component type '%.*s' (typeId: 0x%08x) on '%s' - data preserved",
-                (int)deferred.typeNameLen, deferred.typeNamePtr, deferred.typeId, name.c_str());
+                static_cast<int>(deferred.typeNameLen), deferred.typeNamePtr, deferred.typeId, name.c_str());
         }
     }
 
@@ -1054,47 +1054,47 @@ void SceneMsgPackWriter::WriteInt(int32_t value)
     if (value >= 0 && value <= 127)
     {
         // Positive fixint
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value));
     }
     else if (value >= -32 && value < 0)
     {
         // Negative fixint
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value));
     }
     else if (value >= 0 && value <= 255)
     {
         // uint8
         WriteByte(0xcc);
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value));
     }
     else if (value >= 0 && value <= 65535)
     {
         // uint16
         WriteByte(0xcd);
-        WriteByte((uint8_t)(value >> 8));
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value >> 8));
+        WriteByte(static_cast<uint8_t>(value));
     }
     else if (value >= -128 && value <= 127)
     {
         // int8
         WriteByte(0xd0);
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value));
     }
     else if (value >= -32768 && value <= 32767)
     {
         // int16
         WriteByte(0xd1);
-        WriteByte((uint8_t)(value >> 8));
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value >> 8));
+        WriteByte(static_cast<uint8_t>(value));
     }
     else
     {
         // int32
         WriteByte(0xd2);
-        WriteByte((uint8_t)(value >> 24));
-        WriteByte((uint8_t)(value >> 16));
-        WriteByte((uint8_t)(value >> 8));
-        WriteByte((uint8_t)value);
+        WriteByte(static_cast<uint8_t>(value >> 24));
+        WriteByte(static_cast<uint8_t>(value >> 16));
+        WriteByte(static_cast<uint8_t>(value >> 8));
+        WriteByte(static_cast<uint8_t>(value));
     }
 }
 
@@ -1104,10 +1104,10 @@ void SceneMsgPackWriter::WriteFloat(float value)
     uint32_t bits;
     memcpy(&bits, &value, sizeof(float));
     // Write big-endian
-    WriteByte((uint8_t)(bits >> 24));
-    WriteByte((uint8_t)(bits >> 16));
-    WriteByte((uint8_t)(bits >> 8));
-    WriteByte((uint8_t)bits);
+    WriteByte(static_cast<uint8_t>(bits >> 24));
+    WriteByte(static_cast<uint8_t>(bits >> 16));
+    WriteByte(static_cast<uint8_t>(bits >> 8));
+    WriteByte(static_cast<uint8_t>(bits));
 }
 
 void SceneMsgPackWriter::WriteString(const char* str)
@@ -1120,22 +1120,22 @@ void SceneMsgPackWriter::WriteString(const char* str)
     if (len <= 31)
     {
         // Fixstr
-        WriteByte(0xa0 | (uint8_t)len);
+        WriteByte(0xa0 | static_cast<uint8_t>(len));
     }
     else if (len <= 255)
     {
         // str8
         WriteByte(0xd9);
-        WriteByte((uint8_t)len);
+        WriteByte(static_cast<uint8_t>(len));
     }
     else
     {
         // str16
         WriteByte(0xda);
-        WriteByte((uint8_t)(len >> 8));
-        WriteByte((uint8_t)len);
+        WriteByte(static_cast<uint8_t>(len >> 8));
+        WriteByte(static_cast<uint8_t>(len));
     }
-    WriteBytes((const uint8_t*)str, len);
+    WriteBytes(reinterpret_cast<const uint8_t*>(str), len);
 }
 
 void SceneMsgPackWriter::WriteString(const std::string& str)
@@ -1148,14 +1148,14 @@ void SceneMsgPackWriter::WriteMapSize(uint32_t size)
     if (size <= 15)
     {
         // Fixmap
-        WriteByte(0x80 | (uint8_t)size);
+        WriteByte(0x80 | static_cast<uint8_t>(size));
     }
     else
     {
         // Map16
         WriteByte(0xde);
-        WriteByte((uint8_t)(size >> 8));
-        WriteByte((uint8_t)size);
+        WriteByte(static_cast<uint8_t>(size >> 8));
+        WriteByte(static_cast<uint8_t>(size));
     }
 }
 
@@ -1164,14 +1164,14 @@ void SceneMsgPackWriter::WriteArraySize(uint32_t size)
     if (size <= 15)
     {
         // Fixarray
-        WriteByte(0x90 | (uint8_t)size);
+        WriteByte(0x90 | static_cast<uint8_t>(size));
     }
     else
     {
         // Array16
         WriteByte(0xdc);
-        WriteByte((uint8_t)(size >> 8));
-        WriteByte((uint8_t)size);
+        WriteByte(static_cast<uint8_t>(size >> 8));
+        WriteByte(static_cast<uint8_t>(size));
     }
 }
 
@@ -1341,7 +1341,7 @@ void SceneMsgPackWriter::WriteTransform(Object* obj)
 void SceneMsgPackWriter::WriteComponents(Object* obj)
 {
     const auto& components = obj->GetComponents();
-    WriteArraySize((uint32_t)components.size());
+    WriteArraySize(static_cast<uint32_t>(components.size()));
 
     for (Component* comp : components)
     {
@@ -1397,7 +1397,7 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
     // Write component properties using reflection
     if (!allProps.empty())
     {
-        WriteMapSize((uint32_t)allProps.size());
+        WriteMapSize(static_cast<uint32_t>(allProps.size()));
         for (const PropertyInfo* propPtr : allProps)
         {
             const PropertyInfo& prop = *propPtr;
@@ -1424,7 +1424,7 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                 case PropertyType::Bool: WriteBool(GetPropertyValue<bool>(comp, prop)); break;
                 case PropertyType::String: WriteString(GetPropertyValue<std::string>(comp, prop)); break;
                 case PropertyType::Color:
-                    WriteInt((int32_t)GetPropertyRef<Deki::Color>(comp, prop).ToRGBA8888());
+                    WriteInt(static_cast<int32_t>(GetPropertyRef<Deki::Color>(comp, prop).ToRGBA8888()));
                     break;
                 case PropertyType::Enum:
                     switch (prop.enumSize)
@@ -1520,8 +1520,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                     break;
                 }
                 default:
-                    DEKI_LOG_ERROR("SceneMsgPackWriter: Unhandled property type %d for '%s' on '%s'", (int)prop.type,
-                                   prop.name, typeName);
+                    DEKI_LOG_ERROR("SceneMsgPackWriter: Unhandled property type %d for '%s' on '%s'",
+                                   static_cast<int>(prop.type), prop.name, typeName);
                     WriteNil();
                     break;
             }

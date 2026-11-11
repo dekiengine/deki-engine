@@ -89,10 +89,11 @@ public:
 };
 
 #ifdef DEKI_EDITOR
-// Registers an auto SetupComponent from a static initializer. In the
-// SetupComponent's .cpp, one or the other:
-//     DEKI_REGISTER_EDITOR_AUTO_SETUP(MyEditorComponent);  // on project open
-//     DEKI_REGISTER_PLAY_AUTO_SETUP(MyRuntimeComponent);   // on Play
+/// Registers an auto SetupComponent from a static initializer. In the
+/// SetupComponent's .cpp, one or the other:
+///
+///     DEKI_REGISTER_EDITOR_AUTO_SETUP(MyEditorComponent);  // on project open
+///     DEKI_REGISTER_PLAY_AUTO_SETUP(MyRuntimeComponent);   // on Play
 template <typename T, SetupComponent::SetupPhase Phase>
 struct AutoSetupRegistrar
 {

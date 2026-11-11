@@ -12,6 +12,7 @@
 namespace Deki
 {
 
+/// Project-wide runtime settings, read from the project_data.bin the editor exports.
 namespace ProjectSettings
 {
 
@@ -29,6 +30,7 @@ constexpr uint16_t kFlagAssetsExternal = 1u << 0;  // the assets are on external
 // this check.
 constexpr size_t kMaxFileSize = 16384;
 
+/// Header at the start of project_data.bin.
 struct FileHeader
 {
     uint32_t magic;    // kMagic
@@ -36,8 +38,9 @@ struct FileHeader
     uint16_t flags;    // kFlag*
 };
 
-// The reserved fields are unused and kept only so the file layout stays the
-// same. The framebuffer takes the display's own size and format.
+/// Display section of project_data.bin, after the FileHeader.
+/// The reserved fields are unused and kept only so the file layout stays the
+/// same. The framebuffer takes the display's own size and format.
 struct DisplaySettings
 {
     int32_t reserved0;  // formerly targetWidth
@@ -51,7 +54,8 @@ struct DisplaySettings
     float screenDiagonalInches;
 };
 
-// Follows DisplaySettings.
+/// Runtime section of project_data.bin: target frame rate and startup scene.
+/// Follows DisplaySettings.
 struct RuntimeSettings
 {
     int32_t targetFPS;      // 0 = no limit

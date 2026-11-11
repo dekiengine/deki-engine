@@ -13,6 +13,7 @@ class Scene;
 class Object;
 class Component;
 
+/// The compiled MessagePack scene format: type tags, parser and writer.
 namespace SceneFormat
 {
 

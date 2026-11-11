@@ -11,6 +11,7 @@
 namespace Deki
 {
 
+/// A half-open pixel rectangle: right and bottom are excluded.
 struct Rect
 {
     int32_t left;

@@ -12,7 +12,7 @@ class IFileSystem
 {
 public:
     /// Opaque; each implementation decides what it points to.
-    typedef void* FileHandle;
+    using FileHandle = void*;
 
     enum class OpenMode
     {

@@ -24,10 +24,11 @@ namespace Deki
 
 class Scene;
 class Component;
+class Object;
 
 // Profiling callback types - set by editor, null on embedded devices
-typedef void (*LifecycleProfileBeginCallback)(const char* name);
-typedef void (*LifecycleProfileEndCallback)();
+using LifecycleProfileBeginCallback = void (*)(const char* name);
+using LifecycleProfileEndCallback = void (*)();
 
 /// Runs the component lifecycle (InternalAwake, Awake, Start, Update) and
 /// resolves references. Engine calls it in the update phase, before rendering.
@@ -79,6 +80,32 @@ public:
     /// state machines never tick outside the editor.
     void ProcessRuntimeUpdate(Scene* scene, float deltaTime);
 
+    /// While one of these is alive, destroyed objects and removed components
+    /// wait instead of being freed, so code walking the scene's lists can go
+    /// on. The outermost one frees them as it ends. Each Process phase holds
+    /// one; anything else that calls into components from such a walk needs
+    /// its own.
+    class DeferredDestroys
+    {
+    public:
+        explicit DeferredDestroys(LifecycleManager& manager) : m_Manager(manager) { ++m_Manager.m_DeferDepth; }
+        ~DeferredDestroys() { m_Manager.EndDeferring(); }
+        DeferredDestroys(const DeferredDestroys&) = delete;
+        DeferredDestroys& operator=(const DeferredDestroys&) = delete;
+
+    private:
+        LifecycleManager& m_Manager;
+    };
+
+    /// Queue `object` or `component` for the end of the phase. False when no
+    /// phase is running, and the caller frees it now.
+    bool DeferDestroy(Object* object);
+    bool DeferRemoval(Component* component);
+
+    /// Drops a queued object or component that something else is freeing.
+    void ForgetDeferred(const Object* object);
+    void ForgetDeferred(const Component* component);
+
 private:
     // Scratch buffers for the per-phase component snapshots.
     //
@@ -95,6 +122,12 @@ private:
     std::vector<Component*> m_UpdateScratch;
     bool m_SnapshotScratchInUse = false;
     bool m_UpdateScratchInUse = false;
+
+    int m_DeferDepth = 0;
+    std::vector<Object*> m_DestroyedObjects;
+    std::vector<Component*> m_RemovedComponents;
+
+    void EndDeferring();
 
     // Resolves the component's ObjectRef properties against objects in `scene`.
     void ResolveObjectRefs(Component* component, Scene* scene);

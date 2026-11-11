@@ -42,6 +42,7 @@ class Scene;
 namespace Deki
 {
 
+/// Loads, caches and frees assets, by path or GUID.
 class DEKI_ASSET_MANAGER_API AssetManager
 {
 public:

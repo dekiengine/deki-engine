@@ -3,6 +3,7 @@
 #include "AuthoredFormat.h"
 
 #include <algorithm>
+#include <memory>
 #include <new>
 #include <functional>
 #include <typeinfo>
@@ -10,6 +11,9 @@
 #include <unordered_map>
 
 #include <deki/Object.h>
+#include <deki/Engine.h>
+#include <deki/SceneSystem.h>
+#include "LifecycleManager.h"
 #include <deki/LogSystem.h>
 #include <deki/providers/FileSystem.h>
 #include <deki/providers/IFileSystem.h>
@@ -212,9 +216,9 @@ std::vector<std::pair<std::string, std::string>> Scene::CollectLegacyProperties(
 // Object (packages hold Scene* and call out-of-line methods rather than
 // reading members inline), but deki-editor.dll constructs one by value in
 // AssetPipeline::CompileSceneFile, so the size must still agree across configs.
-// Measured at 120 in both.
+// Measured at 112 in both (120 before the kept scene bytes became a Buffer).
 #if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
-static_assert(sizeof(Scene) == 120, "sizeof(Scene) changed. Verify the editor and a runtime config "
+static_assert(sizeof(Scene) == 112, "sizeof(Scene) changed. Verify the editor and a runtime config "
                                     "(a game build, DEKI_EDITOR off) still agree, and bump "
                                     "kDekiReflectionAbiVersion in interop/ReflectionAbi.h.");
 #endif
@@ -283,21 +287,14 @@ void Scene::ClearScene()
 // Static loading methods
 // =============================================================================
 
-namespace
+// The copy Instantiate reads: in external RAM where the board has it (a
+// scene's bytes are cold, read again only to instantiate it), internal RAM
+// otherwise. False when it does not fit.
+bool Scene::KeepSceneData(size_t size)
 {
-// Whether `bytes` can be allocated right now, asked with the non-throwing new
-// (which returns null where the throwing one aborts the device).
-bool FitsInMemory(size_t bytes)
-{
-    void* probe = ::operator new(bytes ? bytes : 1, std::nothrow);
-    if (!probe)
-    {
-        return false;
-    }
-    ::operator delete(probe);
-    return true;
+    const Memory::Region region = Memory::IsExternalAvailable() ? Memory::External : Memory::Internal;
+    return m_SceneData.Allocate(size ? size : 1, region);
 }
-}  // namespace
 
 Scene* Scene::Load(const char* path, bool cache)
 {
@@ -355,37 +352,32 @@ Scene* Scene::LoadInternal(const char* path)
         return nullptr;
     }
 
-    // The whole file is held for re-instantiation. Asked for without
-    // throwing first: on a device a failed std::vector allocation aborts, so a
-    // scene too big for the free RAM would reset the board instead of failing
-    // to load.
-    if (!FitsInMemory(static_cast<size_t>(fileSize)))
+    // The whole file is held for re-instantiation and read straight into
+    // that copy. A scene too big for the free RAM fails to load rather than
+    // resetting the board: the copy is a Buffer, which returns nothing
+    // instead of aborting.
+    std::unique_ptr<Scene> scene(new Scene());
+    if (!scene->KeepSceneData(static_cast<size_t>(fileSize)))
     {
         fs->CloseFile(handle);
         DEKI_LOG_ERROR("Scene::LoadInternal: '%s' (%ld bytes) does not fit in the free memory", path, fileSize);
         return nullptr;
     }
-
-    // Read file directly into scene data (avoids double allocation + memcpy)
-    Scene* scene = new Scene();
-    scene->m_SceneData.resize(static_cast<size_t>(fileSize));
-    size_t bytesRead = fs->ReadFile(handle, scene->m_SceneData.data(), static_cast<size_t>(fileSize));
+    size_t bytesRead = fs->ReadFile(handle, scene->m_SceneData.Data(), static_cast<size_t>(fileSize));
     fs->CloseFile(handle);
 
     if (bytesRead != static_cast<size_t>(fileSize))
     {
-        delete scene;
         DEKI_LOG_ERROR("Scene::LoadInternal: Failed to read file '%s'", path);
         return nullptr;
     }
 
     // Parse MessagePack data (works in both editor and runtime)
-    SceneFormat::SceneMsgPackParser parser(scene->m_SceneData.data(), bytesRead);
-    bool success = parser.ParseScene(scene);
+    SceneFormat::SceneMsgPackParser parser(scene->m_SceneData.Data(), bytesRead);
+    bool success = parser.ParseScene(scene.get());
 
     if (!success)
     {
-        delete scene;
         DEKI_LOG_ERROR("Scene::LoadInternal: Failed to parse scene '%s'", path);
         return nullptr;
     }
@@ -404,7 +396,7 @@ Scene* Scene::LoadInternal(const char* path)
         scene->m_Name = path;
     }
 
-    return scene;
+    return scene.release();
 }
 
 Scene* Scene::LoadFromMemory(const uint8_t* data, size_t size)
@@ -415,25 +407,22 @@ Scene* Scene::LoadFromMemory(const uint8_t* data, size_t size)
         return nullptr;
     }
 
-    Scene* scene = new Scene();
+    std::unique_ptr<Scene> scene(new Scene());
     if (!scene->LoadData(data, size))
     {
-        delete scene;
         return nullptr;
     }
 
     // Store data for potential re-instantiation
-    if (!FitsInMemory(size))
+    if (!scene->KeepSceneData(size))
     {
         DEKI_LOG_ERROR("Scene::LoadFromMemory: a copy of the scene (%zu bytes) does not fit in the free memory", size);
-        delete scene;
         return nullptr;
     }
-    scene->m_SceneData.resize(size);
-    memcpy(scene->m_SceneData.data(), data, size);
+    memcpy(scene->m_SceneData.Data(), data, size);
     scene->m_IsLoaded = true;
 
-    return scene;
+    return scene.release();
 }
 
 // =============================================================================
@@ -447,7 +436,7 @@ Object* Scene::Instantiate(Scene* targetScene)
 
 Object* Scene::Instantiate(Scene* targetScene, float x, float y)
 {
-    if (!m_IsLoaded || m_SceneData.empty())
+    if (!m_IsLoaded || m_SceneData.Empty())
     {
         DEKI_LOG_ERROR("Scene::Instantiate: Scene not loaded");
         return nullptr;
@@ -471,7 +460,7 @@ Object* Scene::Instantiate(Scene* targetScene, float x, float y)
 
     // Parse the full scene format into a temporary scene
     Scene tempScene;
-    SceneFormat::SceneMsgPackParser parser(m_SceneData.data(), m_SceneData.size());
+    SceneFormat::SceneMsgPackParser parser(m_SceneData.Data(), m_SceneData.Count());
     if (!parser.ParseScene(&tempScene))
     {
         DEKI_LOG_ERROR("Scene::Instantiate: Failed to parse scene data");
@@ -563,7 +552,7 @@ void Scene::AddObject(Object* obj)
     VisitSubtree(obj, [this](Object* o) { o->SetOwnerScene(this); });
     m_Objects.push_back(obj);
     DEKI_LOG_INTERNAL("Scene::AddObject: Added '%s', objects.size()=%zu, this=%p",
-                      obj ? obj->GetName().c_str() : "null", objects.size(), (void*)this);
+                      obj ? obj->GetName().c_str() : "null", objects.size(), static_cast<void*>(this));
     m_ComponentsCacheDirty = true;
 }
 
@@ -595,25 +584,77 @@ void AnnounceSubtreeDestroy(const Scene* scene, Object* obj)
 }  // namespace
 #endif
 
+namespace
+{
+void CollectSubtreeIds(const Object* obj, std::unordered_map<uint32_t, uint32_t>& ids)
+{
+    ids[obj->GetId()] = obj->GetId();
+    for (const Object* child : obj->GetChildren())
+    {
+        CollectSubtreeIds(child, ids);
+    }
+}
+
+// Mapping an id to itself keeps the id and empties the resolved pointer.
+void EmptyObjectRefs(Object* obj, const std::unordered_map<uint32_t, uint32_t>& ids)
+{
+    for (Component* comp : obj->GetComponents())
+    {
+        comp->RemapObjectRefs(ids);
+    }
+    for (Object* child : obj->GetChildren())
+    {
+        EmptyObjectRefs(child, ids);
+    }
+}
+}  // namespace
+
 void Scene::DestroyDekiObject(Object* obj)
 {
-    if (!obj)
+    if (!obj || obj->IsPendingDestroy())
     {
         return;
     }
 
+    std::unordered_map<uint32_t, uint32_t> ids;
+    CollectSubtreeIds(obj, ids);
+    for (Object* root : m_Objects)
+    {
+        EmptyObjectRefs(root, ids);
+    }
+    Engine& engine = Engine::GetInstance();
+    for (Object* persistent : engine.GetSceneSystem().GetPersistentObjects())
+    {
+        EmptyObjectRefs(persistent, ids);
+    }
+
+    if (engine.GetLifecycleManager()->DeferDestroy(obj))
+    {
+        obj->MarkPendingDestroy();
+        return;
+    }
+    FinishDestroy(this, obj);
+}
+
+void Scene::FinishDestroy(Scene* scene, Object* obj)
+{
 #ifdef DEKI_EDITOR
     // Notify subscribers before pointers go invalid.
-    AnnounceSubtreeDestroy(this, obj);
+    if (scene)
+    {
+        AnnounceSubtreeDestroy(scene, obj);
+    }
 #endif
 
-    // Remove from parent if has one
     obj->RemoveFromParent();
-
-    // Remove from scene
-    RemoveObject(obj);
-
-    // Delete the object
+    if (scene)
+    {
+        scene->RemoveObject(obj);
+    }
+    if (obj->IsPersistent())
+    {
+        Engine::GetInstance().GetSceneSystem().ForgetPersistent(obj);
+    }
     delete obj;
 }
 
@@ -627,13 +668,40 @@ void Scene::RemoveObject(Object* obj)
     m_ComponentsCacheDirty = true;
 }
 
+namespace
+{
+// The first object in obj's subtree that matches, leaving out an object being
+// destroyed and everything under it: DestroyDekiObject marks only the
+// subtree's root, and the rest goes with it when the phase ends.
+template <typename Pred>
+Object* FindLiveInSubtree(Object* obj, const Pred& pred)
+{
+    if (!obj || obj->IsPendingDestroy())
+    {
+        return nullptr;
+    }
+    if (pred(obj))
+    {
+        return obj;
+    }
+    for (Object* child : obj->GetChildren())
+    {
+        if (Object* found = FindLiveInSubtree(child, pred))
+        {
+            return found;
+        }
+    }
+    return nullptr;
+}
+}  // namespace
+
 Object* Scene::FindDekiObject(const std::string& name)
 {
     // Whole tree, like the id overload: every scene has a single "Root", so
     // the root list alone holds nothing else.
     for (auto* obj : m_Objects)
     {
-        Object* found = FindInSubtree(obj, [&name](Object* o) { return o->GetName() == name; });
+        Object* found = FindLiveInSubtree(obj, [&name](Object* o) { return o->GetName() == name; });
         if (found)
         {
             return found;
@@ -646,7 +714,7 @@ Object* Scene::FindDekiObject(uint32_t id)
 {
     for (auto* obj : m_Objects)
     {
-        Object* found = FindInSubtree(obj, [id](Object* o) { return o->GetId() == id; });
+        Object* found = FindLiveInSubtree(obj, [id](Object* o) { return o->GetId() == id; });
         if (found)
         {
             return found;

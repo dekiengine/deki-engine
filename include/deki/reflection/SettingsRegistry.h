@@ -32,6 +32,7 @@
 namespace Deki
 {
 
+/// One registered project-settings type and its live instance.
 struct SettingsTypeInfo
 {
     const char* sectionName;    // "Rendering", "Audio": editor section header and registry key

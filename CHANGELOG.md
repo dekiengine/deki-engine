@@ -6,7 +6,51 @@ and package DLLs has its own numbered history in
 
 ## Unreleased
 
+### Added
+- `ScreenAnchor::AddPlacer` and `RemovePlacer`: a function that places objects
+  from the camera before each frame, called by `ScreenAnchor::PlaceAll` after
+  the anchors, so it runs wherever a frame is drawn (the game, the Play view,
+  the editor's previews). The Tiled package uses it for object layers with
+  parallax.
+
+### Changed
+- A loaded scene keeps its copy of the file (read again only by
+  `Scene::Instantiate`) in external RAM where the board has it, internal RAM
+  otherwise. On a T-Deck Plus the guide's farm scene moved 10.4 KB out of
+  internal RAM: DMA-capable memory left free went from 4.9 to 8.0 KB, and the
+  rest went to the scene's own objects, which stay in internal RAM before
+  overflowing to PSRAM. A scene too big for the free memory still fails to
+  load instead of resetting the board.
+- **Breaking: reflection ABI 24.** `sizeof(Scene)` is 112 on 64-bit builds
+  (was 120), since the kept copy is a `Deki::Buffer`. Packages built before
+  this are refused at load and rebuilt.
+
 ### Fixed
+- **The editor no longer crashes pressing Play after a package or the game's
+  code is rebuilt.** The memory report's allocation sites kept pointers to
+  function and file names in the code that allocated; after a hot reload
+  unloaded that code, starting Play read them (`strlen` on freed memory).
+  `Memory::KeepSiteNames` copies the names, and the editor calls it before
+  unloading any library. A board never unloads code and never pays for it.
+- **Destroying an object or removing a component from a running component no
+  longer reads freed memory.** The lifecycle walks a copy of the component
+  list, which then held the freed pointer. `Scene::DestroyDekiObject` and
+  `Object::RemoveComponent`, called from Awake, Start, Update, RuntimeUpdate or
+  input dispatch, now stop the object or component at once and free it when
+  that phase ends. Called anywhere else they still free at once. **Breaking:**
+  code that relied on the destructor having run by the next line must wait for
+  the next phase. `IsPendingDestroy()` tells whether an object is waiting.
+- An `ObjectRef` to a destroyed object reads as empty, where it kept pointing
+  at freed memory and its `operator bool` stayed true.
+- `IInputSystem::DispatchPointer`, for a host to send a pointer as an input
+  event. It has a default that does nothing, so input systems built before it
+  still compile.
+- `Scene::FindDekiObject` no longer finds an object waiting to be destroyed,
+  or anything under it. It found them until the phase ended.
+- A destroyed persistent object is taken off the persistent list.
+- `AddComponent` and `RemoveComponent` update the scene's list of active
+  components: a component added to a running scene got no lifecycle calls, and
+  one removed left a freed pointer in the list.
 - The reflection codegen compiles a configure's stale work units at the same
   time, as many as the host has cores, instead of one after another. A fresh
   configure of the demo went from 131 to 67 seconds, with the same output.

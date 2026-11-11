@@ -26,6 +26,20 @@ public:
     // keyboard driver. Key codes follow InputKeys.h.
     virtual void DispatchKey(uint32_t key, bool down) = 0;
 
+    // Feeds a pointer from the host in the game screen's pixels, such as the
+    // editor's Play view forwarding the mouse, so game code hears it as an
+    // input event and colliders get it, as with a touch on a device. Returns
+    // false when this input system cannot; the host then calls DispatchInput.
+    virtual bool DispatchPointer(int32_t screenX, int32_t screenY, bool down, bool move, bool up)
+    {
+        (void)screenX;
+        (void)screenY;
+        (void)down;
+        (void)move;
+        (void)up;
+        return false;
+    }
+
     virtual bool IsInitialized() const = 0;
 
     // Polls the input drivers. Engine::Update calls it once per frame.

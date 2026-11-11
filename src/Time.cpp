@@ -97,7 +97,7 @@ void Time::Update(uint32_t deltaTime)
 
     if (s_FpsTime >= 1000)  // One second has passed
     {
-        s_Fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
+        s_Fps = static_cast<float>(s_FpsCounter) * 1000.0f / static_cast<float>(s_FpsTime);
         s_FpsCounter = 0;
         s_FpsTime = 0;
     }
@@ -119,7 +119,7 @@ void Time::UpdateF(float deltaTimeMs)
 
     if (s_FpsTime >= 1000)  // One second has passed
     {
-        s_Fps = (float)s_FpsCounter * 1000.0f / (float)s_FpsTime;
+        s_Fps = static_cast<float>(s_FpsCounter) * 1000.0f / static_cast<float>(s_FpsTime);
         s_FpsCounter = 0;
         s_FpsTime = 0;
     }

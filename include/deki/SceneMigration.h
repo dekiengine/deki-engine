@@ -27,6 +27,7 @@ DEKI_ENGINE_API void UnregisterComponentsMigration(ComponentsMigration migration
 /// Runs every registered migration on one object's components array.
 DEKI_ENGINE_API void RunComponentsMigrations(nlohmann::json& components);
 
+/// Registers a components migration on construction and removes it on destruction.
 struct ComponentsMigrationRegistrar
 {
     explicit ComponentsMigrationRegistrar(ComponentsMigration m)

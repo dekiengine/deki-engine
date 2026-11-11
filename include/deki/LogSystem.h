@@ -72,6 +72,7 @@ enum class LogLevel
 // Receives log lines, for the editor console.
 using LogCallback = std::function<void(LogLevel level, const std::string& message, const char* file, int line)>;
 
+/// Backend of the DEKI_LOG macros, with a callback for the editor console.
 class DEKI_LOG_API LogSystem
 {
 public:
