@@ -7,6 +7,9 @@ and package DLLs has its own numbered history in
 ## Unreleased
 
 ### Added
+- `IInputSystem::DispatchStick(stick, x, y)`: a host feeds where an analog
+  stick points, which games read with deki-input's `DekiInput::GetStick`.
+  It does nothing by default, and is last in the interface.
 - `ScreenAnchor::AddPlacer` and `RemovePlacer`: a function that places objects
   from the camera before each frame, called by `ScreenAnchor::PlaceAll` after
   the anchors, so it runs wherever a frame is drawn (the game, the Play view,

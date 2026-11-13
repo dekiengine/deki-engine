@@ -48,6 +48,16 @@ public:
     // True when an input driver asked the application to quit (such as a
     // window close). Engine::RunMainLoop polls it.
     virtual bool ShouldExit() const = 0;
+
+    // Feeds where a host's analog stick points (0 the left, 1 the right), such
+    // as the editor's Play view forwarding a gamepad: x and y each from -1 to
+    // 1, right and up positive. Game code reads it as DekiInput::GetStick.
+    virtual void DispatchStick(int stick, float x, float y)
+    {
+        (void)stick;
+        (void)x;
+        (void)y;
+    }
 };
 
 }  // namespace Deki
