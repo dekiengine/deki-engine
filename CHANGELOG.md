@@ -4,7 +4,7 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
-## Unreleased
+## 0.40.0 - 2026-11-14
 
 ### Added
 - `IInputSystem::DispatchStick(stick, x, y)`: a host feeds where an analog
@@ -17,6 +17,9 @@ and package DLLs has its own numbered history in
   parallax.
 
 ### Changed
+- **`DEKI_OLDEST_SUPPORTED_PACKAGE` is 0.40.0.** With reflection ABI 24, every
+  package is released with this engine, and one made for an older engine is
+  refused at load until it is rebuilt.
 - A loaded scene keeps its copy of the file (read again only by
   `Scene::Instantiate`) in external RAM where the board has it, internal RAM
   otherwise. On a T-Deck Plus the guide's farm scene moved 10.4 KB out of

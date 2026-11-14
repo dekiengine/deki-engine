@@ -13,7 +13,7 @@
 #   cmake .. -DDEKI_EDITOR=ON
 
 cmake_minimum_required(VERSION 3.16)
-project(deki-engine VERSION 0.30.3 LANGUAGES C CXX)
+project(deki-engine VERSION 0.40.0 LANGUAGES C CXX)
 
 # Transform width (include/deki/Object.h, deki-editor/COMPATIBILITY.md).
 # Whoever configures this tree says which: the editor forces both on so it can
@@ -177,7 +177,7 @@ endif()
 # definitions: a definition is on the compile line of everything built against
 # deki-engine-core, so a new version rebuilt all of it. configure_file
 # rewrites the header only when its text changes.
-set(DEKI_OLDEST_SUPPORTED_PACKAGE "0.22.0")
+set(DEKI_OLDEST_SUPPORTED_PACKAGE "0.40.0")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/EngineVersion.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/generated/include/deki/EngineVersion.h @ONLY)
 
