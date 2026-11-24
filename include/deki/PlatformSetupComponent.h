@@ -11,7 +11,8 @@ namespace Deki
 {
 
 /// Runs the boot scene's SetupComponents (such as SDCardComponent) one at a
-/// time, in order, waiting for each to finish, then loads the startup scene.
+/// time, in order, waiting for each to finish, then loads the startup scene,
+/// or first the splash screen when a package set one (BootSplash.h).
 /// If a setup fails it stops there and the startup scene is not loaded.
 ///
 /// In a boot scene:
@@ -35,6 +36,10 @@ public:
     void Start() override;
     void Update() override;
 
+    /// Loads the project's startup scene and makes it the root scene. The
+    /// boot scene calls it, or the splash screen when one is shown.
+    static void LoadStartupScene();
+
 private:
     int m_CurrentIndex = 0;
     bool m_SetupComplete = false;
@@ -43,7 +48,7 @@ private:
 
     void StartNextSetup();
     void OnSetupComplete(bool success);
-    void LoadStartupScene();
+    static bool OpenSplash();
 };
 
 }  // namespace Deki

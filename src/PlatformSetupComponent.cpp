@@ -1,4 +1,5 @@
 #include <deki/PlatformSetupComponent.h>
+#include <deki/BootSplash.h>
 #include <deki/Engine.h>
 #include <deki/Time.h>
 #include <deki/Scene.h>
@@ -47,8 +48,32 @@ void PlatformSetupComponent::Update()
     if (m_WaitingToLoadScene)
     {
         m_WaitingToLoadScene = false;
-        LoadStartupScene();
+        if (!OpenSplash())
+        {
+            LoadStartupScene();
+        }
     }
+}
+
+bool PlatformSetupComponent::OpenSplash()
+{
+    const BootSplash::MakeScene make = BootSplash::GetMaker();
+    Scene* splash = make ? make() : nullptr;
+    if (!splash)
+    {
+        return false;
+    }
+
+    DEKI_LOG_INTERNAL("Showing the splash screen");
+    Engine& engine = Engine::GetInstance();
+    engine.SetRootScene(splash, true);
+    if (LifecycleManager* lifecycle = engine.GetLifecycleManager())
+    {
+        lifecycle->ProcessInternalAwake(splash);
+        lifecycle->ProcessAwake(splash);
+    }
+    Time::ResetFrameTime();
+    return true;
 }
 
 void PlatformSetupComponent::StartNextSetup()

@@ -4,6 +4,20 @@ Notable changes to the Deki engine core. The reflection ABI between the editor
 and package DLLs has its own numbered history in
 `include/deki/interop/ReflectionAbi.h`, summarised here.
 
+## Unreleased
+
+### Added
+- A splash screen between the boot scene and the startup scene
+  (`deki/BootSplash.h`). A package sets what makes the splash scene with
+  `BootSplash::SetMaker`; once every SetupComponent is done,
+  `PlatformSetupComponent` opens it instead of the startup scene, and the
+  splash calls `PlatformSetupComponent::LoadStartupScene()`, now public and
+  static, when it has been seen. With nothing set, boot goes straight to the
+  startup scene as before. deki-rendering's splash shows the Deki logo.
+
+### Changed
+- The README opens with the new Deki Engine logo.
+
 ## 0.40.1 - 2026-11-15
 
 No engine changes; released with the editor's 0.40.1.

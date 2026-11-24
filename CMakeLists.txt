@@ -94,6 +94,7 @@ list(APPEND DEKI_CORE_SOURCES
     src/providers/Power.cpp
     src/settings/CoreProjectSettings.cpp
     src/settings/UnitProjectSettings.cpp
+    src/BootSplash.cpp
     src/PlatformSetupComponent.cpp
     src/ScreenAnchor.cpp
     src/SetupComponent.cpp

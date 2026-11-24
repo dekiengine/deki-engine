@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/deki-engine-logo-horizontal-on-light.svg">
+  <img alt="Deki Engine" src="docs/brand/deki-engine-logo-horizontal-on-dark.svg" width="420">
+</picture>
+
 # Deki Engine
 
 The core of [Deki](https://github.com/dekiengine), a C++23 2D engine for
