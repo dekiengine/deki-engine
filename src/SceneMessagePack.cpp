@@ -1487,9 +1487,8 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                             }
                         }
                     }
-                    else
+                    else if (prop.elementType == PropertyType::String)
                     {
-                        // Default: String list
                         const std::vector<std::string>& stringList =
                             GetPropertyRef<std::vector<std::string>>(comp, prop);
                         WriteArraySize(static_cast<uint32_t>(stringList.size()));
@@ -1497,6 +1496,42 @@ void SceneMsgPackWriter::WriteComponent(Component* comp)
                         {
                             WriteString(str);
                         }
+                    }
+                    else if (prop.elementType == PropertyType::Float)
+                    {
+                        const std::vector<float>& values = GetPropertyRef<std::vector<float>>(comp, prop);
+                        WriteArraySize(static_cast<uint32_t>(values.size()));
+                        for (float value : values)
+                        {
+                            WriteFloat(value);
+                        }
+                    }
+                    else if (prop.elementType == PropertyType::Int32)
+                    {
+                        const std::vector<int32_t>& values = GetPropertyRef<std::vector<int32_t>>(comp, prop);
+                        WriteArraySize(static_cast<uint32_t>(values.size()));
+                        for (int32_t value : values)
+                        {
+                            WriteInt(value);
+                        }
+                    }
+                    else if (prop.elementType == PropertyType::Bool)
+                    {
+                        // The loader reads a whole number for each element.
+                        const std::vector<bool>& values = GetPropertyRef<std::vector<bool>>(comp, prop);
+                        WriteArraySize(static_cast<uint32_t>(values.size()));
+                        for (bool value : values)
+                        {
+                            WriteInt(value ? 1 : 0);
+                        }
+                    }
+                    else
+                    {
+                        // An element type with no writer: an empty list loads
+                        // cleanly, where reading the vector as another type
+                        // would read memory that is not there.
+                        DEKI_LOG_WARNING("SceneMsgPackWriter: '%s' is a list of a type that is not written", prop.name);
+                        WriteArraySize(0);
                     }
                     break;
                 }
